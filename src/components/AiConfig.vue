@@ -191,7 +191,13 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
           const isDebugLoading = ref(false);
           const debugHistory = ref([]);
           const aiConfigExt = ref(Tools.getAiConfigExt());
+          const apiConfigList = ref([]);
+          const apiView = ref("list");
+          const editingConfigId = ref(null);
           const selectedPresetId = ref("");
+          const presetView = ref("list");
+          const editingPresetId = ref(null);
+          const presetForm = ref({ name: "", content: "", scope: "personal" });
           const memoryScopeOptions = [
             { label: "会话级", value: "session" },
             { label: "岗位级", value: "job" },
@@ -221,6 +227,12 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
             if (!aiConfigExt.value.currentConfig) {
               aiConfigExt.value.currentConfig = { provider: 1, modelName: "" };
             }
+            if (!Array.isArray(aiConfigExt.value.apiConfigs)) {
+              aiConfigExt.value.apiConfigs = [];
+            }
+            if (typeof aiConfigExt.value.activeApiConfigId !== "string") {
+              aiConfigExt.value.activeApiConfigId = "";
+            }
             if (!aiConfigExt.value.memoryProfiles) {
               aiConfigExt.value.memoryProfiles = {};
             }
@@ -246,6 +258,195 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
           };
           const persistAiConfigExt = () => {
             aiConfigExt.value = Tools.saveAiConfigExt(ensureAiConfigExtSchema());
+          };
+          const createApiConfigId = () => {
+            return `api-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          };
+          const normalizeApiConfigItem = (config) => {
+            const current = config || {};
+            return {
+              id: current.id || createApiConfigId(),
+              provider: Number(current.provider ?? 1),
+              modelName: `${current.modelName || ""}`,
+              apiKey: `${current.apiKey || ""}`,
+              baseUrl: `${current.baseUrl || ""}`,
+              timeout: Number(current.timeout || 60),
+              completionsPath: `${current.completionsPath || ""}`,
+              status: Number(current.status || 0),
+              testPassed: Number(current.testPassed || 0)
+            };
+          };
+          const getProviderLabel = (provider) => {
+            const found = providerOptions.find((item) => item.value === provider);
+            return found ? found.label : `提供商${provider}`;
+          };
+          const maskApiKey = (apiKey) => {
+            const value = `${apiKey || ""}`;
+            if (!value) {
+              return "--";
+            }
+            const head = value.slice(0, Math.min(4, value.length));
+            const tail = value.slice(-Math.min(4, value.length));
+            return `${head}****${tail}`;
+          };
+          const applyApiConfigToForm = (config) => {
+            const normalizedConfig = normalizeApiConfigItem(config);
+            form.value = {
+              ...form.value,
+              provider: normalizedConfig.provider,
+              modelName: normalizedConfig.modelName,
+              apiKey: normalizedConfig.apiKey,
+              baseUrl: normalizedConfig.baseUrl,
+              timeout: normalizedConfig.timeout,
+              completionsPath: normalizedConfig.completionsPath,
+              status: normalizedConfig.status,
+              testPassed: normalizedConfig.testPassed
+            };
+            handleProviderChange(form.value.provider, true);
+          };
+          const persistApiConfigList = (nextList, nextActiveId = void 0) => {
+            const ext = ensureAiConfigExtSchema();
+            ext.apiConfigs = nextList.map((item) => normalizeApiConfigItem(item));
+            if (nextActiveId !== void 0) {
+              ext.activeApiConfigId = nextActiveId || "";
+            }
+            persistAiConfigExt();
+            apiConfigList.value = ext.apiConfigs.map((item) => ({ ...item }));
+          };
+          const loadApiConfigs = () => {
+            const ext = ensureAiConfigExtSchema();
+            let list = Array.isArray(ext.apiConfigs) ? ext.apiConfigs.map((item) => normalizeApiConfigItem(item)) : [];
+            let activeId = typeof ext.activeApiConfigId === "string" ? ext.activeApiConfigId : "";
+            let changed = false;
+            if (!list.length && (form.value.apiKey || form.value.modelName || form.value.baseUrl)) {
+              const defaultConfig = normalizeApiConfigItem({ ...form.value, id: createApiConfigId() });
+              list = [defaultConfig];
+              if (defaultConfig.status === 1) {
+                activeId = defaultConfig.id;
+              }
+              changed = true;
+            }
+            if (activeId && !list.some((item) => item.id === activeId)) {
+              activeId = "";
+              changed = true;
+            }
+            if (!activeId) {
+              const enabledItem = list.find((item) => item.status === 1);
+              if (enabledItem) {
+                activeId = enabledItem.id;
+                changed = true;
+              }
+            }
+            if (activeId) {
+              const normalizedStatusList = list.map((item) => ({
+                ...item,
+                status: item.id === activeId ? 1 : 0
+              }));
+              if (normalizedStatusList.some((item, index) => item.status !== list[index].status)) {
+                list = normalizedStatusList;
+                changed = true;
+              }
+            }
+            if (changed) {
+              persistApiConfigList(list, activeId);
+              return;
+            }
+            apiConfigList.value = list;
+          };
+          const backToList = () => {
+            apiView.value = "list";
+            editingConfigId.value = null;
+          };
+          const startNewConfig = () => {
+            editingConfigId.value = null;
+            form.value = {
+              ...form.value,
+              modelName: "",
+              apiKey: "",
+              baseUrl: "",
+              status: 0,
+              testPassed: 0
+            };
+            apiView.value = "edit";
+          };
+          const startEditConfig = (id) => {
+            const selected = apiConfigList.value.find((item) => item.id === id);
+            if (!selected) {
+              ElMessage({ type: "warning", message: "配置不存在" });
+              return;
+            }
+            editingConfigId.value = id;
+            applyApiConfigToForm(selected);
+            apiView.value = "edit";
+          };
+          const saveApiConfig = async () => {
+            if (!formRef.value) {
+              return;
+            }
+            await formRef.value.validate(async (valid) => {
+              if (!valid) {
+                return;
+              }
+              const id = editingConfigId.value || createApiConfigId();
+              const nextItem = normalizeApiConfigItem({ ...form.value, id });
+              const nextList = apiConfigList.value.map((item) => ({ ...item }));
+              const existsIndex = nextList.findIndex((item) => item.id === id);
+              if (existsIndex >= 0) {
+                nextList[existsIndex] = nextItem;
+              } else {
+                nextList.unshift(nextItem);
+              }
+              const ext = ensureAiConfigExtSchema();
+              let activeId = ext.activeApiConfigId || "";
+              if (nextItem.status === 1) {
+                activeId = id;
+              }
+              const normalizedStatusList = nextList.map((item) => ({
+                ...item,
+                status: activeId && item.id === activeId ? 1 : activeId ? 0 : item.status
+              }));
+              persistApiConfigList(normalizedStatusList, activeId);
+              editingConfigId.value = id;
+              apiView.value = "list";
+              ElMessage({ type: "success", message: "配置已保存" });
+            });
+          };
+          const deleteApiConfig = async (id) => {
+            const current = apiConfigList.value.find((item) => item.id === id);
+            if (!current) {
+              return;
+            }
+            const confirmed = await ElMessageBox.confirm(`确认删除配置【${current.modelName || "未命名模型"}】？`, "删除确认", {
+              confirmButtonText: "删除",
+              cancelButtonText: "取消",
+              type: "warning"
+            }).then(() => true).catch(() => false);
+            if (!confirmed) {
+              return;
+            }
+            const nextList = apiConfigList.value.filter((item) => item.id !== id).map((item) => ({ ...item }));
+            const ext = ensureAiConfigExtSchema();
+            const activeId = ext.activeApiConfigId === id ? "" : ext.activeApiConfigId || "";
+            persistApiConfigList(nextList, activeId);
+            if (editingConfigId.value === id) {
+              backToList();
+            }
+            ElMessage({ type: "success", message: "配置已删除" });
+          };
+          const activateApiConfig = async (id) => {
+            const selected = apiConfigList.value.find((item) => item.id === id);
+            if (!selected) {
+              ElMessage({ type: "warning", message: "配置不存在" });
+              return;
+            }
+            const nextList = apiConfigList.value.map((item) => ({
+              ...item,
+              status: item.id === id ? 1 : 0
+            }));
+            persistApiConfigList(nextList, id);
+            applyApiConfigToForm({ ...selected, status: 1 });
+            await handleSave();
+            backToList();
           };
           const ensureGlobalPresetCatalog = () => {
             const ext = ensureAiConfigExtSchema();
@@ -424,6 +625,110 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
             if (idx >= 0) {
               list.splice(idx, 1);
               selectedPresetId.value = "";
+              persistAiConfigExt();
+              ElMessage({ type: "success", message: "预设已删除" });
+            }
+          };
+          const backToPresetList = () => {
+            presetView.value = "list";
+            editingPresetId.value = null;
+          };
+          const startNewPreset = () => {
+            editingPresetId.value = null;
+            presetForm.value = { name: "", content: "", scope: "personal" };
+            presetView.value = "edit";
+          };
+          const startEditPreset = (id) => {
+            const preset = getPresetById(id);
+            if (!preset) {
+              ElMessage({ type: "warning", message: "预设不存在" });
+              return;
+            }
+            editingPresetId.value = id;
+            presetForm.value = {
+              name: preset.name || "",
+              content: preset.content || "",
+              scope: preset.scope || "personal"
+            };
+            presetView.value = "edit";
+          };
+          const savePreset = () => {
+            const name = (presetForm.value.name || "").trim();
+            const content = (presetForm.value.content || "").trim();
+            if (!name) {
+              ElMessage({ type: "warning", message: "请输入预设名称" });
+              return;
+            }
+            if (!content) {
+              ElMessage({ type: "warning", message: "请输入预设内容" });
+              return;
+            }
+            const ext = ensureAiConfigExtSchema();
+            if (editingPresetId.value) {
+              const list = getCurrentChannelPresetList();
+              const idx = list.findIndex((item) => item.id === editingPresetId.value);
+              if (idx >= 0) {
+                list[idx] = { ...list[idx], name, content, updatedAt: Date.now() };
+              } else {
+                const globalList = ext.promptPresetStore.global || [];
+                const gIdx = globalList.findIndex((item) => item.id === editingPresetId.value);
+                if (gIdx >= 0) {
+                  globalList[gIdx] = { ...globalList[gIdx], name, content };
+                }
+              }
+            } else {
+              const preset = {
+                id: `personal-${Date.now()}`,
+                name,
+                tags: ["个人"],
+                content,
+                scope: "personal",
+                enabled: true,
+                updatedAt: Date.now()
+              };
+              getCurrentChannelPresetList().push(preset);
+            }
+            persistAiConfigExt();
+            ElMessage({ type: "success", message: editingPresetId.value ? "预设已更新" : "预设已创建" });
+            backToPresetList();
+          };
+          const togglePresetEnabled = (id) => {
+            const ext = ensureAiConfigExtSchema();
+            const list = getCurrentChannelPresetList();
+            const idx = list.findIndex((item) => item.id === id);
+            if (idx >= 0) {
+              list[idx].enabled = !list[idx].enabled;
+              persistAiConfigExt();
+              return;
+            }
+            const globalList = ext.promptPresetStore.global || [];
+            const gIdx = globalList.findIndex((item) => item.id === id);
+            if (gIdx >= 0) {
+              globalList[gIdx].enabled = !globalList[gIdx].enabled;
+              persistAiConfigExt();
+            }
+          };
+          const deletePresetById = async (id) => {
+            const preset = getPresetById(id);
+            if (!preset) {
+              return;
+            }
+            if (preset.scope === "global") {
+              ElMessage({ type: "warning", message: "全局预设不可删除" });
+              return;
+            }
+            const confirmed = await ElMessageBox.confirm(`确认删除预设【${preset.name}】？`, "删除确认", {
+              confirmButtonText: "删除",
+              cancelButtonText: "取消",
+              type: "warning"
+            }).then(() => true).catch(() => false);
+            if (!confirmed) {
+              return;
+            }
+            const list = getCurrentChannelPresetList();
+            const idx = list.findIndex((item) => item.id === id);
+            if (idx >= 0) {
+              list.splice(idx, 1);
               persistAiConfigExt();
               ElMessage({ type: "success", message: "预设已删除" });
             }
@@ -741,9 +1046,10 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
             selectedPresetId.value = "";
             jobKey.value = "";
           });
-          onMounted(() => {
+          onMounted(async () => {
             fetchAllProviderDetails();
-            fetchConfig();
+            await fetchConfig();
+            loadApiConfigs();
           });
           return (_ctx, _cache) => {
             const _component_el_input = ElInput;
@@ -761,16 +1067,10 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
             const _component_el_tag = ElTag;
             const _component_el_dialog = ElDialog;
             return openBlock(), createElementBlock("div", _hoisted_1$1, [
-              createVNode(_component_el_collapse, {
-                modelValue: activeCollapseNames.value,
-                "onUpdate:modelValue": _cache[8] || (_cache[8] = ($event) => activeCollapseNames.value = $event)
-              }, {
-                default: withCtx(() => [
-                  createVNode(_component_el_collapse_item, {
-                    name: "tune",
-                    title: ">模型微调(点击展开收起)",
-                    class: "tune-form"
-                  }, {
+              createElementVNode("div", { class: "ai-section" }, [
+                createElementVNode("div", { class: "ai-section-title" }, "\u6A21\u578B\u5FAE\u8C03"),
+                createElementVNode("div", _hoisted_2$1, [
+                  createVNode(_component_el_form, { "label-width": "120px" }, {
                     default: withCtx(() => [
                       createElementVNode("div", _hoisted_2$1, [
                         createVNode(_component_el_form, { "label-width": "120px" }, {
@@ -791,56 +1091,132 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
                             }),
                             createVNode(_component_el_form_item, { label: "提示词预设" }, {
                               default: withCtx(() => [
-                                createElementVNode("div", { style: { "display": "flex", "align-items": "center", "gap": "8px", "flex-wrap": "wrap", "width": "100%" } }, [
-                                  createVNode(_component_el_select, {
-                                    modelValue: selectedPresetId.value,
-                                    "onUpdate:modelValue": ($event) => selectedPresetId.value = $event,
-                                    placeholder: "选择全局或当前模型预设",
-                                    clearable: "",
-                                    style: { "width": "320px" }
-                                  }, {
-                                    default: withCtx(() => [
-                                      (openBlock(true), createElementBlock(Fragment, null, renderList(presetOptions.value, (preset) => {
-                                        return openBlock(), createBlock(_component_el_option, {
+                                createElementVNode("div", {
+                                  class: normalizeClass(["preset-view-wrapper", presetView.value === "edit" ? "is-edit" : ""])
+                                }, [
+                                  createElementVNode("div", { class: "preset-view-panels" }, [
+                                    createElementVNode("div", { class: "preset-view-list" }, [
+                                      createElementVNode("div", { class: "preset-list-header" }, [
+                                        createElementVNode("span", { class: "preset-list-tip" }, "管理提示词预设，启用后自动合并到系统提示词"),
+                                        createVNode(_component_el_button, {
+                                          type: "primary",
+                                          size: "small",
+                                          onClick: startNewPreset
+                                        }, {
+                                          default: withCtx(() => [createTextVNode("新增预设")]),
+                                          _: 1
+                                        })
+                                      ]),
+                                      presetOptions.value.length ? (openBlock(true), createElementBlock(Fragment, { key: 0 }, renderList(presetOptions.value, (preset) => {
+                                        return openBlock(), createElementBlock("div", {
                                           key: preset.id,
-                                          label: preset.optionLabel || preset.name,
-                                          value: preset.id
-                                        }, null, 8, ["label", "value"]);
-                                      }), 128))
+                                          class: "preset-card"
+                                        }, [
+                                          createElementVNode("div", { class: "preset-card__header" }, [
+                                            createElementVNode("span", { class: "preset-card__name" }, toDisplayString(preset.name), 1),
+                                            createVNode(_component_el_tag, {
+                                              size: "small",
+                                              type: preset.scope === "global" ? "warning" : "primary"
+                                            }, {
+                                              default: withCtx(() => [
+                                                createTextVNode(toDisplayString(preset.scope === "global" ? "全局" : "模型"), 1)
+                                              ]),
+                                              _: 2
+                                            }, 1032, ["type"])
+                                          ]),
+                                          createElementVNode("div", { class: "preset-card__content" }, toDisplayString(
+                                            (preset.content || "").length > 80 ? (preset.content || "").slice(0, 80) + "..." : preset.content || "暂无内容"
+                                          ), 1),
+                                          createElementVNode("div", { class: "preset-card__actions" }, [
+                                            createVNode(_component_el_switch, {
+                                              modelValue: preset.enabled !== false,
+                                              "onUpdate:modelValue": ($event) => togglePresetEnabled(preset.id),
+                                              size: "small",
+                                              "active-text": "启用",
+                                              "inactive-text": ""
+                                            }, null, 8, ["modelValue", "onUpdate:modelValue"]),
+                                            createElementVNode("div", { class: "preset-card__buttons" }, [
+                                              createVNode(_component_el_button, {
+                                                size: "small",
+                                                type: "primary",
+                                                plain: "",
+                                                onClick: ($event) => startEditPreset(preset.id)
+                                              }, {
+                                                default: withCtx(() => [createTextVNode("编辑")]),
+                                                _: 2
+                                              }, 1032, ["onClick"]),
+                                              createVNode(_component_el_button, {
+                                                size: "small",
+                                                type: "danger",
+                                                plain: "",
+                                                disabled: preset.scope === "global",
+                                                onClick: ($event) => deletePresetById(preset.id)
+                                              }, {
+                                                default: withCtx(() => [createTextVNode("删除")]),
+                                                _: 2
+                                              }, 1032, ["disabled", "onClick"])
+                                            ])
+                                          ])
+                                        ]);
+                                      }), 128)) : (openBlock(), createBlock(_component_el_empty, {
+                                        key: 1,
+                                        description: "暂无预设，点击右上角新增"
+                                      }))
                                     ]),
-                                    _: 1
-                                  }, 8, ["modelValue"]),
-                                  createVNode(_component_el_button, {
-                                    type: "primary",
-                                    plain: "",
-                                    onClick: applySelectedPreset
-                                  }, {
-                                    default: withCtx(() => [
-                                      createTextVNode("应用预设")
-                                    ]),
-                                    _: 1
-                                  }),
-                                  createVNode(_component_el_button, {
-                                    type: "success",
-                                    plain: "",
-                                    onClick: saveCurrentPromptAsPreset
-                                  }, {
-                                    default: withCtx(() => [
-                                      createTextVNode("另存为预设")
-                                    ]),
-                                    _: 1
-                                  }),
-                                  createVNode(_component_el_button, {
-                                    type: "danger",
-                                    plain: "",
-                                    onClick: deleteSelectedPreset
-                                  }, {
-                                    default: withCtx(() => [
-                                      createTextVNode("删除预设")
-                                    ]),
-                                    _: 1
-                                  })
-                                ])
+                                    createElementVNode("div", { class: "preset-view-edit" }, [
+                                      createElementVNode("div", { class: "preset-edit-header" }, [
+                                        createVNode(_component_el_button, {
+                                          link: "",
+                                          type: "primary",
+                                          onClick: backToPresetList
+                                        }, {
+                                          default: withCtx(() => [createTextVNode("← 返回列表")]),
+                                          _: 1
+                                        }),
+                                        createElementVNode("span", { class: "preset-edit-title" }, toDisplayString(editingPresetId.value ? "编辑预设" : "新增预设"), 1)
+                                      ]),
+                                      createVNode(_component_el_form_item, { label: "预设名称" }, {
+                                        default: withCtx(() => [
+                                          createVNode(_component_el_input, {
+                                            modelValue: presetForm.value.name,
+                                            "onUpdate:modelValue": ($event) => presetForm.value.name = $event,
+                                            placeholder: "例如：技术岗稳健沟通"
+                                          }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                                        ]),
+                                        _: 1
+                                      }),
+                                      createVNode(_component_el_form_item, { label: "预设内容" }, {
+                                        default: withCtx(() => [
+                                          createVNode(_component_el_input, {
+                                            modelValue: presetForm.value.content,
+                                            "onUpdate:modelValue": ($event) => presetForm.value.content = $event,
+                                            type: "textarea",
+                                            rows: 6,
+                                            maxlength: 5e3,
+                                            "show-word-limit": "",
+                                            placeholder: "输入提示词预设内容"
+                                          }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                                        ]),
+                                        _: 1
+                                      }),
+                                      createElementVNode("div", { style: { "display": "flex", "gap": "8px", "justify-content": "flex-end" } }, [
+                                        createVNode(_component_el_button, {
+                                          onClick: backToPresetList
+                                        }, {
+                                          default: withCtx(() => [createTextVNode("取消")]),
+                                          _: 1
+                                        }),
+                                        createVNode(_component_el_button, {
+                                          type: "primary",
+                                          onClick: savePreset
+                                        }, {
+                                          default: withCtx(() => [createTextVNode("保存预设")]),
+                                          _: 1
+                                        })
+                                      ])
+                                    ])
+                                  ])
+                                ], 2)
                               ]),
                               _: 1
                             }),
@@ -926,118 +1302,122 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
                       ])
                     ]),
                     _: 1
-                  }),
-                  createVNode(_component_el_collapse_item, {
-                    name: "api",
-                    title: ">自有API(点击展开收起)",
-                    class: "tune-form"
-                  }, {
-                    default: withCtx(() => [
-                      createVNode(_component_el_form, {
-                        ref_key: "formRef",
-                        ref: formRef,
-                        model: form.value,
-                        rules: rules2,
-                        "label-width": "120px",
-                        class: "config-form"
-                      }, {
-                        default: withCtx(() => [
-                          createElementVNode("div", _hoisted_3, [
-                            createVNode(_component_el_tooltip, {
-                              class: "box-item",
-                              effect: "dark",
-                              content: "测试不通过，测试通过后才可保存生效",
-                              placement: "bottom",
-                              visible: !form.value.testPassed && form.value.status === 1
+                  })
+                ])
+              ]),
+              createElementVNode("div", { class: "ai-section" }, [
+                createElementVNode("div", { class: "ai-section-title" }, "\u81EA\u6709API\u914D\u7F6E"),
+                createElementVNode("div", {
+                  class: normalizeClass(["api-view-wrapper", apiView.value === "edit" ? "is-edit" : ""])
+                }, [
+                  createElementVNode("div", { class: "api-view-panels" }, [
+                    createElementVNode("div", { class: "api-view-list api-config-list" }, [
+                      createElementVNode("div", { class: "api-list-header" }, [
+                        createElementVNode("span", { class: "api-list-tip" }, "管理多个 API Key，按需启用"),
+                        createVNode(_component_el_button, {
+                          type: "primary",
+                          onClick: startNewConfig
+                        }, {
+                          default: withCtx(() => [
+                            createTextVNode("新增配置")
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      apiConfigList.value.length ? (openBlock(true), createElementBlock(Fragment, { key: 0 }, renderList(apiConfigList.value, (item) => {
+                        return openBlock(), createElementBlock("div", {
+                          key: item.id,
+                          class: "api-config-card"
+                        }, [
+                          createElementVNode("div", { class: "api-config-card__meta" }, [
+                            createElementVNode("div", { class: "api-config-card__line" }, [
+                              createElementVNode("span", { class: "api-config-card__label" }, "Base URL"),
+                              createElementVNode("span", { class: "api-config-card__value" }, toDisplayString(item.baseUrl || "--"), 1)
+                            ]),
+                            createElementVNode("div", { class: "api-config-card__line" }, [
+                              createElementVNode("span", { class: "api-config-card__label" }, "模型"),
+                              createElementVNode("span", { class: "api-config-card__value" }, toDisplayString(item.modelName || "--"), 1)
+                            ]),
+                            createElementVNode("div", { class: "api-config-card__line" }, [
+                              createElementVNode("span", { class: "api-config-card__label" }, "API Key"),
+                              createElementVNode("span", { class: "api-config-card__value" }, toDisplayString(maskApiKey(item.apiKey)), 1)
+                            ])
+                          ]),
+                          createElementVNode("div", { class: "api-config-card__actions" }, [
+                            createVNode(_component_el_tag, {
+                              size: "small",
+                              type: item.id === aiConfigExt.value.activeApiConfigId ? "success" : "info"
                             }, {
                               default: withCtx(() => [
-                                createVNode(_component_el_form_item, {
-                                  label: "启用自有API",
-                                  prop: "status"
-                                }, {
-                                  default: withCtx(() => [
-                                    createVNode(_component_el_switch, {
-                                      modelValue: form.value.status,
-                                      "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => form.value.status = $event),
-                                      "active-value": 1,
-                                      "inactive-value": 0,
-                                      onChange: handleStatusChange
-                                    }, null, 8, ["modelValue"])
-                                  ]),
-                                  _: 1
-                                })
+                                createTextVNode(toDisplayString(item.id === aiConfigExt.value.activeApiConfigId ? "已启用" : "未启用"), 1)
                               ]),
-                              _: 1
-                            }, 8, ["visible"]),
-                            createVNode(_component_el_form_item, {
-                              class: "select-opt-item",
-                              label: "提供商",
-                              prop: "provider"
+                              _: 2
+                            }, 1032, ["type"]),
+                            createElementVNode("div", { class: "api-config-card__buttons" }, [
+                              createVNode(_component_el_button, {
+                                size: "small",
+                                type: "primary",
+                                plain: "",
+                                onClick: ($event) => startEditConfig(item.id)
+                              }, {
+                                default: withCtx(() => [
+                                  createTextVNode("编辑")
+                                ]),
+                                _: 2
+                              }, 1032, ["onClick"]),
+                              createVNode(_component_el_button, {
+                                size: "small",
+                                type: "success",
+                                disabled: item.id === aiConfigExt.value.activeApiConfigId,
+                                onClick: ($event) => activateApiConfig(item.id)
+                              }, {
+                                default: withCtx(() => [
+                                  createTextVNode("启用")
+                                ]),
+                                _: 2
+                              }, 1032, ["disabled", "onClick"]),
+                              createVNode(_component_el_button, {
+                                size: "small",
+                                type: "danger",
+                                plain: "",
+                                onClick: ($event) => deleteApiConfig(item.id)
+                              }, {
+                                default: withCtx(() => [
+                                  createTextVNode("删除")
+                                ]),
+                                _: 2
+                              }, 1032, ["onClick"])
+                            ])
+                          ])
+                        ]);
+                      }), 128)) : (openBlock(), createBlock(_component_el_empty, {
+                        key: 1,
+                        description: "暂无配置，点击右上角新增配置"
+                      }))
+                    ]),
+                    createElementVNode("div", { class: "api-view-edit" }, [
+                createVNode(_component_el_form, {
+                  ref_key: "formRef",
+                  ref: formRef,
+                  model: form.value,
+                  rules: rules2,
+                  "label-width": "120px",
+                  class: "config-form api-config-form"
+                }, {
+                  default: withCtx(() => [
+                          createElementVNode("div", { class: "api-edit-header" }, [
+                            createVNode(_component_el_button, {
+                              link: "",
+                              type: "primary",
+                              onClick: backToList
                             }, {
                               default: withCtx(() => [
-                                createVNode(_component_el_select, {
-                                  modelValue: form.value.provider,
-                                  "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => form.value.provider = $event),
-                                  placeholder: "请选择大模型提供商",
-                                  onChange: handleProviderChange
-                                }, {
-                                  default: withCtx(() => [
-                                    (openBlock(), createElementBlock(Fragment, null, renderList(providerOptions, (option) => {
-                                      return createVNode(_component_el_option, {
-                                        key: option.value,
-                                        label: option.label,
-                                        value: option.value
-                                      }, null, 8, ["label", "value"]);
-                                    }), 64))
-                                  ]),
-                                  _: 1
-                                }, 8, ["modelValue"])
+                                createTextVNode("\u2190 返回列表")
                               ]),
                               _: 1
                             }),
-                            createVNode(_component_el_form_item, {
-                              class: "select-opt-item",
-                              label: "模型名称",
-                              prop: "modelName"
-                            }, {
-                              default: withCtx(() => [
-                                createVNode(_component_el_select, {
-                                  modelValue: form.value.modelName,
-                                  "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => form.value.modelName = $event),
-                                  placeholder: "请选择或输入模型名称",
-                                  filterable: "",
-                                  "allow-create": "",
-                                  "default-first-option": ""
-                                }, {
-                                  default: withCtx(() => [
-                                    (openBlock(true), createElementBlock(Fragment, null, renderList(availableModels.value, (model) => {
-                                      return openBlock(), createBlock(_component_el_option, {
-                                        key: model,
-                                        label: model,
-                                        value: model
-                                      }, null, 8, ["label", "value"]);
-                                    }), 128))
-                                  ]),
-                                  _: 1
-                                }, 8, ["modelValue"])
-                              ]),
-                              _: 1
-                            })
+                            createElementVNode("span", { class: "api-edit-title" }, toDisplayString(editingConfigId.value ? "编辑配置" : "新增配置"), 1)
                           ]),
-                          createVNode(_component_el_form_item, {
-                            label: "API KEY",
-                            prop: "apiKey"
-                          }, {
-                            default: withCtx(() => [
-                              createVNode(_component_el_input, {
-                                modelValue: form.value.apiKey,
-                                "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => form.value.apiKey = $event),
-                                placeholder: "请输入API Key",
-                                "show-password": ""
-                              }, null, 8, ["modelValue"])
-                            ]),
-                            _: 1
-                          }),
                           createVNode(_component_el_form_item, {
                             label: "BASE URL",
                             prop: "baseUrl"
@@ -1046,39 +1426,39 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
                               createVNode(_component_el_input, {
                                 modelValue: form.value.baseUrl,
                                 "onUpdate:modelValue": _cache[5] || (_cache[5] = ($event) => form.value.baseUrl = $event),
-                                placeholder: "选择大模型提供商自动获取BASE URL"
+                                placeholder: "请输入 Base URL，如 https://api.openai.com/v1"
                               }, null, 8, ["modelValue"])
                             ]),
                             _: 1
                           }),
                           createVNode(_component_el_form_item, {
-                            label: "Completions",
-                            prop: "completionsPath"
+                            label: "API KEY",
+                            prop: "apiKey"
                           }, {
                             default: withCtx(() => [
                               createVNode(_component_el_input, {
-                                modelValue: form.value.completionsPath,
-                                "onUpdate:modelValue": _cache[6] || (_cache[6] = ($event) => form.value.completionsPath = $event),
-                                placeholder: "不用填写 默认：/chat/completions"
+                                modelValue: form.value.apiKey,
+                                "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => form.value.apiKey = $event),
+                                placeholder: "请输入 API Key",
+                                "show-password": ""
                               }, null, 8, ["modelValue"])
                             ]),
                             _: 1
                           }),
                           createVNode(_component_el_form_item, {
-                            label: "超时时间",
-                            prop: "timeout"
+                            label: "模型名称",
+                            prop: "modelName"
                           }, {
                             default: withCtx(() => [
-                              createVNode(_component_el_input_number, {
-                                modelValue: form.value.timeout,
-                                "onUpdate:modelValue": _cache[7] || (_cache[7] = ($event) => form.value.timeout = $event),
-                                min: 1,
-                                max: 120
-                              }, null, 8, ["modelValue"]),
-                              _hoisted_4
+                              createVNode(_component_el_input, {
+                                modelValue: form.value.modelName,
+                                "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => form.value.modelName = $event),
+                                placeholder: "请输入模型名称，如 gpt-4o / deepseek-chat"
+                              }, null, 8, ["modelValue"])
                             ]),
                             _: 1
                           }),
+
                           createVNode(_component_el_form_item, null, {
                             default: withCtx(() => [
                               createVNode(_component_el_button, {
@@ -1100,23 +1480,12 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
                                 ]),
                                 _: 1
                               }, 8, ["loading"]),
-                              createVNode(_component_el_tooltip, {
-                                class: "box-item",
-                                effect: "dark",
-                                content: "请先测试；测试通过后才可保存生效",
-                                placement: "bottom"
+                              createVNode(_component_el_button, {
+                                type: "primary",
+                                onClick: saveApiConfig
                               }, {
                                 default: withCtx(() => [
-                                  createVNode(_component_el_button, {
-                                    type: "primary",
-                                    onClick: handleSave,
-                                    disabled: !form.value.testPassed
-                                  }, {
-                                    default: withCtx(() => [
-                                      createTextVNode("保存")
-                                    ]),
-                                    _: 1
-                                  }, 8, ["disabled"])
+                                  createTextVNode("保存配置")
                                 ]),
                                 _: 1
                               })
@@ -1125,13 +1494,12 @@ const _withScopeId = (n) => (pushScopeId("data-v-c984eb47"), n = n(), popScopeId
                           })
                         ]),
                         _: 1
-                      }, 8, ["model"])
-                    ]),
-                    _: 1
-                  })
-                ]),
-                _: 1
-              }, 8, ["modelValue"]),
+
+                }, 8, ["model"])
+                    ])
+                  ])
+                ], 2)
+              ]),
               createVNode(_component_el_dialog, {
                 modelValue: debugDialogVisible.value,
                 "onUpdate:modelValue": _cache[11] || (_cache[11] = ($event) => debugDialogVisible.value = $event),
@@ -1253,6 +1621,39 @@ const RenderComponent = _sfc_main$2;
 :deep(.composer-input .el-textarea__inner){padding-right:84px;padding-bottom:50px}
 :deep(.composer-input .el-input__count){bottom:40px;right:8px}
 :deep(.send-btn){position:absolute;right:8px;bottom:8px}
+:deep(.api-view-wrapper){position:relative;overflow:hidden}
+:deep(.api-view-panels){display:flex;width:200%;transition:transform .28s ease}
+:deep(.api-view-wrapper.is-edit .api-view-panels){transform:translateX(-50%)}
+:deep(.api-view-list), :deep(.api-view-edit){width:50%;flex-shrink:0}
+:deep(.api-config-list){padding-right:2px}
+:deep(.api-list-header){display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+:deep(.api-list-tip){font-size:12px;color:#909399}
+:deep(.api-config-card){border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}
+:deep(.api-config-card__meta){display:flex;flex-direction:column;gap:6px}
+:deep(.api-config-card__line){display:flex;justify-content:space-between;gap:8px;font-size:12px}
+:deep(.api-config-card__label){color:#909399}
+:deep(.api-config-card__value){color:#303133;word-break:break-all;text-align:right}
+:deep(.api-config-card__actions){margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+:deep(.api-config-card__buttons){display:flex;align-items:center;gap:8px}
+:deep(.api-view-edit){padding-left:4px}
+:deep(.api-edit-header){display:flex;align-items:center;gap:10px;margin-bottom:6px}
+:deep(.api-edit-title){font-size:13px;font-weight:600;color:#303133}
+:deep(.api-config-form){padding-right:2px}
+:deep(.preset-view-wrapper){position:relative;overflow:hidden}
+:deep(.preset-view-panels){display:flex;width:200%;transition:transform .28s ease}
+:deep(.preset-view-wrapper.is-edit .preset-view-panels){transform:translateX(-50%)}
+:deep(.preset-view-list), :deep(.preset-view-edit){width:50%;flex-shrink:0}
+:deep(.preset-list-header){display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+:deep(.preset-list-tip){font-size:12px;color:#909399}
+:deep(.preset-card){border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}
+:deep(.preset-card__header){display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+:deep(.preset-card__name){font-size:13px;font-weight:600;color:#303133}
+:deep(.preset-card__content){font-size:12px;color:#606266;line-height:1.5;margin-bottom:8px;word-break:break-all}
+:deep(.preset-card__actions){display:flex;align-items:center;justify-content:space-between;gap:8px}
+:deep(.preset-card__buttons){display:flex;align-items:center;gap:8px}
+:deep(.preset-view-edit){padding-left:4px}
+:deep(.preset-edit-header){display:flex;align-items:center;gap:10px;margin-bottom:6px}
+:deep(.preset-edit-title){font-size:13px;font-weight:600;color:#303133}
 :deep(.chat-row){display:flex;margin:8px 0}
 :deep(.chat-row.from-user){justify-content:flex-start}
 :deep(.chat-row.from-ai){justify-content:flex-end}

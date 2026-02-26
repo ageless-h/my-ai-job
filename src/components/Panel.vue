@@ -190,7 +190,7 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
           ),
           // Body
           createElementVNode("div", { class: "ai-sidebar-body" }, [
-            (openBlock(), createBlock(resolveDynamicComponent(showComponent.value)))
+            (openBlock(), createBlock(Vue.KeepAlive, null, { default: () => [(openBlock(), createBlock(resolveDynamicComponent(showComponent.value)))], _: 1 }))
           ])
         ], 6 /* CLASS, STYLE */)
       ]);
@@ -209,13 +209,23 @@ const RenderComponent = _sfc_main$1;
 .ai-job-root {
   --ai-primary: #409eff;
   --ai-primary-light: rgba(64, 158, 255, 0.1);
+  --ai-primary-hover: #337ecc;
   --ai-text-main: #303133;
   --ai-text-sub: #909399;
+  --ai-text-muted: #c0c4cc;
   --ai-bg: rgba(255, 255, 255, 0.96);
+  --ai-bg-subtle: #f5f7fa;
   --ai-border: #f0f2f5;
+  --ai-border-light: #f5f7fa;
   --ai-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
+  --ai-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --ai-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   --ai-radius: 12px;
+  --ai-radius-sm: 6px;
   --ai-radius-lg: 24px;
+  --ai-success: #67c23a;
+  --ai-warning: #e6a23c;
+  --ai-danger: #f56c6c;
 }
 
 /* Drawer Sidebar */
