@@ -321,7 +321,7 @@ watch(
 );
 
 const doPersistConfig = async (endpoint) => {
-  const { userPrompt, ...rest } = form.value;
+  const { userPrompt, apiFormat, ...rest } = form.value;
   const response = await request.post(endpoint, rest);
   if (response.data.code === 200) {
     syncCurrentChannelToExt();
@@ -338,7 +338,8 @@ const handleSave = async () => {
       ElMessage({ type: 'success', message: '保存成功' });
     }
   } catch (e) {
-    ElMessage({ type: 'error', message: '保存失败' });
+    const msg = e?.response?.data?.message || e?.message || '未知错误';
+    ElMessage({ type: 'error', message: `保存失败: ${msg}` });
   }
 };
 
