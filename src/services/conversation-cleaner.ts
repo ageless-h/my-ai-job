@@ -290,26 +290,27 @@ export async function scanConversations(
     return [];
   }
 
-  // Phase 2: 粗筛 — 超过 STALE_DAYS 天未更新的会话
+  // Phase 2: 全量扫描队列（优先扫描超过 STALE_DAYS 天未活跃会话）
   const staleList = friendList.filter((f) => now - f.updateTime > STALE_MS);
-  if (!staleList.length) {
-    onProgress({ phase: 'done', current: 0, total: friendList.length, message: `共 ${friendList.length} 个会话，无超过 ${STALE_DAYS} 天未活跃的` });
-    return [];
-  }
+  const staleIdSet = new Set(staleList.map((f) => f.friendId));
+  const analysisList = [
+    ...staleList,
+    ...friendList.filter((f) => !staleIdSet.has(f.friendId)),
+  ];
 
   onProgress({
     phase: 'fetching',
     current: 0,
-    total: staleList.length,
-    message: `共 ${friendList.length} 个会话，${staleList.length} 个超过 ${STALE_DAYS} 天未活跃，获取详情...`,
+    total: analysisList.length,
+    message: `共 ${friendList.length} 个会话，其中 ${staleList.length} 个超过 ${STALE_DAYS} 天未活跃；开始全量关键词扫描（AI仅分析超期会话）`,
   });
 
   // Phase 3: 批量获取详情
-  const staleIds = staleList.map((f) => f.friendId);
+  const analysisIds = analysisList.map((f) => f.friendId);
   let details: FriendDetail[] = [];
   // 分批获取，每批 199 个
-  for (let i = 0; i < staleIds.length; i += 199) {
-    const batch = staleIds.slice(i, i + 199);
+  for (let i = 0; i < analysisIds.length; i += 199) {
+    const batch = analysisIds.slice(i, i + 199);
     const batchDetails = await bossThrottle.enqueue(() => fetchFriendDetails(batch));
     details = details.concat(batchDetails);
   }
@@ -321,20 +322,21 @@ export async function scanConversations(
   onProgress({
     phase: 'analyzing',
     current: 0,
-    total: staleList.length,
+    total: analysisList.length,
     message: '分析会话内容...',
   });
 
-  for (let i = 0; i < staleList.length; i++) {
-    const friend = staleList[i];
+  for (let i = 0; i < analysisList.length; i++) {
+    const friend = analysisList[i];
     const detail = detailMap.get(friend.friendId);
     if (!detail || !detail.securityId) continue;
+    const isStale = staleIdSet.has(friend.friendId);
 
     onProgress({
       phase: 'analyzing',
       current: i + 1,
-      total: staleList.length,
-      message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${staleList.length}，共 ${friendList.length} 个会话)`,
+      total: analysisList.length,
+      message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${analysisList.length}，共 ${friendList.length} 个会话)`,
     });
 
     try {
@@ -364,7 +366,7 @@ export async function scanConversations(
 
       // Step B: 超过 STALE_DAYS 天且最后一条是自己发的（已读不回）
       const lastMsg = messages[messages.length - 1];
-      if (lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
+      if (isStale && lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
         candidates.push({
           friendId: friend.friendId,
           encryptBossId: detail.encryptBossId,
@@ -382,21 +384,23 @@ export async function scanConversations(
       }
 
       // Step C: AI 分析
-      const aiResult = await analyzeWithAi(messages, myUid, detail.name);
-      if (aiResult.shouldClean) {
-        candidates.push({
-          friendId: friend.friendId,
-          encryptBossId: detail.encryptBossId,
-          securityId: detail.securityId,
-          name: detail.name,
-          brandName: detail.brandName,
-          title: detail.title,
-          updateTime: friend.updateTime,
-          lastText: lastTextMsg?.text || '',
-          reason: 'ai_detected',
-          reasonDetail: aiResult.reason,
-          selected: true,
-        });
+      if (isStale) {
+        const aiResult = await analyzeWithAi(messages, myUid, detail.name);
+        if (aiResult.shouldClean) {
+          candidates.push({
+            friendId: friend.friendId,
+            encryptBossId: detail.encryptBossId,
+            securityId: detail.securityId,
+            name: detail.name,
+            brandName: detail.brandName,
+            title: detail.title,
+            updateTime: friend.updateTime,
+            lastText: lastTextMsg?.text || '',
+            reason: 'ai_detected',
+            reasonDetail: aiResult.reason,
+            selected: true,
+          });
+        }
       }
     } catch (_e) {
       // 单个会话分析失败不影响整体
@@ -405,8 +409,8 @@ export async function scanConversations(
 
   onProgress({
     phase: 'done',
-    current: staleList.length,
-    total: staleList.length,
+    current: analysisList.length,
+    total: analysisList.length,
     message: `扫描完成，找到 ${candidates.length} 个待清理会话`,
   });
 
