@@ -19,6 +19,7 @@
 // @require      data:application/javascript,%3B(typeof%20System!%3D'undefined')%26%26(System%3Dnew%20System.constructor())%3B
 // @resource     element-plus/dist/index.css  https://cdn.jsdelivr.net/npm/element-plus@2.7.0/dist/index.css
 // @connect      docdownload.zhipin.com
+// @connect      *
 // @grant        GM_addStyle
 // @grant        GM_addValueChangeListener
 // @grant        GM_getResourceText
@@ -37,7 +38,7 @@ System.set("user:pinia", (()=>{const _=Pinia;('default' in _)||(_.default=_);ret
 System.set("user:element-plus", (()=>{const _=ElementPlus;('default' in _)||(_.default=_);return _})());
 System.set("user:protobufjs", (()=>{const _=protobuf;('default' in _)||(_.default=_);return _})());
 
-System.register("./__entry.js", ['./__monkey.entry-DhdaFngi.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-DI9WKSxZ.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -49,7 +50,7 @@ System.register("./__entry.js", ['./__monkey.entry-DhdaFngi.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-DhdaFngi.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
+System.register("./__monkey.entry-DI9WKSxZ.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
   'use strict';
   var ref, reactive, createApp, defineComponent, openBlock, createBlock, unref, Vue, computed, watch, provide, onMounted, resolveComponent, createElementBlock, createElementVNode, createVNode, withCtx, Fragment, renderList, createTextVNode, pushScopeId, popScopeId, inject, normalizeClass, toDisplayString, withDirectives, vShow, createCommentVNode, defineStore, createPinia, ElMessage$1, ElementPlus__default, ElMessageBox, ElementPlus, protobuf;
   return {
@@ -6334,8 +6335,8 @@ System.register("./__monkey.entry-DhdaFngi.js", ['vue', 'pinia', 'element-plus',
                 reject(new Error(errMsg));
               }
             },
-            onerror: () => {
-              reject(new Error("网络错误"));
+            onerror: (err) => {
+              reject(new Error(`网络错误: 请检查 URL 是否正确，或刷新页面后在油猴弹窗中允许跨域请求 (${url})`));
             },
             ontimeout: () => {
               reject(new Error("请求超时"));
@@ -8486,7 +8487,7 @@ ${preset.content}`).join("\n\n");
         }
         async getRenderComponent() {
           if (this.curUrl.includes("www.zhipin.com/web/geek/chat")) {
-            const mod = await __vitePreload(() => module.import('./BossMessage-CD-td5YS-Dr77mB2G.js'), void 0 );
+            const mod = await __vitePreload(() => module.import('./BossMessage-DOvJkWdU-iD4tVjyY.js'), void 0 );
             return mod.default;
           }
           if (this.curUrl.includes("www.zhipin.com/web/geek/job") || this.curUrl.includes("overseas")) {
@@ -9299,7 +9300,7 @@ ${preset.content}`).join("\n\n");
   };
 }));
 
-System.register("./BossMessage-CD-td5YS-Dr77mB2G.js", ['vue', 'element-plus', './__monkey.entry-DhdaFngi.js', 'pinia', 'protobufjs'], (function (exports, module) {
+System.register("./BossMessage-DOvJkWdU-iD4tVjyY.js", ['vue', 'element-plus', './__monkey.entry-DI9WKSxZ.js', 'pinia', 'protobufjs'], (function (exports, module) {
   'use strict';
   var defineComponent, openBlock, createBlock, unref, Vue, ElementPlus, _export_sfc, ElMessage, AiPower, Message, Tools;
   return {
