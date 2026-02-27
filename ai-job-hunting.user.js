@@ -30,7 +30,7 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
-(a=>{if(typeof GM_addStyle=="function"){GM_addStyle(a);return}const e=document.createElement("style");e.textContent=a,document.head.append(e)})(' [data-v-6068e988] .my-header{display:flex;flex-direction:row;justify-content:space-between;gap:16px}[data-v-6068e988] .fixed-stop-button{position:fixed;right:80px;bottom:80px;z-index:9999;background:#fffffff2;padding:8px;border-radius:8px;box-shadow:0 4px 12px #0003;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.3)}[data-v-6068e988] .fixed-stop-button:hover{background:#fff;box-shadow:0 6px 16px #0000004d}[data-v-6068e988] .push-records-container{margin-bottom:12px;background:#ffffffe6;border-radius:6px;border:1px solid rgba(0,0,0,.1);overflow:hidden;max-width:400px}[data-v-6068e988] .push-records-header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:8px 12px;font-size:14px;font-weight:500;text-align:center}[data-v-6068e988] .push-records-content{max-height:200px;overflow-y:auto;padding:8px}[data-v-6068e988] .push-record-item{display:flex;flex-direction:column;margin-bottom:8px;padding:6px 8px;background:#f8fafccc;border-radius:4px;border-left:3px solid #e2e8f0;font-size:12px;line-height:1.4}[data-v-6068e988] .push-record-item:last-child{margin-bottom:0}[data-v-6068e988] .record-time{color:#64748b;font-size:11px;margin-bottom:2px}[data-v-6068e988] .record-message{color:#334155;word-break:break-word}[data-v-6068e988] .record-error{color:#dc2626;border-left-color:#dc2626}[data-v-6068e988] .record-warn{color:#d97706;border-left-color:#d97706}[data-v-6068e988] .record-info{color:#2563eb;border-left-color:#2563eb}[data-v-6068e988] .record-debug{color:#059669;border-left-color:#059669}[data-v-6068e988] .record-trace{color:#7c3aed;border-left-color:#7c3aed}[data-v-6068e988] .no-records{text-align:center;color:#94a3b8;font-size:12px;padding:20px 0}[data-v-6068e988] .push-records-content::-webkit-scrollbar{width:4px}[data-v-6068e988] .push-records-content::-webkit-scrollbar-track{background:#0000000d;border-radius:2px}[data-v-6068e988] .push-records-content::-webkit-scrollbar-thumb{background:#0003;border-radius:2px}[data-v-6068e988] .push-records-content::-webkit-scrollbar-thumb:hover{background:#0000004d}[data-v-b61b2d43] .input-opt>:first-child{width:100px}[data-v-b61b2d43] .form-item-upload>:first-child{margin-left:0}[data-v-b61b2d43] .el-input-number--small{line-height:22px;width:80px}[data-v-b61b2d43] .time-interval{margin-top:10px;margin-right:1px;margin-left:1px}[data-v-0c4932dc] .filter-bar{margin-bottom:20px}[data-v-0c4932dc] .trend-chart-wrapper{margin-bottom:16px;padding:12px;background:#fafafa;border:1px solid #eee;border-radius:6px}[data-v-0c4932dc] .trend-chart-title{font-size:13px;font-weight:600;color:#303133;margin-bottom:8px}[data-v-0c4932dc] .trend-chart-svg{width:100%;max-width:420px;height:auto}.api-view-wrapper[data-v-d31aa50b]{position:relative;overflow:hidden}.api-view-panels[data-v-d31aa50b]{display:flex;width:200%;transition:transform .28s ease}.api-view-wrapper.is-edit .api-view-panels[data-v-d31aa50b]{transform:translate(-50%)}.api-view-list[data-v-d31aa50b],.api-view-edit[data-v-d31aa50b]{width:50%;flex-shrink:0}.api-view-edit[data-v-d31aa50b]{visibility:hidden;max-height:0;overflow:hidden}.api-view-wrapper.is-edit .api-view-edit[data-v-d31aa50b]{visibility:visible;max-height:none;overflow:visible}.api-view-wrapper.is-edit .api-view-list[data-v-d31aa50b]{visibility:hidden;max-height:0;overflow:hidden}.api-config-list[data-v-d31aa50b]{padding-right:2px}.api-list-header[data-v-d31aa50b]{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.api-list-tip[data-v-d31aa50b]{font-size:12px;color:#909399}.api-config-card[data-v-d31aa50b]{border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}.api-config-card__meta[data-v-d31aa50b]{display:flex;flex-direction:column;gap:6px}.api-config-card__line[data-v-d31aa50b]{display:flex;justify-content:space-between;gap:8px;font-size:12px}.api-config-card__label[data-v-d31aa50b]{color:#909399}.api-config-card__value[data-v-d31aa50b]{color:#303133;word-break:break-all;text-align:right}.api-config-card__actions[data-v-d31aa50b]{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}.api-config-card__buttons[data-v-d31aa50b]{display:flex;align-items:center;gap:8px}.api-view-edit[data-v-d31aa50b]{padding-left:4px}.api-edit-header[data-v-d31aa50b]{display:flex;align-items:center;gap:10px;margin-bottom:6px}.api-edit-title[data-v-d31aa50b]{font-size:13px;font-weight:600;color:#303133}.api-config-form[data-v-d31aa50b]{padding-right:2px}.preset-view-wrapper[data-v-865ef1d4]{position:relative;overflow:hidden}.preset-view-panels[data-v-865ef1d4]{display:flex;width:200%;transition:transform .28s ease}.preset-view-wrapper.is-edit .preset-view-panels[data-v-865ef1d4]{transform:translate(-50%)}.preset-view-list[data-v-865ef1d4],.preset-view-edit[data-v-865ef1d4]{width:50%;flex-shrink:0}.preset-view-edit[data-v-865ef1d4]{visibility:hidden;max-height:0;overflow:hidden}.preset-view-wrapper.is-edit .preset-view-edit[data-v-865ef1d4]{visibility:visible;max-height:none;overflow:visible}.preset-view-wrapper.is-edit .preset-view-list[data-v-865ef1d4]{visibility:hidden;max-height:0;overflow:hidden}.preset-list-header[data-v-865ef1d4]{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.preset-list-tip[data-v-865ef1d4]{font-size:12px;color:#909399}.preset-card[data-v-865ef1d4]{border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}.preset-card__header[data-v-865ef1d4]{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.preset-card__name[data-v-865ef1d4]{font-size:13px;font-weight:600;color:#303133}.preset-card__content[data-v-865ef1d4]{font-size:12px;color:#606266;line-height:1.5;margin-bottom:8px;word-break:break-all}.preset-card__actions[data-v-865ef1d4]{display:flex;align-items:center;justify-content:space-between;gap:8px}.preset-card__buttons[data-v-865ef1d4]{display:flex;align-items:center;gap:8px}.preset-view-edit[data-v-865ef1d4]{padding-left:4px}.preset-edit-header[data-v-865ef1d4]{display:flex;align-items:center;gap:10px;margin-bottom:6px}.preset-edit-title[data-v-865ef1d4]{font-size:13px;font-weight:600;color:#303133}.variable-hint[data-v-865ef1d4]{margin-top:4px;padding:8px 10px;background:#fafafa;border:1px dashed #dcdfe6;border-radius:4px}.variable-hint__title[data-v-865ef1d4]{font-size:12px;color:#909399;margin-bottom:6px}.variable-hint__tags[data-v-865ef1d4]{display:flex;flex-wrap:wrap;gap:6px}.variable-tag[data-v-865ef1d4]{cursor:pointer}.variable-tag[data-v-865ef1d4]:hover{color:var(--ai-primary,#409eff);border-color:var(--ai-primary,#409eff)}[data-v-5871d477] .chat-history{max-height:420px;overflow-y:auto;padding:8px 4px;background:#fafafa;border:1px solid #eee;border-radius:6px}[data-v-5871d477] .chat-composer{display:flex;gap:10px;margin-top:10px}[data-v-5871d477] .composer-input{position:relative;width:100%}[data-v-5871d477] .composer-input .el-textarea__inner{padding-right:84px;padding-bottom:50px}[data-v-5871d477] .composer-input .el-input__count{bottom:40px;right:8px}[data-v-5871d477] .send-btn{position:absolute;right:8px;bottom:8px}[data-v-5871d477] .chat-row{display:flex;margin:8px 0}[data-v-5871d477] .chat-row.from-user{justify-content:flex-start}[data-v-5871d477] .chat-row.from-ai{justify-content:flex-end}[data-v-5871d477] .bubble{max-width:80%;padding:8px 10px;border-radius:8px;background:#fff;box-shadow:0 1px 2px #0000000f}[data-v-5871d477] .from-user .bubble{background:#f5f7fa}[data-v-5871d477] .from-ai .bubble{background:#e8f6f3}[data-v-5871d477] .bubble .content{white-space:pre-wrap;word-break:break-word;font-size:13px}[data-v-5871d477] .bubble .meta{font-size:12px;color:#909399;margin-bottom:4px}[data-v-5871d477] .bubble .tags{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}.cleaner-wrapper[data-v-85b7e682]{padding:0}.cleaner-toolbar[data-v-85b7e682]{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cleaner-result[data-v-85b7e682]{font-size:12px;color:#67c23a}.cleaner-list[data-v-85b7e682]{margin-top:10px;max-height:400px;overflow-y:auto}.cleaner-list-header[data-v-85b7e682]{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--ai-border,#ebeef5)}.cleaner-list-count[data-v-85b7e682]{font-size:12px;color:#909399}.cleaner-card[data-v-85b7e682]{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--ai-border,#ebeef5)}.cleaner-card__check[data-v-85b7e682]{flex-shrink:0;margin-top:2px}.cleaner-card__info[data-v-85b7e682]{flex:1;min-width:0}.cleaner-card__name[data-v-85b7e682]{font-size:13px;font-weight:500;color:var(--ai-text,#303133)}.cleaner-card__detail[data-v-85b7e682]{display:flex;align-items:center;gap:6px;margin-top:4px}.cleaner-card__reason[data-v-85b7e682]{font-size:12px;color:#606266;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cleaner-card__meta[data-v-85b7e682]{font-size:11px;color:#909399;margin-top:3px}.cleaner-empty[data-v-85b7e682]{text-align:center;padding:20px;color:#909399;font-size:13px}[data-v-14236cf1] .ai-config{padding:15px 1px 1px;background:#fff}[data-v-14236cf1] .config-form{margin:0}[data-v-14236cf1] .tune-form{margin-bottom:10px;padding:0 10px;font-weight:700}.ai-job-root[data-v-128e536d]{--ai-primary: #409eff;--ai-primary-light: rgba(64, 158, 255, .1);--ai-primary-hover: #337ecc;--ai-text-main: #303133;--ai-text-sub: #909399;--ai-text-muted: #c0c4cc;--ai-bg: rgba(255, 255, 255, .96);--ai-bg-subtle: #f5f7fa;--ai-border: #f0f2f5;--ai-border-light: #f5f7fa;--ai-shadow: -8px 0 32px rgba(0, 0, 0, .12);--ai-shadow-sm: 0 1px 2px rgba(0, 0, 0, .05);--ai-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, .1);--ai-radius: 12px;--ai-radius-sm: 6px;--ai-radius-lg: 24px;--ai-success: #67c23a;--ai-warning: #e6a23c;--ai-danger: #f56c6c}[data-v-128e536d] .ai-sidebar{position:fixed;top:0;right:0;height:100vh;background:var(--ai-bg);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:var(--ai-shadow);z-index:99998;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.5);border-top-left-radius:var(--ai-radius-lg);border-bottom-left-radius:var(--ai-radius-lg);overflow:hidden;transition:transform .4s cubic-bezier(.19,1,.22,1),width .3s ease;will-change:transform,width;transform:translate(0)}[data-v-128e536d] .ai-sidebar.is-collapsed{transform:translate(100%);pointer-events:none}[data-v-128e536d] .ai-sidebar.is-resizing{transition:none}[data-v-128e536d] .ai-resize-handle{position:absolute;left:0;top:0;width:4px;height:100%;cursor:col-resize;background:transparent;z-index:10;transition:background .2s}[data-v-128e536d] .ai-resize-handle:hover,[data-v-128e536d] .ai-sidebar.is-resizing .ai-resize-handle{background:var(--ai-primary)}[data-v-128e536d] .ai-resize-handle:hover:after{content:"";position:absolute;top:0;left:0;width:100%;height:100%;box-shadow:0 0 15px var(--ai-primary)}[data-v-128e536d] .ai-sidebar-header{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--ai-border);flex-shrink:0;background:linear-gradient(135deg,#fff,#f9fafb);box-shadow:0 2px 8px #00000005}[data-v-128e536d] .ai-sidebar-title{font-size:19px;font-weight:800;color:var(--ai-text-main);letter-spacing:-.02em;background:linear-gradient(120deg,var(--ai-primary),#67c23a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}[data-v-128e536d] .ai-sidebar-minimize{width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:10px;color:var(--ai-text-sub);transition:all .3s cubic-bezier(.4,0,.2,1)}[data-v-128e536d] .ai-sidebar-minimize:hover{background:#fff1f0;color:#ff4d4f;transform:rotate(90deg)}[data-v-128e536d] .ai-sidebar-nav{display:flex;height:48px;border-bottom:1px solid var(--ai-border);flex-shrink:0;background:transparent}[data-v-128e536d] .ai-nav-tab{display:flex;align-items:center;justify-content:center;flex:1;height:48px;font-size:14px;font-weight:500;color:var(--ai-text-sub);cursor:pointer;position:relative;transition:all .3s;-webkit-user-select:none;user-select:none;gap:6px}[data-v-128e536d] .ai-nav-tab span{position:relative;z-index:1}[data-v-128e536d] .ai-nav-tab:hover{background-color:var(--ai-primary-light);color:var(--ai-primary)}[data-v-128e536d] .ai-nav-tab.is-active{font-weight:700;color:var(--ai-primary)}[data-v-128e536d] .ai-nav-tab:after{content:"";position:absolute;bottom:0;left:50%;width:0;height:3px;background:var(--ai-primary);border-radius:3px 3px 0 0;transition:all .3s ease;transform:translate(-50%)}[data-v-128e536d] .ai-nav-tab.is-active:after{width:40%}[data-v-128e536d] .ai-nav-tab svg{flex-shrink:0}[data-v-128e536d] .ai-sidebar-body{flex:1;overflow-y:auto;padding:24px;animation:ai-fade-in-128e536d .4s ease-out}@keyframes ai-fade-in-128e536d{0%{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}[data-v-128e536d] .ai-sidebar-body::-webkit-scrollbar{width:6px}[data-v-128e536d] .ai-sidebar-body::-webkit-scrollbar-thumb{background:#0000000d;border-radius:10px;transition:background .3s}[data-v-128e536d] .ai-sidebar-body:hover::-webkit-scrollbar-thumb{background:#0000001f}[data-v-128e536d] .ai-sidebar-body::-webkit-scrollbar-thumb:hover{background:var(--ai-primary)}[data-v-128e536d] .ai-sidebar-body::-webkit-scrollbar-track{background:transparent}[data-v-128e536d] .ai-sidebar-body{display:flex;flex-wrap:wrap;align-items:center;gap:10px}[data-v-128e536d] .ai-sidebar-body>form,[data-v-128e536d] .ai-sidebar-body>div,[data-v-128e536d] .ai-sidebar-body>.ai-config{width:100%;flex-shrink:0}[data-v-128e536d] .ai-sidebar-body>br{display:none}[data-v-128e536d] .ai-sidebar-body>.el-text{display:inline-flex;align-items:center;padding:8px 14px;background:#f8fafc;border-radius:var(--ai-radius);border:1px solid var(--ai-border);font-size:14px;font-weight:600;line-height:1.4;margin:0}[data-v-128e536d] .ai-sidebar-body>.el-text.el-text--primary{background:#409eff0f;border-color:#409eff26;color:var(--ai-primary)}[data-v-128e536d] .ai-sidebar-body>.el-text.el-text--danger{background:#f56c6c0f;border-color:#f56c6c26;color:#f56c6c}[data-v-128e536d] .ai-sidebar-body>.el-button--info.el-button--small{margin:0!important;height:32px}[data-v-128e536d] .ai-sidebar-body>.el-text.el-text--large:not(.el-text--primary):not(.el-text--danger){display:inline-flex;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:var(--ai-radius);border:1px solid var(--ai-border);font-size:14px;font-weight:500;color:var(--ai-text-main);margin-top:4px;white-space:nowrap}[data-v-128e536d] .ai-sidebar-body>.el-input-number{margin:0;flex:1;min-width:100px}[data-v-128e536d] .ai-sidebar-body>span:not(.el-text){display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ai-text-main);margin:0!important;width:100%;padding:6px 0}[data-v-128e536d] .ai-sidebar-body>.el-button--primary.el-tooltip__trigger:first-of-type{margin-top:6px}[data-v-128e536d] .ai-sidebar-body>.el-button{margin:0!important;height:36px;font-size:14px}[data-v-128e536d] .el-button p{margin:0;font-size:14px!important;line-height:1}[data-v-128e536d] .ai-sidebar-body>.el-link{width:100%;justify-content:flex-start;margin:0!important;font-size:13px}[data-v-128e536d] .el-button{border-radius:var(--ai-radius);transition:all .3s cubic-bezier(.4,0,.2,1);font-weight:500}[data-v-128e536d] .el-button--primary{box-shadow:0 4px 12px #409eff33}[data-v-128e536d] .el-button--primary:hover{box-shadow:0 6px 16px #409eff4d;transform:translateY(-1px)}[data-v-128e536d] .el-input .el-input__wrapper{border-radius:var(--ai-radius);transition:all .3s}[data-v-128e536d] .el-input .el-input__wrapper.is-focus{box-shadow:0 0 0 1px var(--ai-primary) inset,0 0 0 3px var(--ai-primary-light)!important}[data-v-128e536d] .el-switch.is-checked .el-switch__core{background-color:var(--ai-primary)}[data-v-128e536d] .form-preference .top-title{display:block!important;width:100%;font-size:15px;font-weight:700;color:var(--ai-primary);padding:10px 0 6px;margin-top:12px;border-bottom:2px solid var(--ai-primary-light);margin-bottom:4px}[data-v-128e536d] .form-preference .top-title:first-child{margin-top:0}[data-v-128e536d] .form-preference>div>div[style*="display: flex"]{flex-wrap:wrap!important;gap:0!important}[data-v-128e536d] .form-preference .el-form-item{flex-direction:column!important;align-items:flex-start!important;width:100%!important;margin-left:0!important;margin-right:0!important;margin-bottom:12px}[data-v-128e536d] .form-preference .el-form-item__label-wrap{margin-left:0!important;width:100%!important;max-height:none}[data-v-128e536d] .form-preference .el-form-item__label{width:auto!important;text-align:left!important;font-size:13px;font-weight:600;color:var(--ai-text-main);padding:0 0 4px!important;justify-content:flex-start!important;height:auto!important;line-height:1.6}[data-v-128e536d] .form-preference .el-form-item__content{width:100%!important;margin-left:0!important}[data-v-128e536d] .form-preference>div>div[style*="display: flex"]>.el-form-item{flex:0 0 100%!important}[data-v-128e536d] .form-preference>div>div[style*="display: flex"]>label.el-checkbox{width:100%!important;flex:0 0 100%!important}[data-v-128e536d] .form-preference>div>div[style*=margin-bottom]{flex-wrap:wrap!important;flex-direction:row!important;align-items:center!important;gap:6px 8px!important}[data-v-128e536d] .form-preference>div>div[style*=margin-bottom]>label.el-checkbox{width:100%!important;flex:0 0 100%!important}[data-v-128e536d] .form-preference>div>div[style*="display: flex"]>span[style*=margin-top]{margin-top:-4px!important;width:100%;font-weight:600;font-size:13px;color:var(--ai-primary)}[data-v-128e536d] .form-preference .el-form-item__content>.el-select{width:100%!important}[data-v-128e536d] .form-preference .el-form-item__content>.el-input{width:100%}[data-v-128e536d] .form-preference .el-checkbox{margin-right:4px}[data-v-128e536d] .form-preference .el-tag{max-width:120px!important}[data-v-128e536d] .form-preference .el-time-picker,[data-v-128e536d] .form-preference .el-date-editor{width:100%!important}[data-v-128e536d] .form-preference .el-button+.el-button{margin-left:0!important}[data-v-128e536d] .form-preference .el-form-item__content{gap:8px}[data-v-128e536d] .form-preference>div>div[style*=margin-bottom]>p.time-interval{font-size:13px;font-weight:500;color:var(--ai-text-main);margin:0;line-height:34px;white-space:nowrap}[data-v-128e536d] .form-preference>div>div[style*=margin-bottom]>.el-input-number{flex:0 0 auto}[data-v-128e536d] .form-preference .form-item-upload .el-upload .el-button{border-radius:var(--ai-radius)!important;height:36px!important;font-size:14px!important;font-weight:500;padding:0 16px!important}[data-v-128e536d] .form-preference .form-item-upload .el-tag{border-radius:8px;height:28px;line-height:28px;padding:0 10px;font-size:12px;margin-left:8px!important}[data-v-128e536d] .filter-bar.el-row{flex-direction:column!important;flex-wrap:nowrap!important;gap:10px;margin:0!important}[data-v-128e536d] .filter-bar .el-col{max-width:100%!important;flex:none!important;width:100%!important;padding:0!important}[data-v-128e536d] .filter-bar .el-button{width:100%}[data-v-128e536d] .filter-bar .el-date-editor{width:100%!important}[data-v-128e536d] .el-table{width:100%!important;border-radius:var(--ai-radius);overflow:hidden;border:1px solid var(--ai-border);margin-top:12px}[data-v-128e536d] .el-table__header,[data-v-128e536d] .el-table__body{width:100%!important;table-layout:auto!important}[data-v-128e536d] .el-table th.el-table__cell{background-color:#f8fafc;color:var(--ai-text-main);font-weight:600;font-size:13px;padding:8px 6px}[data-v-128e536d] .el-table td.el-table__cell{font-size:12px;padding:6px;word-break:break-all}[data-v-128e536d] .el-pagination{justify-content:center;margin-top:12px;flex-wrap:wrap}[data-v-128e536d] .ai-config{width:100%}[data-v-128e536d] .el-collapse{border:none}[data-v-128e536d] .el-collapse-item__header{padding:0 14px;height:44px;line-height:44px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:var(--ai-radius);margin-bottom:8px;border:1px solid var(--ai-border);font-size:14px;font-weight:600;color:var(--ai-text-main);transition:all .3s}[data-v-128e536d] .el-collapse-item__header.is-active{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;background:linear-gradient(135deg,#eef2ff,#e8f0fe);color:var(--ai-primary)}[data-v-128e536d] .el-collapse-item__wrap{border:1px solid var(--ai-border);border-top:none;border-bottom-left-radius:var(--ai-radius);border-bottom-right-radius:var(--ai-radius);padding:16px;margin-bottom:12px}[data-v-128e536d] .ai-config .el-form-item{flex-direction:column;align-items:flex-start;margin-bottom:16px}[data-v-128e536d] .ai-config .el-form-item__label{width:auto!important;font-size:13px;font-weight:600;color:var(--ai-text-main);padding-bottom:6px;text-align:left}[data-v-128e536d] .ai-config .el-form-item__content{width:100%;margin-left:0!important}[data-v-128e536d] .ai-config .el-textarea{width:100%}[data-v-128e536d] .ai-config .el-textarea__inner{min-height:100px!important;font-size:13px;line-height:1.6}[data-v-128e536d] .ai-config .el-select{width:100%!important;max-width:100%!important}[data-v-128e536d] .ai-config .el-form-item__content>div[style]{width:100%!important}[data-v-128e536d] .ai-config .el-form-item__content .el-button{margin-bottom:6px}[data-v-128e536d] .ai-config .el-input-number{width:100%}[data-v-128e536d] .ai-config .el-form-item__content>div[style*=flex]{flex-wrap:wrap!important;gap:8px!important;width:100%}[data-v-128e536d] .ai-config .el-form-item__content>div[style*=flex]>.el-select{flex:1;min-width:120px}[data-v-128e536d] .ai-config .el-form-item__content>div[style*=flex]>.el-input-number{flex:0 0 auto}[data-v-128e536d] .ai-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;background:var(--ai-primary);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 24px #409eff66;z-index:99999;transition:all .4s cubic-bezier(.175,.885,.32,1.275);-webkit-user-select:none;user-select:none;color:#fff;animation:ai-pulse-128e536d 2s ease-out 3}@keyframes ai-pulse-128e536d{0%{box-shadow:0 0 #409effb3}70%{box-shadow:0 0 0 15px #409eff00}to{box-shadow:0 0 #409eff00}}[data-v-128e536d] .ai-fab:hover{transform:scale(1.1) rotate(15deg);box-shadow:0 12px 32px #409eff80;animation:none}[data-v-128e536d] .ai-fab--close{bottom:30px;right:20px;width:44px;height:44px;background:#303133;box-shadow:0 4px 12px #0000004d;animation:none}[data-v-128e536d] .ai-fab--close:hover{background:#000;transform:scale(1.1) rotate(-90deg)}[data-v-128e536d] .ai-fab:after{content:attr(title);position:absolute;right:70px;background:#000c;color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;white-space:nowrap;opacity:0;pointer-events:none;transition:all .3s;transform:translate(10px)}[data-v-128e536d] .ai-fab:hover:after{opacity:1;transform:translate(0)}[data-v-128e536d] .ai-fab svg{width:26px;height:26px;stroke:currentColor}@media(max-width:1200px){[data-v-128e536d] .ai-sidebar{max-width:380px!important}}@media(max-width:900px){[data-v-128e536d] .ai-sidebar{width:100%!important;border-radius:0}[data-v-128e536d] .ai-fab{right:50%;transform:translate(50%);bottom:20px}[data-v-128e536d] .ai-fab:hover{transform:translate(50%) scale(1.1)}}[data-v-56b7eb89] .batch-send-btn:hover{background-color:#337ecc!important}[data-v-56b7eb89] .batch-checkbox{margin-right:8px;transform:scale(1.2)}[data-v-56b7eb89] .batch-send-item{background-color:#f0f9ff!important;border:2px solid #409eff!important}[data-v-56b7eb89] .batch-send-float{position:fixed;right:24px;bottom:24px;width:480px;padding:16px;background:#fff;box-shadow:0 6px 16px #00000026;border-radius:8px;z-index:9999} ');
+(a=>{if(typeof GM_addStyle=="function"){GM_addStyle(a);return}const e=document.createElement("style");e.textContent=a,document.head.append(e)})(' .cleaner-wrapper[data-v-3bfcabd1]{padding:0}.cleaner-toolbar[data-v-3bfcabd1]{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cleaner-result[data-v-3bfcabd1]{font-size:12px;color:#67c23a}.cleaner-list[data-v-3bfcabd1]{margin-top:10px;max-height:400px;overflow-y:auto}.cleaner-list-header[data-v-3bfcabd1]{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--ai-border,#ebeef5)}.cleaner-list-count[data-v-3bfcabd1]{font-size:12px;color:#909399}.cleaner-card[data-v-3bfcabd1]{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--ai-border,#ebeef5)}.cleaner-card__check[data-v-3bfcabd1]{flex-shrink:0;margin-top:2px}.cleaner-card__info[data-v-3bfcabd1]{flex:1;min-width:0}.cleaner-card__name[data-v-3bfcabd1]{font-size:13px;font-weight:500;color:var(--ai-text,#303133)}.cleaner-card__detail[data-v-3bfcabd1]{display:flex;align-items:center;gap:6px;margin-top:4px}.cleaner-card__reason[data-v-3bfcabd1]{font-size:12px;color:#606266;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cleaner-card__meta[data-v-3bfcabd1]{font-size:11px;color:#909399;margin-top:3px}.cleaner-empty[data-v-3bfcabd1]{text-align:center;padding:20px;color:#909399;font-size:13px}[data-v-850eb580] .my-header{display:flex;flex-direction:row;justify-content:space-between;gap:16px}[data-v-850eb580] .fixed-stop-button{position:fixed;right:80px;bottom:80px;z-index:9999;background:#fffffff2;padding:8px;border-radius:8px;box-shadow:0 4px 12px #0003;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.3)}[data-v-850eb580] .fixed-stop-button:hover{background:#fff;box-shadow:0 6px 16px #0000004d}[data-v-850eb580] .push-records-container{margin-bottom:12px;background:#ffffffe6;border-radius:6px;border:1px solid rgba(0,0,0,.1);overflow:hidden;max-width:400px}[data-v-850eb580] .push-records-header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:8px 12px;font-size:14px;font-weight:500;text-align:center}[data-v-850eb580] .push-records-content{max-height:200px;overflow-y:auto;padding:8px}[data-v-850eb580] .push-record-item{display:flex;flex-direction:column;margin-bottom:8px;padding:6px 8px;background:#f8fafccc;border-radius:4px;border-left:3px solid #e2e8f0;font-size:12px;line-height:1.4}[data-v-850eb580] .push-record-item:last-child{margin-bottom:0}[data-v-850eb580] .record-time{color:#64748b;font-size:11px;margin-bottom:2px}[data-v-850eb580] .record-message{color:#334155;word-break:break-word}[data-v-850eb580] .record-error{color:#dc2626;border-left-color:#dc2626}[data-v-850eb580] .record-warn{color:#d97706;border-left-color:#d97706}[data-v-850eb580] .record-info{color:#2563eb;border-left-color:#2563eb}[data-v-850eb580] .record-debug{color:#059669;border-left-color:#059669}[data-v-850eb580] .record-trace{color:#7c3aed;border-left-color:#7c3aed}[data-v-850eb580] .no-records{text-align:center;color:#94a3b8;font-size:12px;padding:20px 0}[data-v-850eb580] .push-records-content::-webkit-scrollbar{width:4px}[data-v-850eb580] .push-records-content::-webkit-scrollbar-track{background:#0000000d;border-radius:2px}[data-v-850eb580] .push-records-content::-webkit-scrollbar-thumb{background:#0003;border-radius:2px}[data-v-850eb580] .push-records-content::-webkit-scrollbar-thumb:hover{background:#0000004d}[data-v-850eb580] .cleaner-section{margin-top:16px;padding:12px;background:#fff;border-radius:6px;border:1px solid rgba(0,0,0,.08)}[data-v-850eb580] .cleaner-section__title{font-size:14px;font-weight:600;color:#303133;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #ebeef5}[data-v-b61b2d43] .input-opt>:first-child{width:100px}[data-v-b61b2d43] .form-item-upload>:first-child{margin-left:0}[data-v-b61b2d43] .el-input-number--small{line-height:22px;width:80px}[data-v-b61b2d43] .time-interval{margin-top:10px;margin-right:1px;margin-left:1px}[data-v-0c4932dc] .filter-bar{margin-bottom:20px}[data-v-0c4932dc] .trend-chart-wrapper{margin-bottom:16px;padding:12px;background:#fafafa;border:1px solid #eee;border-radius:6px}[data-v-0c4932dc] .trend-chart-title{font-size:13px;font-weight:600;color:#303133;margin-bottom:8px}[data-v-0c4932dc] .trend-chart-svg{width:100%;max-width:420px;height:auto}.api-view-wrapper[data-v-d31aa50b]{position:relative;overflow:hidden}.api-view-panels[data-v-d31aa50b]{display:flex;width:200%;transition:transform .28s ease}.api-view-wrapper.is-edit .api-view-panels[data-v-d31aa50b]{transform:translate(-50%)}.api-view-list[data-v-d31aa50b],.api-view-edit[data-v-d31aa50b]{width:50%;flex-shrink:0}.api-view-edit[data-v-d31aa50b]{visibility:hidden;max-height:0;overflow:hidden}.api-view-wrapper.is-edit .api-view-edit[data-v-d31aa50b]{visibility:visible;max-height:none;overflow:visible}.api-view-wrapper.is-edit .api-view-list[data-v-d31aa50b]{visibility:hidden;max-height:0;overflow:hidden}.api-config-list[data-v-d31aa50b]{padding-right:2px}.api-list-header[data-v-d31aa50b]{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.api-list-tip[data-v-d31aa50b]{font-size:12px;color:#909399}.api-config-card[data-v-d31aa50b]{border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}.api-config-card__meta[data-v-d31aa50b]{display:flex;flex-direction:column;gap:6px}.api-config-card__line[data-v-d31aa50b]{display:flex;justify-content:space-between;gap:8px;font-size:12px}.api-config-card__label[data-v-d31aa50b]{color:#909399}.api-config-card__value[data-v-d31aa50b]{color:#303133;word-break:break-all;text-align:right}.api-config-card__actions[data-v-d31aa50b]{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}.api-config-card__buttons[data-v-d31aa50b]{display:flex;align-items:center;gap:8px}.api-view-edit[data-v-d31aa50b]{padding-left:4px}.api-edit-header[data-v-d31aa50b]{display:flex;align-items:center;gap:10px;margin-bottom:6px}.api-edit-title[data-v-d31aa50b]{font-size:13px;font-weight:600;color:#303133}.api-config-form[data-v-d31aa50b]{padding-right:2px}.preset-view-wrapper[data-v-865ef1d4]{position:relative;overflow:hidden}.preset-view-panels[data-v-865ef1d4]{display:flex;width:200%;transition:transform .28s ease}.preset-view-wrapper.is-edit .preset-view-panels[data-v-865ef1d4]{transform:translate(-50%)}.preset-view-list[data-v-865ef1d4],.preset-view-edit[data-v-865ef1d4]{width:50%;flex-shrink:0}.preset-view-edit[data-v-865ef1d4]{visibility:hidden;max-height:0;overflow:hidden}.preset-view-wrapper.is-edit .preset-view-edit[data-v-865ef1d4]{visibility:visible;max-height:none;overflow:visible}.preset-view-wrapper.is-edit .preset-view-list[data-v-865ef1d4]{visibility:hidden;max-height:0;overflow:hidden}.preset-list-header[data-v-865ef1d4]{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.preset-list-tip[data-v-865ef1d4]{font-size:12px;color:#909399}.preset-card[data-v-865ef1d4]{border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}.preset-card__header[data-v-865ef1d4]{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.preset-card__name[data-v-865ef1d4]{font-size:13px;font-weight:600;color:#303133}.preset-card__content[data-v-865ef1d4]{font-size:12px;color:#606266;line-height:1.5;margin-bottom:8px;word-break:break-all}.preset-card__actions[data-v-865ef1d4]{display:flex;align-items:center;justify-content:space-between;gap:8px}.preset-card__buttons[data-v-865ef1d4]{display:flex;align-items:center;gap:8px}.preset-view-edit[data-v-865ef1d4]{padding-left:4px}.preset-edit-header[data-v-865ef1d4]{display:flex;align-items:center;gap:10px;margin-bottom:6px}.preset-edit-title[data-v-865ef1d4]{font-size:13px;font-weight:600;color:#303133}.variable-hint[data-v-865ef1d4]{margin-top:4px;padding:8px 10px;background:#fafafa;border:1px dashed #dcdfe6;border-radius:4px}.variable-hint__title[data-v-865ef1d4]{font-size:12px;color:#909399;margin-bottom:6px}.variable-hint__tags[data-v-865ef1d4]{display:flex;flex-wrap:wrap;gap:6px}.variable-tag[data-v-865ef1d4]{cursor:pointer}.variable-tag[data-v-865ef1d4]:hover{color:var(--ai-primary,#409eff);border-color:var(--ai-primary,#409eff)}[data-v-5871d477] .chat-history{max-height:420px;overflow-y:auto;padding:8px 4px;background:#fafafa;border:1px solid #eee;border-radius:6px}[data-v-5871d477] .chat-composer{display:flex;gap:10px;margin-top:10px}[data-v-5871d477] .composer-input{position:relative;width:100%}[data-v-5871d477] .composer-input .el-textarea__inner{padding-right:84px;padding-bottom:50px}[data-v-5871d477] .composer-input .el-input__count{bottom:40px;right:8px}[data-v-5871d477] .send-btn{position:absolute;right:8px;bottom:8px}[data-v-5871d477] .chat-row{display:flex;margin:8px 0}[data-v-5871d477] .chat-row.from-user{justify-content:flex-start}[data-v-5871d477] .chat-row.from-ai{justify-content:flex-end}[data-v-5871d477] .bubble{max-width:80%;padding:8px 10px;border-radius:8px;background:#fff;box-shadow:0 1px 2px #0000000f}[data-v-5871d477] .from-user .bubble{background:#f5f7fa}[data-v-5871d477] .from-ai .bubble{background:#e8f6f3}[data-v-5871d477] .bubble .content{white-space:pre-wrap;word-break:break-word;font-size:13px}[data-v-5871d477] .bubble .meta{font-size:12px;color:#909399;margin-bottom:4px}[data-v-5871d477] .bubble .tags{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}[data-v-237138cd] .ai-config{padding:15px 1px 1px;background:#fff}[data-v-237138cd] .config-form{margin:0}[data-v-237138cd] .tune-form{margin-bottom:10px;padding:0 10px;font-weight:700}.ai-job-root[data-v-128e536d]{--ai-primary: #409eff;--ai-primary-light: rgba(64, 158, 255, .1);--ai-primary-hover: #337ecc;--ai-text-main: #303133;--ai-text-sub: #909399;--ai-text-muted: #c0c4cc;--ai-bg: rgba(255, 255, 255, .96);--ai-bg-subtle: #f5f7fa;--ai-border: #f0f2f5;--ai-border-light: #f5f7fa;--ai-shadow: -8px 0 32px rgba(0, 0, 0, .12);--ai-shadow-sm: 0 1px 2px rgba(0, 0, 0, .05);--ai-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, .1);--ai-radius: 12px;--ai-radius-sm: 6px;--ai-radius-lg: 24px;--ai-success: #67c23a;--ai-warning: #e6a23c;--ai-danger: #f56c6c}[data-v-128e536d] .ai-sidebar{position:fixed;top:0;right:0;height:100vh;background:var(--ai-bg);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:var(--ai-shadow);z-index:99998;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.5);border-top-left-radius:var(--ai-radius-lg);border-bottom-left-radius:var(--ai-radius-lg);overflow:hidden;transition:transform .4s cubic-bezier(.19,1,.22,1),width .3s ease;will-change:transform,width;transform:translate(0)}[data-v-128e536d] .ai-sidebar.is-collapsed{transform:translate(100%);pointer-events:none}[data-v-128e536d] .ai-sidebar.is-resizing{transition:none}[data-v-128e536d] .ai-resize-handle{position:absolute;left:0;top:0;width:4px;height:100%;cursor:col-resize;background:transparent;z-index:10;transition:background .2s}[data-v-128e536d] .ai-resize-handle:hover,[data-v-128e536d] .ai-sidebar.is-resizing .ai-resize-handle{background:var(--ai-primary)}[data-v-128e536d] .ai-resize-handle:hover:after{content:"";position:absolute;top:0;left:0;width:100%;height:100%;box-shadow:0 0 15px var(--ai-primary)}[data-v-128e536d] .ai-sidebar-header{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--ai-border);flex-shrink:0;background:linear-gradient(135deg,#fff,#f9fafb);box-shadow:0 2px 8px #00000005}[data-v-128e536d] .ai-sidebar-title{font-size:19px;font-weight:800;color:var(--ai-text-main);letter-spacing:-.02em;background:linear-gradient(120deg,var(--ai-primary),#67c23a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}[data-v-128e536d] .ai-sidebar-minimize{width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:10px;color:var(--ai-text-sub);transition:all .3s cubic-bezier(.4,0,.2,1)}[data-v-128e536d] .ai-sidebar-minimize:hover{background:#fff1f0;color:#ff4d4f;transform:rotate(90deg)}[data-v-128e536d] .ai-sidebar-nav{display:flex;height:48px;border-bottom:1px solid var(--ai-border);flex-shrink:0;background:transparent}[data-v-128e536d] .ai-nav-tab{display:flex;align-items:center;justify-content:center;flex:1;height:48px;font-size:14px;font-weight:500;color:var(--ai-text-sub);cursor:pointer;position:relative;transition:all .3s;-webkit-user-select:none;user-select:none;gap:6px}[data-v-128e536d] .ai-nav-tab span{position:relative;z-index:1}[data-v-128e536d] .ai-nav-tab:hover{background-color:var(--ai-primary-light);color:var(--ai-primary)}[data-v-128e536d] .ai-nav-tab.is-active{font-weight:700;color:var(--ai-primary)}[data-v-128e536d] .ai-nav-tab:after{content:"";position:absolute;bottom:0;left:50%;width:0;height:3px;background:var(--ai-primary);border-radius:3px 3px 0 0;transition:all .3s ease;transform:translate(-50%)}[data-v-128e536d] .ai-nav-tab.is-active:after{width:40%}[data-v-128e536d] .ai-nav-tab svg{flex-shrink:0}[data-v-128e536d] .ai-sidebar-body{flex:1;overflow-y:auto;padding:24px;animation:ai-fade-in-128e536d .4s ease-out}@keyframes ai-fade-in-128e536d{0%{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}[data-v-128e536d] .ai-sidebar-body::-webkit-scrollbar{width:6px}[data-v-128e536d] .ai-sidebar-body::-webkit-scrollbar-thumb{background:#0000000d;border-radius:10px;transition:background .3s}[data-v-128e536d] .ai-sidebar-body:hover::-webkit-scrollbar-thumb{background:#0000001f}[data-v-128e536d] .ai-sidebar-body::-webkit-scrollbar-thumb:hover{background:var(--ai-primary)}[data-v-128e536d] .ai-sidebar-body::-webkit-scrollbar-track{background:transparent}[data-v-128e536d] .ai-sidebar-body{display:flex;flex-wrap:wrap;align-items:center;gap:10px}[data-v-128e536d] .ai-sidebar-body>form,[data-v-128e536d] .ai-sidebar-body>div,[data-v-128e536d] .ai-sidebar-body>.ai-config{width:100%;flex-shrink:0}[data-v-128e536d] .ai-sidebar-body>br{display:none}[data-v-128e536d] .ai-sidebar-body>.el-text{display:inline-flex;align-items:center;padding:8px 14px;background:#f8fafc;border-radius:var(--ai-radius);border:1px solid var(--ai-border);font-size:14px;font-weight:600;line-height:1.4;margin:0}[data-v-128e536d] .ai-sidebar-body>.el-text.el-text--primary{background:#409eff0f;border-color:#409eff26;color:var(--ai-primary)}[data-v-128e536d] .ai-sidebar-body>.el-text.el-text--danger{background:#f56c6c0f;border-color:#f56c6c26;color:#f56c6c}[data-v-128e536d] .ai-sidebar-body>.el-button--info.el-button--small{margin:0!important;height:32px}[data-v-128e536d] .ai-sidebar-body>.el-text.el-text--large:not(.el-text--primary):not(.el-text--danger){display:inline-flex;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:var(--ai-radius);border:1px solid var(--ai-border);font-size:14px;font-weight:500;color:var(--ai-text-main);margin-top:4px;white-space:nowrap}[data-v-128e536d] .ai-sidebar-body>.el-input-number{margin:0;flex:1;min-width:100px}[data-v-128e536d] .ai-sidebar-body>span:not(.el-text){display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ai-text-main);margin:0!important;width:100%;padding:6px 0}[data-v-128e536d] .ai-sidebar-body>.el-button--primary.el-tooltip__trigger:first-of-type{margin-top:6px}[data-v-128e536d] .ai-sidebar-body>.el-button{margin:0!important;height:36px;font-size:14px}[data-v-128e536d] .el-button p{margin:0;font-size:14px!important;line-height:1}[data-v-128e536d] .ai-sidebar-body>.el-link{width:100%;justify-content:flex-start;margin:0!important;font-size:13px}[data-v-128e536d] .el-button{border-radius:var(--ai-radius);transition:all .3s cubic-bezier(.4,0,.2,1);font-weight:500}[data-v-128e536d] .el-button--primary{box-shadow:0 4px 12px #409eff33}[data-v-128e536d] .el-button--primary:hover{box-shadow:0 6px 16px #409eff4d;transform:translateY(-1px)}[data-v-128e536d] .el-input .el-input__wrapper{border-radius:var(--ai-radius);transition:all .3s}[data-v-128e536d] .el-input .el-input__wrapper.is-focus{box-shadow:0 0 0 1px var(--ai-primary) inset,0 0 0 3px var(--ai-primary-light)!important}[data-v-128e536d] .el-switch.is-checked .el-switch__core{background-color:var(--ai-primary)}[data-v-128e536d] .form-preference .top-title{display:block!important;width:100%;font-size:15px;font-weight:700;color:var(--ai-primary);padding:10px 0 6px;margin-top:12px;border-bottom:2px solid var(--ai-primary-light);margin-bottom:4px}[data-v-128e536d] .form-preference .top-title:first-child{margin-top:0}[data-v-128e536d] .form-preference>div>div[style*="display: flex"]{flex-wrap:wrap!important;gap:0!important}[data-v-128e536d] .form-preference .el-form-item{flex-direction:column!important;align-items:flex-start!important;width:100%!important;margin-left:0!important;margin-right:0!important;margin-bottom:12px}[data-v-128e536d] .form-preference .el-form-item__label-wrap{margin-left:0!important;width:100%!important;max-height:none}[data-v-128e536d] .form-preference .el-form-item__label{width:auto!important;text-align:left!important;font-size:13px;font-weight:600;color:var(--ai-text-main);padding:0 0 4px!important;justify-content:flex-start!important;height:auto!important;line-height:1.6}[data-v-128e536d] .form-preference .el-form-item__content{width:100%!important;margin-left:0!important}[data-v-128e536d] .form-preference>div>div[style*="display: flex"]>.el-form-item{flex:0 0 100%!important}[data-v-128e536d] .form-preference>div>div[style*="display: flex"]>label.el-checkbox{width:100%!important;flex:0 0 100%!important}[data-v-128e536d] .form-preference>div>div[style*=margin-bottom]{flex-wrap:wrap!important;flex-direction:row!important;align-items:center!important;gap:6px 8px!important}[data-v-128e536d] .form-preference>div>div[style*=margin-bottom]>label.el-checkbox{width:100%!important;flex:0 0 100%!important}[data-v-128e536d] .form-preference>div>div[style*="display: flex"]>span[style*=margin-top]{margin-top:-4px!important;width:100%;font-weight:600;font-size:13px;color:var(--ai-primary)}[data-v-128e536d] .form-preference .el-form-item__content>.el-select{width:100%!important}[data-v-128e536d] .form-preference .el-form-item__content>.el-input{width:100%}[data-v-128e536d] .form-preference .el-checkbox{margin-right:4px}[data-v-128e536d] .form-preference .el-tag{max-width:120px!important}[data-v-128e536d] .form-preference .el-time-picker,[data-v-128e536d] .form-preference .el-date-editor{width:100%!important}[data-v-128e536d] .form-preference .el-button+.el-button{margin-left:0!important}[data-v-128e536d] .form-preference .el-form-item__content{gap:8px}[data-v-128e536d] .form-preference>div>div[style*=margin-bottom]>p.time-interval{font-size:13px;font-weight:500;color:var(--ai-text-main);margin:0;line-height:34px;white-space:nowrap}[data-v-128e536d] .form-preference>div>div[style*=margin-bottom]>.el-input-number{flex:0 0 auto}[data-v-128e536d] .form-preference .form-item-upload .el-upload .el-button{border-radius:var(--ai-radius)!important;height:36px!important;font-size:14px!important;font-weight:500;padding:0 16px!important}[data-v-128e536d] .form-preference .form-item-upload .el-tag{border-radius:8px;height:28px;line-height:28px;padding:0 10px;font-size:12px;margin-left:8px!important}[data-v-128e536d] .filter-bar.el-row{flex-direction:column!important;flex-wrap:nowrap!important;gap:10px;margin:0!important}[data-v-128e536d] .filter-bar .el-col{max-width:100%!important;flex:none!important;width:100%!important;padding:0!important}[data-v-128e536d] .filter-bar .el-button{width:100%}[data-v-128e536d] .filter-bar .el-date-editor{width:100%!important}[data-v-128e536d] .el-table{width:100%!important;border-radius:var(--ai-radius);overflow:hidden;border:1px solid var(--ai-border);margin-top:12px}[data-v-128e536d] .el-table__header,[data-v-128e536d] .el-table__body{width:100%!important;table-layout:auto!important}[data-v-128e536d] .el-table th.el-table__cell{background-color:#f8fafc;color:var(--ai-text-main);font-weight:600;font-size:13px;padding:8px 6px}[data-v-128e536d] .el-table td.el-table__cell{font-size:12px;padding:6px;word-break:break-all}[data-v-128e536d] .el-pagination{justify-content:center;margin-top:12px;flex-wrap:wrap}[data-v-128e536d] .ai-config{width:100%}[data-v-128e536d] .el-collapse{border:none}[data-v-128e536d] .el-collapse-item__header{padding:0 14px;height:44px;line-height:44px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:var(--ai-radius);margin-bottom:8px;border:1px solid var(--ai-border);font-size:14px;font-weight:600;color:var(--ai-text-main);transition:all .3s}[data-v-128e536d] .el-collapse-item__header.is-active{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;background:linear-gradient(135deg,#eef2ff,#e8f0fe);color:var(--ai-primary)}[data-v-128e536d] .el-collapse-item__wrap{border:1px solid var(--ai-border);border-top:none;border-bottom-left-radius:var(--ai-radius);border-bottom-right-radius:var(--ai-radius);padding:16px;margin-bottom:12px}[data-v-128e536d] .ai-config .el-form-item{flex-direction:column;align-items:flex-start;margin-bottom:16px}[data-v-128e536d] .ai-config .el-form-item__label{width:auto!important;font-size:13px;font-weight:600;color:var(--ai-text-main);padding-bottom:6px;text-align:left}[data-v-128e536d] .ai-config .el-form-item__content{width:100%;margin-left:0!important}[data-v-128e536d] .ai-config .el-textarea{width:100%}[data-v-128e536d] .ai-config .el-textarea__inner{min-height:100px!important;font-size:13px;line-height:1.6}[data-v-128e536d] .ai-config .el-select{width:100%!important;max-width:100%!important}[data-v-128e536d] .ai-config .el-form-item__content>div[style]{width:100%!important}[data-v-128e536d] .ai-config .el-form-item__content .el-button{margin-bottom:6px}[data-v-128e536d] .ai-config .el-input-number{width:100%}[data-v-128e536d] .ai-config .el-form-item__content>div[style*=flex]{flex-wrap:wrap!important;gap:8px!important;width:100%}[data-v-128e536d] .ai-config .el-form-item__content>div[style*=flex]>.el-select{flex:1;min-width:120px}[data-v-128e536d] .ai-config .el-form-item__content>div[style*=flex]>.el-input-number{flex:0 0 auto}[data-v-128e536d] .ai-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;background:var(--ai-primary);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 24px #409eff66;z-index:99999;transition:all .4s cubic-bezier(.175,.885,.32,1.275);-webkit-user-select:none;user-select:none;color:#fff;animation:ai-pulse-128e536d 2s ease-out 3}@keyframes ai-pulse-128e536d{0%{box-shadow:0 0 #409effb3}70%{box-shadow:0 0 0 15px #409eff00}to{box-shadow:0 0 #409eff00}}[data-v-128e536d] .ai-fab:hover{transform:scale(1.1) rotate(15deg);box-shadow:0 12px 32px #409eff80;animation:none}[data-v-128e536d] .ai-fab--close{bottom:30px;right:20px;width:44px;height:44px;background:#303133;box-shadow:0 4px 12px #0000004d;animation:none}[data-v-128e536d] .ai-fab--close:hover{background:#000;transform:scale(1.1) rotate(-90deg)}[data-v-128e536d] .ai-fab:after{content:attr(title);position:absolute;right:70px;background:#000c;color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;white-space:nowrap;opacity:0;pointer-events:none;transition:all .3s;transform:translate(10px)}[data-v-128e536d] .ai-fab:hover:after{opacity:1;transform:translate(0)}[data-v-128e536d] .ai-fab svg{width:26px;height:26px;stroke:currentColor}@media(max-width:1200px){[data-v-128e536d] .ai-sidebar{max-width:380px!important}}@media(max-width:900px){[data-v-128e536d] .ai-sidebar{width:100%!important;border-radius:0}[data-v-128e536d] .ai-fab{right:50%;transform:translate(50%);bottom:20px}[data-v-128e536d] .ai-fab:hover{transform:translate(50%) scale(1.1)}}[data-v-56b7eb89] .batch-send-btn:hover{background-color:#337ecc!important}[data-v-56b7eb89] .batch-checkbox{margin-right:8px;transform:scale(1.2)}[data-v-56b7eb89] .batch-send-item{background-color:#f0f9ff!important;border:2px solid #409eff!important}[data-v-56b7eb89] .batch-send-float{position:fixed;right:24px;bottom:24px;width:480px;padding:16px;background:#fff;box-shadow:0 6px 16px #00000026;border-radius:8px;z-index:9999} ');
 
 System.addImportMap({ imports: {"vue":"user:vue","pinia":"user:pinia","element-plus":"user:element-plus","protobufjs":"user:protobufjs"} });
 System.set("user:vue", (()=>{const _=Vue;('default' in _)||(_.default=_);return _})());
@@ -38,7 +38,7 @@ System.set("user:pinia", (()=>{const _=Pinia;('default' in _)||(_.default=_);ret
 System.set("user:element-plus", (()=>{const _=ElementPlus;('default' in _)||(_.default=_);return _})());
 System.set("user:protobufjs", (()=>{const _=protobuf;('default' in _)||(_.default=_);return _})());
 
-System.register("./__entry.js", ['./__monkey.entry-ChmJ-yVl.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-CMGCLSER.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -50,9 +50,9 @@ System.register("./__entry.js", ['./__monkey.entry-ChmJ-yVl.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
+System.register("./__monkey.entry-CMGCLSER.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
   'use strict';
-  var ref, reactive, createApp, defineComponent, openBlock, createBlock, unref, Vue, computed, watch, provide, onMounted, resolveComponent, createElementBlock, createElementVNode, createVNode, withCtx, Fragment, renderList, createTextVNode, pushScopeId, popScopeId, inject, normalizeClass, toDisplayString, createCommentVNode, withDirectives, vShow, defineStore, createPinia, ElMessage$1, ElementPlus__default, ElMessageBox, ElementPlus, protobuf;
+  var ref, reactive, createApp, defineComponent, openBlock, createBlock, unref, Vue, createElementBlock, createVNode, createElementVNode, computed, watch, provide, onMounted, resolveComponent, withCtx, Fragment, renderList, createTextVNode, pushScopeId, popScopeId, toDisplayString, createCommentVNode, inject, normalizeClass, withDirectives, vShow, defineStore, createPinia, ElMessage$1, ElementPlus__default, ElMessageBox, ElementPlus, protobuf;
   return {
     setters: [module => {
       ref = module.ref;
@@ -63,24 +63,24 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
       createBlock = module.createBlock;
       unref = module.unref;
       Vue = module;
+      createElementBlock = module.createElementBlock;
+      createVNode = module.createVNode;
+      createElementVNode = module.createElementVNode;
       computed = module.computed;
       watch = module.watch;
       provide = module.provide;
       onMounted = module.onMounted;
       resolveComponent = module.resolveComponent;
-      createElementBlock = module.createElementBlock;
-      createElementVNode = module.createElementVNode;
-      createVNode = module.createVNode;
       withCtx = module.withCtx;
       Fragment = module.Fragment;
       renderList = module.renderList;
       createTextVNode = module.createTextVNode;
       pushScopeId = module.pushScopeId;
       popScopeId = module.popScopeId;
-      inject = module.inject;
-      normalizeClass = module.normalizeClass;
       toDisplayString = module.toDisplayString;
       createCommentVNode = module.createCommentVNode;
+      inject = module.inject;
+      normalizeClass = module.normalizeClass;
       withDirectives = module.withDirectives;
       vShow = module.vShow;
     }, module => {
@@ -4008,7 +4008,728 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
           }
         });
       }
+      const _GM_xmlhttpRequest = typeof GM_xmlhttpRequest !== "undefined" ? GM_xmlhttpRequest : void 0;
+      function getActiveDirectConfig() {
+        const ext = Tools.getAiConfigExt();
+        const apiConfigs = Array.isArray(ext.apiConfigs) ? ext.apiConfigs : [];
+        const activeId = ext.activeApiConfigId || "";
+        if (!activeId || !apiConfigs.length) {
+          return null;
+        }
+        const active = apiConfigs.find((c) => c.id === activeId && c.status === 1);
+        if (!active || !active.baseUrl || !active.apiKey || !active.modelName) {
+          return null;
+        }
+        return {
+          baseUrl: active.baseUrl,
+          apiKey: active.apiKey,
+          modelName: active.modelName,
+          apiFormat: active.apiFormat || "completions",
+          timeout: Number(active.timeout || 60)
+        };
+      }
+      async function directAiCall(config, messages) {
+        if (!_GM_xmlhttpRequest) {
+          throw new Error("GM_xmlhttpRequest 不可用");
+        }
+        const { baseUrl, apiKey, modelName, apiFormat, timeout } = config;
+        const timeoutMs = (timeout || 60) * 1e3;
+        if (apiFormat === "responses") {
+          return callResponsesApi(baseUrl, apiKey, modelName, messages, timeoutMs);
+        }
+        return callCompletionsApi(baseUrl, apiKey, modelName, messages, timeoutMs);
+      }
+      function callCompletionsApi(baseUrl, apiKey, modelName, messages, timeoutMs) {
+        const url = `${baseUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+        const body = JSON.stringify({
+          model: modelName,
+          messages: messages.map((m) => ({ role: m.role, content: m.content }))
+        });
+        return gmRequest(url, apiKey, body, timeoutMs).then((data) => {
+          var _a, _b;
+          const choice = (_a = data == null ? void 0 : data.choices) == null ? void 0 : _a[0];
+          return ((_b = choice == null ? void 0 : choice.message) == null ? void 0 : _b.content) || "";
+        });
+      }
+      function callResponsesApi(baseUrl, apiKey, modelName, messages, timeoutMs) {
+        const url = `${baseUrl.replace(/\/+$/, "")}/v1/responses`;
+        const input = messages.map((m) => ({
+          type: "message",
+          role: m.role === "system" ? "developer" : m.role,
+          content: [{ type: "input_text", text: m.content }]
+        }));
+        const body = JSON.stringify({
+          model: modelName,
+          input
+        });
+        return gmRequest(url, apiKey, body, timeoutMs).then((data) => {
+          const output = Array.isArray(data == null ? void 0 : data.output) ? data.output : [];
+          const msgOutput = output.find((o) => o.type === "message");
+          if (!msgOutput) {
+            return "";
+          }
+          const contentArr = Array.isArray(msgOutput.content) ? msgOutput.content : [];
+          const textParts = contentArr.filter((c) => c.type === "output_text").map((c) => c.text || "");
+          return textParts.join("");
+        });
+      }
+      function gmRequest(url, apiKey, body, timeoutMs) {
+        return new Promise((resolve, reject) => {
+          if (!_GM_xmlhttpRequest) {
+            reject(new Error("GM_xmlhttpRequest 不可用"));
+            return;
+          }
+          _GM_xmlhttpRequest({
+            method: "POST",
+            url,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`
+            },
+            data: body,
+            responseType: "json",
+            timeout: timeoutMs,
+            onload: (response) => {
+              var _a, _b;
+              if (response.status >= 200 && response.status < 300) {
+                const data = typeof response.response === "string" ? JSON.parse(response.response) : response.response;
+                resolve(data);
+              } else {
+                const errMsg = typeof response.response === "object" ? ((_b = (_a = response.response) == null ? void 0 : _a.error) == null ? void 0 : _b.message) || JSON.stringify(response.response) : response.responseText || `HTTP ${response.status}`;
+                reject(new Error(errMsg));
+              }
+            },
+            onerror: (err) => {
+              reject(new Error(`网络错误: 请检查 URL 是否正确，或刷新页面后在油猴弹窗中允许跨域请求 (${url})`));
+            },
+            ontimeout: () => {
+              reject(new Error("请求超时"));
+            }
+          });
+        });
+      }
+      function wrapAsBackendResponse(answerContent) {
+        return {
+          data: {
+            code: 200,
+            data: {
+              answerContent,
+              answerTypeList: [1],
+              // MSG_TEXT
+              operationTypeList: []
+            }
+          }
+        };
+      }
+      async function directAsk(question, systemPrompt, messageHistory, config) {
+        const messages = [];
+        if (systemPrompt) {
+          messages.push({ role: "system", content: systemPrompt });
+        }
+        if (messageHistory.length) {
+          messages.push(...messageHistory);
+        }
+        messages.push({ role: "user", content: question });
+        try {
+          const answer = await directAiCall(config, messages);
+          return wrapAsBackendResponse(answer || "(AI 未返回内容)");
+        } catch (e) {
+          return wrapAsBackendResponse(`[AI调用失败] ${(e == null ? void 0 : e.message) || e}`);
+        }
+      }
+      async function directTest(config) {
+        const messages = [
+          { role: "user", content: "你好，请简短回复确认连接正常。" }
+        ];
+        return directAiCall(config, messages);
+      }
+      const DEFAULT_MIN = 2e3;
+      const DEFAULT_MAX = 5e3;
+      class RequestThrottle {
+        constructor(opts) {
+          __publicField(this, "queue", []);
+          __publicField(this, "running", false);
+          __publicField(this, "minDelay");
+          __publicField(this, "maxDelay");
+          __publicField(this, "delayFirst");
+          __publicField(this, "_aborted", false);
+          this.minDelay = (opts == null ? void 0 : opts.minDelay) ?? DEFAULT_MIN;
+          this.maxDelay = (opts == null ? void 0 : opts.maxDelay) ?? DEFAULT_MAX;
+          this.delayFirst = (opts == null ? void 0 : opts.delayFirst) ?? false;
+        }
+        /** 入队一个异步请求，返回 Promise */
+        enqueue(fn) {
+          if (this._aborted) return Promise.reject(new Error("Throttle aborted"));
+          return new Promise((resolve, reject) => {
+            this.queue.push({ fn, resolve, reject });
+            this.drain();
+          });
+        }
+        /** 中止所有排队请求 */
+        abort() {
+          this._aborted = true;
+          const pending = this.queue.splice(0);
+          pending.forEach((item) => item.reject(new Error("Throttle aborted")));
+        }
+        /** 重置中止状态，允许重新使用 */
+        reset() {
+          this._aborted = false;
+        }
+        /** 当前队列长度 */
+        get pending() {
+          return this.queue.length;
+        }
+        async drain() {
+          if (this.running) return;
+          this.running = true;
+          let isFirst = true;
+          while (this.queue.length > 0 && !this._aborted) {
+            const item = this.queue.shift();
+            if (!isFirst || this.delayFirst) {
+              const delay = this.minDelay + Tools.getRandomNumber(0, this.maxDelay - this.minDelay);
+              await Tools.sleep(delay);
+            }
+            isFirst = false;
+            if (this._aborted) {
+              item.reject(new Error("Throttle aborted"));
+              break;
+            }
+            try {
+              const result = await item.fn();
+              item.resolve(result);
+            } catch (e) {
+              item.reject(e);
+            }
+          }
+          this.running = false;
+        }
+      }
+      const bossThrottle = new RequestThrottle({
+        minDelay: DEFAULT_MIN,
+        maxDelay: DEFAULT_MAX
+      });
+      const STALE_DAYS = 14;
+      const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1e3;
+      const HISTORY_MSG_COUNT = 10;
+      function getZpToken() {
+        return Tools.getCookieValue("bst") || "";
+      }
+      async function fetchFriendList() {
+        var _a, _b, _c;
+        const resp = await axios.get(
+          "https://www.zhipin.com/wapi/zprelation/friend/geekFilterByLabel?labelId=0"
+        );
+        if (((_a = resp.data) == null ? void 0 : _a.message) === "当前登录状态已失效") {
+          throw new Error("未登录 BOSS 直聘");
+        }
+        const list = (_c = (_b = resp.data) == null ? void 0 : _b.zpData) == null ? void 0 : _c.friendList;
+        if (!Array.isArray(list)) return [];
+        return list.map((f) => ({
+          friendId: f.friendId,
+          encryptFriendId: f.encryptFriendId || "",
+          name: f.name || "",
+          updateTime: f.updateTime || 0,
+          brandName: f.brandName || ""
+        }));
+      }
+      async function fetchFriendDetails(friendIds) {
+        var _a, _b;
+        if (!friendIds.length) return [];
+        const ids = friendIds.slice(0, 199).join(",");
+        const resp = await axios.get(
+          "https://www.zhipin.com/wapi/zprelation/friend/getGeekFriendList.json?friendIds=" + ids
+        );
+        const list = (_b = (_a = resp.data) == null ? void 0 : _a.zpData) == null ? void 0 : _b.result;
+        if (!Array.isArray(list)) return [];
+        return list.map((f) => ({
+          uid: f.uid,
+          encryptBossId: f.encryptBossId || "",
+          securityId: f.securityId || "",
+          encryptJobId: f.encryptJobId || "",
+          brandName: f.brandName || "",
+          title: f.title || "",
+          name: f.name || ""
+        }));
+      }
+      async function fetchHistoryMessages(encryptBossId, securityId, count = HISTORY_MSG_COUNT) {
+        var _a, _b;
+        const params = new URLSearchParams({
+          bossId: encryptBossId,
+          groupId: encryptBossId,
+          maxMsgId: "0",
+          c: String(count),
+          page: "1",
+          src: "0",
+          securityId,
+          loading: "true",
+          _t: String(Date.now())
+        });
+        const resp = await axios.get(
+          "https://www.zhipin.com/wapi/zpchat/geek/historyMsg?" + params.toString()
+        );
+        const messages = (_b = (_a = resp.data) == null ? void 0 : _a.zpData) == null ? void 0 : _b.messages;
+        if (!Array.isArray(messages)) return [];
+        return messages.map((m) => {
+          var _a2, _b2, _c, _d;
+          return {
+            mid: m.mid,
+            time: m.time || 0,
+            fromUid: ((_a2 = m.from) == null ? void 0 : _a2.uid) || 0,
+            toUid: ((_b2 = m.to) == null ? void 0 : _b2.uid) || 0,
+            bodyType: ((_c = m.body) == null ? void 0 : _c.type) || 0,
+            text: ((_d = m.body) == null ? void 0 : _d.text) || ""
+          };
+        });
+      }
+      async function deleteFriend(securityId) {
+        var _a;
+        const token = getZpToken();
+        if (!token) throw new Error("未获取到 Zp_token");
+        const resp = await axios.post(
+          "https://www.zhipin.com/wapi/zprelation/friend/delete.json",
+          "securityId=" + encodeURIComponent(securityId),
+          {
+            headers: {
+              "Zp_token": token,
+              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+            }
+          }
+        );
+        return ((_a = resp.data) == null ? void 0 : _a.code) === 0;
+      }
+      const REJECT_KEYWORDS = [
+        "不合适",
+        "不太合适",
+        "不匹配",
+        "不太匹配",
+        "暂不考虑",
+        "不考虑",
+        "岗位已关闭",
+        "岗位已满",
+        "已招到",
+        "已经招到",
+        "不太符合",
+        "不符合",
+        "抱歉",
+        "很遗憾",
+        "祝您求职顺利",
+        "再看看其他",
+        "已向您表达不合适"
+      ];
+      const SELF_REJECT_KEYWORDS = [
+        "不考虑了",
+        "不合适",
+        "算了",
+        "不去了",
+        "放弃",
+        "不感兴趣"
+      ];
+      function detectByKeywords(messages, myUid) {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const m = messages[i];
+          if (m.bodyType !== 1 || !m.text) continue;
+          const isFromMe = m.fromUid === myUid;
+          const text = m.text;
+          if (!isFromMe) {
+            for (const kw of REJECT_KEYWORDS) {
+              if (text.includes(kw)) {
+                return { reason: "hr_rejected", detail: `HR: "${text.substring(0, 60)}"` };
+              }
+            }
+          } else {
+            for (const kw of SELF_REJECT_KEYWORDS) {
+              if (text.includes(kw)) {
+                return { reason: "self_rejected", detail: `我: "${text.substring(0, 60)}"` };
+              }
+            }
+          }
+        }
+        return null;
+      }
+      async function analyzeWithAi(messages, myUid, contactName) {
+        const config = getActiveDirectConfig();
+        if (!config) {
+          return { shouldClean: false, reason: "无可用 AI 配置" };
+        }
+        const textMessages = messages.filter((m) => m.bodyType === 1 && m.text).map((m) => {
+          const role = m.fromUid === myUid ? "我" : contactName;
+          return `[${role}]: ${m.text}`;
+        }).join("\n");
+        if (!textMessages.trim()) {
+          return { shouldClean: false, reason: "无文本消息" };
+        }
+        const prompt = `分析以下求职对话，判断是否属于以下情况之一：
+1. HR明确拒绝了求职者（如不合适、岗位已满等）
+2. 求职者明确拒绝了该岗位
+3. 对话已经结束，双方不再有继续沟通的意向
+
+对话内容：
+${textMessages}
+
+请只回复 JSON 格式：{"shouldClean": true/false, "reason": "简短原因"}`;
+        const aiMessages = [
+          { role: "system", content: "你是一个求职对话分析助手，只输出 JSON，不要输出其他内容。" },
+          { role: "user", content: prompt }
+        ];
+        try {
+          const answer = await directAiCall(config, aiMessages);
+          const jsonMatch = answer.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            return {
+              shouldClean: !!parsed.shouldClean,
+              reason: parsed.reason || ""
+            };
+          }
+          return { shouldClean: false, reason: "AI 返回格式异常" };
+        } catch (e) {
+          return { shouldClean: false, reason: `AI 调用失败: ${(e == null ? void 0 : e.message) || e}` };
+        }
+      }
+      async function scanConversations(onProgress) {
+        var _a, _b;
+        const candidates = [];
+        const now = Date.now();
+        const myUid = ((_b = (_a = Tools.window) == null ? void 0 : _a._PAGE) == null ? void 0 : _b.uid) || 0;
+        onProgress({ phase: "fetching", current: 0, total: 0, message: "获取会话列表..." });
+        let friendList;
+        try {
+          friendList = await fetchFriendList();
+        } catch (e) {
+          onProgress({ phase: "error", current: 0, total: 0, message: (e == null ? void 0 : e.message) || "获取会话列表失败" });
+          return [];
+        }
+        if (!friendList.length) {
+          onProgress({ phase: "done", current: 0, total: 0, message: "没有会话" });
+          return [];
+        }
+        const staleList = friendList.filter((f) => now - f.updateTime > STALE_MS);
+        if (!staleList.length) {
+          onProgress({ phase: "done", current: 0, total: friendList.length, message: `共 ${friendList.length} 个会话，无超过 ${STALE_DAYS} 天未活跃的` });
+          return [];
+        }
+        onProgress({
+          phase: "fetching",
+          current: 0,
+          total: staleList.length,
+          message: `找到 ${staleList.length} 个超过 ${STALE_DAYS} 天未活跃的会话，获取详情...`
+        });
+        const staleIds = staleList.map((f) => f.friendId);
+        let details = [];
+        for (let i = 0; i < staleIds.length; i += 199) {
+          const batch = staleIds.slice(i, i + 199);
+          const batchDetails = await bossThrottle.enqueue(() => fetchFriendDetails(batch));
+          details = details.concat(batchDetails);
+        }
+        const detailMap = /* @__PURE__ */ new Map();
+        details.forEach((d) => detailMap.set(d.uid, d));
+        onProgress({
+          phase: "analyzing",
+          current: 0,
+          total: staleList.length,
+          message: "分析会话内容..."
+        });
+        for (let i = 0; i < staleList.length; i++) {
+          const friend = staleList[i];
+          const detail = detailMap.get(friend.friendId);
+          if (!detail || !detail.securityId) continue;
+          onProgress({
+            phase: "analyzing",
+            current: i + 1,
+            total: staleList.length,
+            message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${staleList.length})`
+          });
+          try {
+            const messages = await bossThrottle.enqueue(() => fetchHistoryMessages(detail.encryptBossId, detail.securityId));
+            const lastTextMsg = [...messages].reverse().find((m) => m.bodyType === 1 && m.text);
+            const kwResult = detectByKeywords(messages, myUid);
+            if (kwResult) {
+              candidates.push({
+                friendId: friend.friendId,
+                encryptBossId: detail.encryptBossId,
+                securityId: detail.securityId,
+                name: detail.name,
+                brandName: detail.brandName,
+                title: detail.title,
+                updateTime: friend.updateTime,
+                lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
+                reason: kwResult.reason,
+                reasonDetail: kwResult.detail,
+                selected: true
+              });
+              continue;
+            }
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
+              candidates.push({
+                friendId: friend.friendId,
+                encryptBossId: detail.encryptBossId,
+                securityId: detail.securityId,
+                name: detail.name,
+                brandName: detail.brandName,
+                title: detail.title,
+                updateTime: friend.updateTime,
+                lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
+                reason: "stale_no_reply",
+                reasonDetail: `已读不回超过 ${STALE_DAYS} 天`,
+                selected: true
+              });
+              continue;
+            }
+            const aiResult = await analyzeWithAi(messages, myUid, detail.name);
+            if (aiResult.shouldClean) {
+              candidates.push({
+                friendId: friend.friendId,
+                encryptBossId: detail.encryptBossId,
+                securityId: detail.securityId,
+                name: detail.name,
+                brandName: detail.brandName,
+                title: detail.title,
+                updateTime: friend.updateTime,
+                lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
+                reason: "ai_detected",
+                reasonDetail: aiResult.reason,
+                selected: true
+              });
+            }
+          } catch (_e) {
+          }
+        }
+        onProgress({
+          phase: "done",
+          current: staleList.length,
+          total: staleList.length,
+          message: `扫描完成，找到 ${candidates.length} 个待清理会话`
+        });
+        return candidates;
+      }
+      async function batchDelete(items, onProgress) {
+        let success = 0;
+        let failed = 0;
+        const selected = items.filter((i) => i.selected);
+        for (let i = 0; i < selected.length; i++) {
+          const item = selected[i];
+          onProgress(i + 1, selected.length, item.name);
+          try {
+            const ok = await bossThrottle.enqueue(() => deleteFriend(item.securityId));
+            if (ok) success++;
+            else failed++;
+          } catch (_e) {
+            failed++;
+          }
+        }
+        return { success, failed };
+      }
+      const _hoisted_1$5 = { class: "cleaner-wrapper" };
+      const _hoisted_2$5 = { class: "cleaner-toolbar" };
+      const _hoisted_3$4 = {
+        key: 1,
+        class: "cleaner-result"
+      };
+      const _hoisted_4$4 = {
+        key: 1,
+        class: "cleaner-list"
+      };
+      const _hoisted_5$4 = { class: "cleaner-list-header" };
+      const _hoisted_6$4 = { class: "cleaner-list-count" };
+      const _hoisted_7$4 = { class: "cleaner-card__info" };
+      const _hoisted_8$3 = { class: "cleaner-card__name" };
+      const _hoisted_9$3 = { class: "cleaner-card__detail" };
+      const _hoisted_10$3 = { class: "cleaner-card__reason" };
+      const _hoisted_11$3 = { class: "cleaner-card__meta" };
+      const _hoisted_12$2 = {
+        key: 2,
+        class: "cleaner-empty"
+      };
       const _sfc_main$9 = /* @__PURE__ */ defineComponent({
+        __name: "ConversationCleaner",
+        setup(__props) {
+          const candidates = ref([]);
+          const scanning = ref(false);
+          const scanned = ref(false);
+          const deleting = ref(false);
+          const deleteResult = ref("");
+          const progress = ref({ phase: "idle", current: 0, total: 0, message: "" });
+          const progressMsg = computed(() => progress.value.message || "扫描中...");
+          const selectedCount = computed(() => candidates.value.filter((c) => c.selected).length);
+          const selectAll = computed({
+            get: () => candidates.value.length > 0 && candidates.value.every((c) => c.selected),
+            set: () => {
+            }
+          });
+          function toggleSelectAll(val) {
+            candidates.value.forEach((c) => c.selected = val);
+          }
+          function reasonLabel(reason) {
+            const map = {
+              hr_rejected: "HR拒绝",
+              self_rejected: "我拒绝",
+              stale_no_reply: "已读不回",
+              ai_detected: "AI判定"
+            };
+            return map[reason] || reason;
+          }
+          function reasonTagType(reason) {
+            const map = {
+              hr_rejected: "danger",
+              self_rejected: "warning",
+              stale_no_reply: "info",
+              ai_detected: ""
+            };
+            return map[reason] || "";
+          }
+          function formatTime(ts) {
+            if (!ts) return "--";
+            const d = new Date(ts);
+            const now = /* @__PURE__ */ new Date();
+            const diffDays = Math.floor((now.getTime() - ts) / (24 * 60 * 60 * 1e3));
+            const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+            return diffDays > 0 ? `${dateStr} (${diffDays}天前)` : dateStr;
+          }
+          async function startScan() {
+            scanning.value = true;
+            scanned.value = false;
+            candidates.value = [];
+            deleteResult.value = "";
+            try {
+              const result = await scanConversations((p) => {
+                progress.value = p;
+              });
+              candidates.value = result;
+            } catch (e) {
+              ElMessage({ type: "error", message: `扫描失败: ${(e == null ? void 0 : e.message) || e}` });
+            } finally {
+              scanning.value = false;
+              scanned.value = true;
+            }
+          }
+          async function confirmDelete() {
+            const count = selectedCount.value;
+            if (!count) return;
+            try {
+              await ElMessageBox.confirm(
+                `确认删除选中的 ${count} 个会话？删除后将从 BOSS 直聘列表中移除，同时删除聊天记录。`,
+                "批量删除确认",
+                { confirmButtonText: "确认删除", cancelButtonText: "取消", type: "warning" }
+              );
+            } catch {
+              return;
+            }
+            deleting.value = true;
+            deleteResult.value = "";
+            try {
+              const { success, failed } = await batchDelete(
+                candidates.value,
+                (cur, total, name) => {
+                  deleteResult.value = `删除中 ${cur}/${total}: ${name}`;
+                }
+              );
+              deleteResult.value = `完成: 成功 ${success} 个${failed ? `，失败 ${failed} 个` : ""}`;
+              candidates.value = candidates.value.filter((c) => !c.selected);
+            } catch (e) {
+              ElMessage({ type: "error", message: `删除失败: ${(e == null ? void 0 : e.message) || e}` });
+            } finally {
+              deleting.value = false;
+            }
+          }
+          return (_ctx, _cache) => {
+            const _component_el_button = resolveComponent("el-button");
+            const _component_el_progress = resolveComponent("el-progress");
+            const _component_el_checkbox = resolveComponent("el-checkbox");
+            const _component_el_tag = resolveComponent("el-tag");
+            return openBlock(), createElementBlock("div", _hoisted_1$5, [
+              createElementVNode("div", _hoisted_2$5, [
+                createVNode(_component_el_button, {
+                  type: "primary",
+                  loading: scanning.value,
+                  onClick: startScan,
+                  disabled: deleting.value
+                }, {
+                  default: withCtx(() => [
+                    createTextVNode(toDisplayString(scanning.value ? progressMsg.value : "扫描待清理会话"), 1)
+                  ]),
+                  _: 1
+                }, 8, ["loading", "disabled"]),
+                candidates.value.length && !scanning.value ? (openBlock(), createBlock(_component_el_button, {
+                  key: 0,
+                  type: "danger",
+                  loading: deleting.value,
+                  disabled: selectedCount.value === 0,
+                  onClick: confirmDelete
+                }, {
+                  default: withCtx(() => [
+                    createTextVNode(" 删除选中 (" + toDisplayString(selectedCount.value) + ") ", 1)
+                  ]),
+                  _: 1
+                }, 8, ["loading", "disabled"])) : createCommentVNode("", true),
+                deleteResult.value ? (openBlock(), createElementBlock("span", _hoisted_3$4, toDisplayString(deleteResult.value), 1)) : createCommentVNode("", true)
+              ]),
+              scanning.value && progress.value.total > 0 ? (openBlock(), createBlock(_component_el_progress, {
+                key: 0,
+                percentage: Math.round(progress.value.current / progress.value.total * 100),
+                "stroke-width": 6,
+                style: { "margin": "8px 0" }
+              }, null, 8, ["percentage"])) : createCommentVNode("", true),
+              candidates.value.length && !scanning.value ? (openBlock(), createElementBlock("div", _hoisted_4$4, [
+                createElementVNode("div", _hoisted_5$4, [
+                  createVNode(_component_el_checkbox, {
+                    modelValue: selectAll.value,
+                    "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => selectAll.value = $event),
+                    onChange: toggleSelectAll
+                  }, {
+                    default: withCtx(() => [
+                      createTextVNode("全选")
+                    ]),
+                    _: 1
+                  }, 8, ["modelValue"]),
+                  createElementVNode("span", _hoisted_6$4, "共 " + toDisplayString(candidates.value.length) + " 个待清理会话", 1)
+                ]),
+                (openBlock(true), createElementBlock(Fragment, null, renderList(candidates.value, (item, idx) => {
+                  return openBlock(), createElementBlock("div", {
+                    key: item.friendId,
+                    class: "cleaner-card"
+                  }, [
+                    createVNode(_component_el_checkbox, {
+                      modelValue: item.selected,
+                      "onUpdate:modelValue": ($event) => item.selected = $event,
+                      class: "cleaner-card__check"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue"]),
+                    createElementVNode("div", _hoisted_7$4, [
+                      createElementVNode("div", _hoisted_8$3, toDisplayString(item.name) + " · " + toDisplayString(item.brandName) + " · " + toDisplayString(item.title), 1),
+                      createElementVNode("div", _hoisted_9$3, [
+                        createVNode(_component_el_tag, {
+                          size: "small",
+                          type: reasonTagType(item.reason)
+                        }, {
+                          default: withCtx(() => [
+                            createTextVNode(toDisplayString(reasonLabel(item.reason)), 1)
+                          ]),
+                          _: 2
+                        }, 1032, ["type"]),
+                        createElementVNode("span", _hoisted_10$3, toDisplayString(item.reasonDetail), 1)
+                      ]),
+                      createElementVNode("div", _hoisted_11$3, " 最后活跃: " + toDisplayString(formatTime(item.updateTime)) + " · 最后消息: " + toDisplayString((item.lastText || "(无文本)").substring(0, 50)), 1)
+                    ])
+                  ]);
+                }), 128))
+              ])) : createCommentVNode("", true),
+              !candidates.value.length && !scanning.value && scanned.value ? (openBlock(), createElementBlock("div", _hoisted_12$2, " 没有找到需要清理的会话 ")) : createCommentVNode("", true)
+            ]);
+          };
+        }
+      });
+      const _export_sfc = exports("_", (sfc, props) => {
+        const target = sfc.__vccOpts || sfc;
+        for (const [key, val] of props) {
+          target[key] = val;
+        }
+        return target;
+      });
+      const ConversationCleaner = /* @__PURE__ */ _export_sfc(_sfc_main$9, [["__scopeId", "data-v-3bfcabd1"]]);
+      const _withScopeId$3 = (n) => (pushScopeId("data-v-850eb580"), n = n(), popScopeId(), n);
+      const _hoisted_1$4 = { class: "cleaner-section" };
+      const _hoisted_2$4 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("div", { class: "cleaner-section__title" }, "会话清理", -1));
+      const _sfc_main$8 = /* @__PURE__ */ defineComponent({
         __name: "AiJob",
         setup(__props) {
           const VueAny = Vue;
@@ -4019,20 +4740,20 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
             computed: computed2,
             watch: watch2,
             openBlock: openBlock$1,
-            createElementBlock: createElementBlock2,
+            createElementBlock: createElementBlock$1,
             normalizeClass: normalizeClass2,
             unref: unref$1,
             inject: inject2,
             ref: ref2,
-            createVNode: createVNode2,
+            createVNode: createVNode$1,
             Fragment: Fragment2,
             withCtx: withCtx2,
-            createBlock: createBlock$1,
+            createBlock: createBlock2,
             normalizeStyle,
             createTextVNode: createTextVNode2,
             toDisplayString: toDisplayString2,
             createCommentVNode: createCommentVNode2,
-            createElementVNode: createElementVNode2,
+            createElementVNode: createElementVNode$1,
             withDirectives: withDirectives2,
             vShow: vShow2,
             renderList: renderList2,
@@ -4081,18 +4802,18 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
             close(..._args) {
             }
           };
-          const _withScopeId$3 = (n) => (pushScopeId2("data-v-13350d57"), n = n(), popScopeId2(), n);
+          const _withScopeId$32 = (n) => (pushScopeId2("data-v-13350d57"), n = n(), popScopeId2(), n);
           const _hoisted_1$6 = { key: 0 };
-          const _hoisted_2$5 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("br", null, null, -1));
-          const _hoisted_3$32 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("br", null, null, -1));
-          const _hoisted_4$32 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("p", { style: { "font-size": "15px" } }, "导入简历", -1));
+          const _hoisted_2$52 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("br", null, null, -1));
+          const _hoisted_3$32 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("br", null, null, -1));
+          const _hoisted_4$32 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("p", { style: { "font-size": "15px" } }, "导入简历", -1));
           const _hoisted_5$32 = { style: { "font-size": "15px" } };
           const _hoisted_6$32 = { style: { "font-size": "15px" } };
-          const _hoisted_7$32 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("span", null, "AI代聊 ", -1));
+          const _hoisted_7$32 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("span", null, "AI代聊 ", -1));
           const _hoisted_8$32 = { class: "fixed-stop-button" };
           const _hoisted_9$32 = { class: "push-records-container" };
-          const _hoisted_10$32 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("div", { class: "push-records-header" }, [
-            /* @__PURE__ */ createElementVNode2("span", null, "实时操作记录")
+          const _hoisted_10$32 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("div", { class: "push-records-header" }, [
+            /* @__PURE__ */ createElementVNode$1("span", null, "实时操作记录")
           ], -1));
           const _hoisted_11$32 = { class: "push-records-content" };
           const _hoisted_12$12 = { class: "record-time" };
@@ -4101,22 +4822,22 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
             class: "no-records"
           };
           const _hoisted_14$12 = { class: "my-header" };
-          const _hoisted_15$12 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("br", null, null, -1));
-          const _hoisted_16$12 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("h3", null, "我的产品列表", -1));
-          const _hoisted_172 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("br", null, null, -1));
-          const _hoisted_182 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("br", null, null, -1));
+          const _hoisted_15$12 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("br", null, null, -1));
+          const _hoisted_16$12 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("h3", null, "我的产品列表", -1));
+          const _hoisted_172 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("br", null, null, -1));
+          const _hoisted_182 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("br", null, null, -1));
           const _hoisted_192 = {
             type: "info",
             style: { "margin-top": "10px" }
           };
           const _hoisted_20 = { key: 0 };
-          const _hoisted_21 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("br", null, null, -1));
-          const _hoisted_22 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("br", null, null, -1));
+          const _hoisted_21 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("br", null, null, -1));
+          const _hoisted_22 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("br", null, null, -1));
           const _hoisted_23 = { style: { "padding-top": "10px", "min-width": "8%" } };
           const _hoisted_24 = { class: "demonstration" };
           const _hoisted_25$1 = { class: "demonstration" };
           const _hoisted_26 = { class: "demonstration" };
-          const _hoisted_27 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode2("div", { class: "image-slot" }, "加载订单二维码失败；请稍后刷新重试", -1));
+          const _hoisted_27 = /* @__PURE__ */ _withScopeId$32(() => /* @__PURE__ */ createElementVNode$1("div", { class: "image-slot" }, "加载订单二维码失败；请稍后刷新重试", -1));
           const _hoisted_28 = { style: { "width": "80%" } };
           const _hoisted_29 = { class: "demonstration" };
           const _sfc_main$82 = /* @__PURE__ */ defineComponent2({
@@ -4450,8 +5171,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                 const _component_el_image = ElImage;
                 const _component_el_dialog = ElDialog;
                 const _directive_loading = vLoading;
-                return openBlock$1(), createElementBlock2(Fragment2, null, [
-                  createVNode2(_component_el_text, {
+                return openBlock$1(), createElementBlock$1(Fragment2, null, [
+                  createVNode$1(_component_el_text, {
                     size: "large",
                     class: "mx-1",
                     type: "primary"
@@ -4461,7 +5182,7 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                     ]),
                     _: 1
                   }),
-                  createVNode2(_component_el_text, {
+                  createVNode$1(_component_el_text, {
                     size: "large",
                     class: "mx-1",
                     type: "danger"
@@ -4471,7 +5192,7 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                     ]),
                     _: 1
                   }),
-                  createVNode2(_component_el_button, {
+                  createVNode$1(_component_el_button, {
                     type: "info",
                     size: "small",
                     plain: "",
@@ -4483,7 +5204,7 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                     ]),
                     _: 1
                   }),
-                  createVNode2(_component_el_text, {
+                  createVNode$1(_component_el_text, {
                     size: "large",
                     class: "mx-1"
                   }, {
@@ -4492,23 +5213,23 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                     ]),
                     _: 1
                   }),
-                  createVNode2(_component_el_input_number, {
+                  createVNode$1(_component_el_input_number, {
                     modelValue: selfDefPushCountLimit.value,
                     "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => selfDefPushCountLimit.value = $event),
                     min: -1,
                     max: 100,
                     onChange: selfDefPushCountLimitChange
                   }, null, 8, ["modelValue"]),
-                  !unref$1(isProdEnv)() ? (openBlock$1(), createElementBlock2("span", _hoisted_1$6, [
+                  !unref$1(isProdEnv)() ? (openBlock$1(), createElementBlock$1("span", _hoisted_1$6, [
                     createTextVNode2("    MOCK投递  "),
-                    createVNode2(_component_el_switch, {
+                    createVNode$1(_component_el_switch, {
                       modelValue: mockPush.value,
                       "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => mockPush.value = $event)
                     }, null, 8, ["modelValue"])
                   ])) : createCommentVNode2("", true),
-                  createElementVNode2("span", { style: { "margin-left": "12px" } }, [
+                  createElementVNode$1("span", { style: { "margin-left": "12px" } }, [
                     createTextVNode2("按条件收藏 "),
-                    createVNode2(_component_el_switch, {
+                    createVNode$1(_component_el_switch, {
                       modelValue: collectMode.value,
                       "onUpdate:modelValue": ($event) => collectMode.value = $event,
                       "active-text": "开",
@@ -4517,16 +5238,16 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                       style: { "--el-switch-on-color": "#67c23a", "--el-switch-off-color": "#dcdfe6" }
                     }, null, 8, ["modelValue"])
                   ]),
-                  _hoisted_2$5,
+                  _hoisted_2$52,
                   _hoisted_3$32,
-                  createVNode2(_component_el_tooltip, {
+                  createVNode$1(_component_el_tooltip, {
                     effect: "dark",
                     "raw-content": "",
                     content: "\r\n    在Boss中更新了附件简历后请重新导入<p/>\r\n    - 仅用于AI代聊定制化回复\r\n    ",
                     placement: "bottom"
                   }, {
                     default: withCtx2(() => [
-                      createVNode2(_component_el_button, {
+                      createVNode$1(_component_el_button, {
                         icon: unref$1(Upload),
                         type: "primary",
                         onClick: handlerImport2,
@@ -4540,41 +5261,41 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                     ]),
                     _: 1
                   }),
-                  createVNode2(_component_el_tooltip, {
+                  createVNode$1(_component_el_tooltip, {
                     effect: "dark",
                     "raw-content": "",
                     content: "\r\n    先通过Boss的筛选功能圈选你的意向岗位<p/><span style='color:red;'>在【偏好设置-投递设置】中选择</span><br/>您的投递偏好，用于精准投递岗位\r\n    ",
                     placement: "bottom"
                   }, {
                     default: withCtx2(() => [
-                      createVNode2(_component_el_button, {
+                      createVNode$1(_component_el_button, {
                         icon: unref$1(Promotion),
                         type: pushBtnType.value,
                         onClick: handlerPush
                       }, {
                         default: withCtx2(() => [
-                          createElementVNode2("p", _hoisted_5$32, toDisplayString2(pushBtnText.value), 1)
+                          createElementVNode$1("p", _hoisted_5$32, toDisplayString2(pushBtnText.value), 1)
                         ]),
                         _: 1
                       }, 8, ["icon", "type"])
                     ]),
                     _: 1
                   }),
-                  createVNode2(_component_el_tooltip, {
+                  createVNode$1(_component_el_tooltip, {
                     effect: "dark",
                     "raw-content": "",
                     content: "\r\n    AI代聊：自动响应hr的消息,根据您的简历信息进行定制化回答。<br/>\r\n    - 高意向职位邮件通知，快速筛选出最合适的职位。<br/>\r\n    - 快捷发送简历，交换 wx、联系方式。<br/>\r\n    - hr拒绝挽留，不放过每一个机会。<br/>\r\n    ",
                     placement: "bottom"
                   }, {
                     default: withCtx2(() => [
-                      createVNode2(_component_el_button, {
+                      createVNode$1(_component_el_button, {
                         icon: unref$1(Service),
                         color: "#626aef"
                       }, {
                         default: withCtx2(() => [
-                          createElementVNode2("p", _hoisted_6$32, [
+                          createElementVNode$1("p", _hoisted_6$32, [
                             _hoisted_7$32,
-                            createVNode2(_component_el_switch, {
+                            createVNode$1(_component_el_switch, {
                               "active-text": "开",
                               "inactive-text": "关",
                               "inline-prompt": "",
@@ -4590,33 +5311,33 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                     ]),
                     _: 1
                   }),
-                  withDirectives2(createElementVNode2("div", _hoisted_8$32, [
-                    createElementVNode2("div", _hoisted_9$32, [
+                  withDirectives2(createElementVNode$1("div", _hoisted_8$32, [
+                    createElementVNode$1("div", _hoisted_9$32, [
                       _hoisted_10$32,
-                      createElementVNode2("div", _hoisted_11$32, [
-                        (openBlock$1(true), createElementBlock2(Fragment2, null, renderList2(latestPushRecords.value, (record, index) => {
-                          return openBlock$1(), createElementBlock2("div", {
+                      createElementVNode$1("div", _hoisted_11$32, [
+                        (openBlock$1(true), createElementBlock$1(Fragment2, null, renderList2(latestPushRecords.value, (record, index) => {
+                          return openBlock$1(), createElementBlock$1("div", {
                             key: index,
                             class: "push-record-item"
                           }, [
-                            createElementVNode2("span", _hoisted_12$12, toDisplayString2(record.timestamp), 1),
-                            createElementVNode2("span", {
+                            createElementVNode$1("span", _hoisted_12$12, toDisplayString2(record.timestamp), 1),
+                            createElementVNode$1("span", {
                               class: normalizeClass2(["record-message", getRecordLevelClass(record.level)])
                             }, toDisplayString2(record.message), 3)
                           ]);
                         }), 128)),
-                        latestPushRecords.value.length === 0 ? (openBlock$1(), createElementBlock2("div", _hoisted_13$12, " 暂无操作记录 ")) : createCommentVNode2("", true)
+                        latestPushRecords.value.length === 0 ? (openBlock$1(), createElementBlock$1("div", _hoisted_13$12, " 暂无操作记录 ")) : createCommentVNode2("", true)
                       ])
                     ]),
-                    createVNode2(_component_el_button, {
+                    createVNode$1(_component_el_button, {
                       type: "warning",
                       size: "large",
                       onClick: handlerFixedStopPush
                     }, {
                       default: withCtx2(() => [
-                        createVNode2(_component_el_icon, null, {
+                        createVNode$1(_component_el_icon, null, {
                           default: withCtx2(() => [
-                            createVNode2(unref$1(CircleCloseFilled))
+                            createVNode$1(unref$1(CircleCloseFilled))
                           ]),
                           _: 1
                         }),
@@ -4627,7 +5348,7 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                   ], 512), [
                     [vShow2, pushStatus.value === unref$1(PushStatus).PUSHING]
                   ]),
-                  createVNode2(_component_el_dialog, {
+                  createVNode$1(_component_el_dialog, {
                     modelValue: aiSeatBuyVisible.value,
                     "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => aiSeatBuyVisible.value = $event),
                     "show-close": false,
@@ -4636,8 +5357,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                     header: withCtx2(({ close, titleId, titleClass }) => {
                       var _a;
                       return [
-                        createElementVNode2("div", _hoisted_14$12, [
-                          createVNode2(_component_el_text, {
+                        createElementVNode$1("div", _hoisted_14$12, [
+                          createVNode$1(_component_el_text, {
                             size: "large",
                             style: { "font-size": "20px" },
                             type: "info"
@@ -4647,14 +5368,14 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                             ]),
                             _: 1
                           }),
-                          createVNode2(_component_el_button, {
+                          createVNode$1(_component_el_button, {
                             type: "warning",
                             onClick: close
                           }, {
                             default: withCtx2(() => [
-                              createVNode2(_component_el_icon, { class: "el-icon--left" }, {
+                              createVNode$1(_component_el_icon, { class: "el-icon--left" }, {
                                 default: withCtx2(() => [
-                                  createVNode2(unref$1(CircleCloseFilled))
+                                  createVNode$1(unref$1(CircleCloseFilled))
                                 ]),
                                 _: 1
                               }),
@@ -4663,48 +5384,48 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                             _: 2
                           }, 1032, ["onClick"])
                         ]),
-                        withDirectives2(createElementVNode2("div", null, [
+                        withDirectives2(createElementVNode$1("div", null, [
                           _hoisted_15$12,
                           _hoisted_16$12,
                           _hoisted_172,
-                          withDirectives2(createVNode2(_component_el_table, {
+                          withDirectives2(createVNode$1(_component_el_table, {
                             data: buyProductList.value,
                             stripe: "",
                             style: { "width": "100%" }
                           }, {
                             default: withCtx2(() => [
-                              createVNode2(_component_el_table_column, {
+                              createVNode$1(_component_el_table_column, {
                                 prop: "productName",
                                 label: "产品",
                                 width: "180"
                               }, {
                                 default: withCtx2(({ row }) => [
-                                  createElementVNode2("span", {
+                                  createElementVNode$1("span", {
                                     style: normalizeStyle({ textDecoration: isExpired(row) ? "line-through" : "none" })
                                   }, toDisplayString2(row.productName), 5)
                                 ]),
                                 _: 1
                               }),
-                              createVNode2(_component_el_table_column, {
+                              createVNode$1(_component_el_table_column, {
                                 label: "状态",
                                 width: "100"
                               }, {
                                 default: withCtx2(({ row }) => [
-                                  createElementVNode2("span", {
+                                  createElementVNode$1("span", {
                                     style: normalizeStyle({ color: isExpired(row) ? "red" : "green" })
                                   }, toDisplayString2(isExpired(row) ? "过期" : "正常"), 5)
                                 ]),
                                 _: 1
                               }),
-                              createVNode2(_component_el_table_column, {
+                              createVNode$1(_component_el_table_column, {
                                 prop: "powerList",
                                 label: "能力",
                                 width: "180"
                               }, {
                                 default: withCtx2(({ row }) => [
-                                  (openBlock$1(true), createElementBlock2(Fragment2, null, renderList2(row.powerList, (power) => {
-                                    return openBlock$1(), createElementBlock2("div", { key: power }, [
-                                      createVNode2(_component_el_tag, {
+                                  (openBlock$1(true), createElementBlock$1(Fragment2, null, renderList2(row.powerList, (power) => {
+                                    return openBlock$1(), createElementBlock$1("div", { key: power }, [
+                                      createVNode$1(_component_el_tag, {
                                         effect: "dark",
                                         type: randomStyle(),
                                         size: "small"
@@ -4719,11 +5440,11 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                                 ]),
                                 _: 1
                               }),
-                              createVNode2(_component_el_table_column, {
+                              createVNode$1(_component_el_table_column, {
                                 prop: "periodOfValidityStartTime",
                                 label: "有效期开始时间"
                               }),
-                              createVNode2(_component_el_table_column, {
+                              createVNode$1(_component_el_table_column, {
                                 prop: "periodOfValidityEndTime",
                                 label: "有效期结束时间"
                               })
@@ -4736,8 +5457,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                         ], 512), [
                           [vShow2, buyProductList.value.length > 0]
                         ]),
-                        createElementVNode2("div", _hoisted_192, [
-                          createVNode2(_component_el_button, {
+                        createElementVNode$1("div", _hoisted_192, [
+                          createVNode$1(_component_el_button, {
                             type: "danger",
                             icon: unref$1(Shop),
                             onClick: showOrderGroup
@@ -4747,14 +5468,14 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                             ]),
                             _: 1
                           }, 8, ["icon"]),
-                          createVNode2(_component_el_input, {
+                          createVNode$1(_component_el_input, {
                             "suffix-icon": unref$1(Wallet),
                             modelValue: promotionCode.value,
                             "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => promotionCode.value = $event),
                             style: { "margin-left": "10px", "width": "240px" },
                             placeholder: "请输入您的优惠码"
                           }, null, 8, ["suffix-icon", "modelValue"]),
-                          createVNode2(_component_el_link, {
+                          createVNode$1(_component_el_link, {
                             icon: unref$1(PriceTag),
                             type: "primary",
                             style: { "margin-left": "30px" },
@@ -4767,16 +5488,16 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                             _: 1
                           }, 8, ["icon"])
                         ]),
-                        withDirectives2(createVNode2(_component_el_empty, {
+                        withDirectives2(createVNode$1(_component_el_empty, {
                           "image-size": 50,
                           description: "购买产品为空，请点击更多产品查看"
                         }, null, 512), [
                           [vShow2, !((_a = buyProductList.value) == null ? void 0 : _a.length) && !showOtherProduct.value]
                         ]),
-                        showOtherProduct.value ? withDirectives2((openBlock$1(), createElementBlock2("div", _hoisted_20, [
+                        showOtherProduct.value ? withDirectives2((openBlock$1(), createElementBlock$1("div", _hoisted_20, [
                           _hoisted_21,
-                          createElementVNode2("p", null, [
-                            createVNode2(_component_el_text, {
+                          createElementVNode$1("p", null, [
+                            createVNode$1(_component_el_text, {
                               class: "mx-1",
                               type: "danger"
                             }, {
@@ -4788,15 +5509,15 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                             createTextVNode2(" 使用R1深度思考大模型时：首先，R1的价格更贵，深度思考的内容也会被记录token消耗。token消耗量巨大。同时由于boss的会话聊天机制，需要携带消息上下文调用。这也就意味着对话轮数越多，token消耗越多。按乘方的趋势增长。 ")
                           ]),
                           _hoisted_22,
-                          (openBlock$1(true), createElementBlock2(Fragment2, null, renderList2(orderGroup.value, (order) => {
-                            return openBlock$1(), createElementBlock2("div", {
+                          (openBlock$1(true), createElementBlock$1(Fragment2, null, renderList2(orderGroup.value, (order) => {
+                            return openBlock$1(), createElementBlock$1("div", {
                               key: order,
                               style: normalizeStyle([{ "display": "flex" }, "width: " + 1 / orderGroup.value.length]),
                               class: "block"
                             }, [
-                              createElementVNode2("div", _hoisted_23, [
-                                createElementVNode2("p", _hoisted_24, [
-                                  createVNode2(_component_el_text, {
+                              createElementVNode$1("div", _hoisted_23, [
+                                createElementVNode$1("p", _hoisted_24, [
+                                  createVNode$1(_component_el_text, {
                                     size: "large",
                                     type: "primary"
                                   }, {
@@ -4806,8 +5527,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                                     _: 2
                                   }, 1024)
                                 ]),
-                                createElementVNode2("p", _hoisted_25$1, [
-                                  createVNode2(_component_el_text, {
+                                createElementVNode$1("p", _hoisted_25$1, [
+                                  createVNode$1(_component_el_text, {
                                     size: "large",
                                     type: "success"
                                   }, {
@@ -4817,8 +5538,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                                     _: 2
                                   }, 1024)
                                 ]),
-                                createElementVNode2("p", _hoisted_26, [
-                                  createVNode2(_component_el_text, {
+                                createElementVNode$1("p", _hoisted_26, [
+                                  createVNode$1(_component_el_text, {
                                     size: "large",
                                     type: "danger"
                                   }, {
@@ -4829,7 +5550,7 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                                   }, 1024)
                                 ])
                               ]),
-                              createVNode2(_component_el_image, {
+                              createVNode$1(_component_el_image, {
                                 style: { "width": "100px", "height": "100px" },
                                 src: "data:image/png;base64," + order.qrCodeBase64,
                                 fit: "fill"
@@ -4839,11 +5560,11 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                                 ]),
                                 _: 2
                               }, 1032, ["src"]),
-                              createElementVNode2("div", _hoisted_28, [
-                                createElementVNode2("div", null, [
+                              createElementVNode$1("div", _hoisted_28, [
+                                createElementVNode$1("div", null, [
                                   createTextVNode2(" 提供能力: "),
-                                  (openBlock$1(true), createElementBlock2(Fragment2, null, renderList2(order.tags, (tag) => {
-                                    return openBlock$1(), createBlock$1(_component_el_tag, {
+                                  (openBlock$1(true), createElementBlock$1(Fragment2, null, renderList2(order.tags, (tag) => {
+                                    return openBlock$1(), createBlock2(_component_el_tag, {
                                       style: { "margin": "10px" },
                                       key: tag,
                                       type: randomStyle(),
@@ -4857,8 +5578,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                                     }, 1032, ["type"]);
                                   }), 128))
                                 ]),
-                                createElementVNode2("div", null, [
-                                  createElementVNode2("span", _hoisted_29, toDisplayString2(order.desc), 1)
+                                createElementVNode$1("div", null, [
+                                  createElementVNode$1("span", _hoisted_29, toDisplayString2(order.desc), 1)
                                 ])
                               ])
                             ], 4);
@@ -4876,19 +5597,18 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
           });
           const RenderComponent = _sfc_main$82;
           return (_ctx, _cache) => {
-            return openBlock(), createBlock(unref(RenderComponent));
+            return openBlock(), createElementBlock("div", null, [
+              createVNode(unref(RenderComponent)),
+              createElementVNode("div", _hoisted_1$4, [
+                _hoisted_2$4,
+                createVNode(ConversationCleaner)
+              ])
+            ]);
           };
         }
       });
-      const _export_sfc = exports("_", (sfc, props) => {
-        const target = sfc.__vccOpts || sfc;
-        for (const [key, val] of props) {
-          target[key] = val;
-        }
-        return target;
-      });
-      const AiJob = /* @__PURE__ */ _export_sfc(_sfc_main$9, [["__scopeId", "data-v-6068e988"]]);
-      const _sfc_main$8 = /* @__PURE__ */ defineComponent({
+      const AiJob = /* @__PURE__ */ _export_sfc(_sfc_main$8, [["__scopeId", "data-v-850eb580"]]);
+      const _sfc_main$7 = /* @__PURE__ */ defineComponent({
         __name: "Preference",
         setup(__props) {
           const VueAny = Vue;
@@ -4929,7 +5649,7 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
             ElNotification
           } = ElementAny;
           const _withScopeId$22 = (n) => (pushScopeId2("data-v-b36666e5"), n = n(), popScopeId2(), n);
-          const _hoisted_1$5 = { key: 0 };
+          const _hoisted_1$52 = { key: 0 };
           const _hoisted_2$42 = /* @__PURE__ */ _withScopeId$22(() => /* @__PURE__ */ createElementVNode2("br", null, null, -1));
           const _hoisted_3$22 = /* @__PURE__ */ _withScopeId$22(() => /* @__PURE__ */ createElementVNode2("br", null, null, -1));
           const _hoisted_4$22 = { style: { "display": "flex", "margin-top": "10px" } };
@@ -5106,7 +5826,7 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                 }, {
                   default: withCtx2(() => [
                     createElementVNode2("div", null, [
-                      unref$1(Tools).window.location.href.includes("job-recommend") ? (openBlock$1(), createElementBlock2("div", _hoisted_1$5, [
+                      unref$1(Tools).window.location.href.includes("job-recommend") ? (openBlock$1(), createElementBlock2("div", _hoisted_1$52, [
                         createVNode2(_component_el_text, {
                           class: "mx-1 top-title",
                           type: "danger"
@@ -5925,8 +6645,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
           };
         }
       });
-      const Preference = /* @__PURE__ */ _export_sfc(_sfc_main$8, [["__scopeId", "data-v-b61b2d43"]]);
-      const _sfc_main$7 = /* @__PURE__ */ defineComponent({
+      const Preference = /* @__PURE__ */ _export_sfc(_sfc_main$7, [["__scopeId", "data-v-b61b2d43"]]);
+      const _sfc_main$6 = /* @__PURE__ */ defineComponent({
         __name: "RunRecord",
         setup(__props) {
           const VueAny = Vue;
@@ -6243,163 +6963,28 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
           };
         }
       });
-      const RunRecord = /* @__PURE__ */ _export_sfc(_sfc_main$7, [["__scopeId", "data-v-0c4932dc"]]);
-      const _GM_xmlhttpRequest = typeof GM_xmlhttpRequest !== "undefined" ? GM_xmlhttpRequest : void 0;
-      function getActiveDirectConfig() {
-        const ext = Tools.getAiConfigExt();
-        const apiConfigs = Array.isArray(ext.apiConfigs) ? ext.apiConfigs : [];
-        const activeId = ext.activeApiConfigId || "";
-        if (!activeId || !apiConfigs.length) {
-          return null;
-        }
-        const active = apiConfigs.find((c) => c.id === activeId && c.status === 1);
-        if (!active || !active.baseUrl || !active.apiKey || !active.modelName) {
-          return null;
-        }
-        return {
-          baseUrl: active.baseUrl,
-          apiKey: active.apiKey,
-          modelName: active.modelName,
-          apiFormat: active.apiFormat || "completions",
-          timeout: Number(active.timeout || 60)
-        };
-      }
-      async function directAiCall(config, messages) {
-        if (!_GM_xmlhttpRequest) {
-          throw new Error("GM_xmlhttpRequest 不可用");
-        }
-        const { baseUrl, apiKey, modelName, apiFormat, timeout } = config;
-        const timeoutMs = (timeout || 60) * 1e3;
-        if (apiFormat === "responses") {
-          return callResponsesApi(baseUrl, apiKey, modelName, messages, timeoutMs);
-        }
-        return callCompletionsApi(baseUrl, apiKey, modelName, messages, timeoutMs);
-      }
-      function callCompletionsApi(baseUrl, apiKey, modelName, messages, timeoutMs) {
-        const url = `${baseUrl.replace(/\/+$/, "")}/v1/chat/completions`;
-        const body = JSON.stringify({
-          model: modelName,
-          messages: messages.map((m) => ({ role: m.role, content: m.content }))
-        });
-        return gmRequest(url, apiKey, body, timeoutMs).then((data) => {
-          var _a, _b;
-          const choice = (_a = data == null ? void 0 : data.choices) == null ? void 0 : _a[0];
-          return ((_b = choice == null ? void 0 : choice.message) == null ? void 0 : _b.content) || "";
-        });
-      }
-      function callResponsesApi(baseUrl, apiKey, modelName, messages, timeoutMs) {
-        const url = `${baseUrl.replace(/\/+$/, "")}/v1/responses`;
-        const input = messages.map((m) => ({
-          type: "message",
-          role: m.role === "system" ? "developer" : m.role,
-          content: [{ type: "input_text", text: m.content }]
-        }));
-        const body = JSON.stringify({
-          model: modelName,
-          input
-        });
-        return gmRequest(url, apiKey, body, timeoutMs).then((data) => {
-          const output = Array.isArray(data == null ? void 0 : data.output) ? data.output : [];
-          const msgOutput = output.find((o) => o.type === "message");
-          if (!msgOutput) {
-            return "";
-          }
-          const contentArr = Array.isArray(msgOutput.content) ? msgOutput.content : [];
-          const textParts = contentArr.filter((c) => c.type === "output_text").map((c) => c.text || "");
-          return textParts.join("");
-        });
-      }
-      function gmRequest(url, apiKey, body, timeoutMs) {
-        return new Promise((resolve, reject) => {
-          if (!_GM_xmlhttpRequest) {
-            reject(new Error("GM_xmlhttpRequest 不可用"));
-            return;
-          }
-          _GM_xmlhttpRequest({
-            method: "POST",
-            url,
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`
-            },
-            data: body,
-            responseType: "json",
-            timeout: timeoutMs,
-            onload: (response) => {
-              var _a, _b;
-              if (response.status >= 200 && response.status < 300) {
-                const data = typeof response.response === "string" ? JSON.parse(response.response) : response.response;
-                resolve(data);
-              } else {
-                const errMsg = typeof response.response === "object" ? ((_b = (_a = response.response) == null ? void 0 : _a.error) == null ? void 0 : _b.message) || JSON.stringify(response.response) : response.responseText || `HTTP ${response.status}`;
-                reject(new Error(errMsg));
-              }
-            },
-            onerror: (err) => {
-              reject(new Error(`网络错误: 请检查 URL 是否正确，或刷新页面后在油猴弹窗中允许跨域请求 (${url})`));
-            },
-            ontimeout: () => {
-              reject(new Error("请求超时"));
-            }
-          });
-        });
-      }
-      function wrapAsBackendResponse(answerContent) {
-        return {
-          data: {
-            code: 200,
-            data: {
-              answerContent,
-              answerTypeList: [1],
-              // MSG_TEXT
-              operationTypeList: []
-            }
-          }
-        };
-      }
-      async function directAsk(question, systemPrompt, messageHistory, config) {
-        const messages = [];
-        if (systemPrompt) {
-          messages.push({ role: "system", content: systemPrompt });
-        }
-        if (messageHistory.length) {
-          messages.push(...messageHistory);
-        }
-        messages.push({ role: "user", content: question });
-        try {
-          const answer = await directAiCall(config, messages);
-          return wrapAsBackendResponse(answer || "(AI 未返回内容)");
-        } catch (e) {
-          return wrapAsBackendResponse(`[AI调用失败] ${(e == null ? void 0 : e.message) || e}`);
-        }
-      }
-      async function directTest(config) {
-        const messages = [
-          { role: "user", content: "你好，请简短回复确认连接正常。" }
-        ];
-        return directAiCall(config, messages);
-      }
+      const RunRecord = /* @__PURE__ */ _export_sfc(_sfc_main$6, [["__scopeId", "data-v-0c4932dc"]]);
       const _withScopeId$2 = (n) => (pushScopeId("data-v-d31aa50b"), n = n(), popScopeId(), n);
-      const _hoisted_1$4 = { class: "api-view-panels" };
-      const _hoisted_2$4 = { class: "api-view-list api-config-list" };
-      const _hoisted_3$4 = { class: "api-list-header" };
-      const _hoisted_4$4 = /* @__PURE__ */ _withScopeId$2(() => /* @__PURE__ */ createElementVNode("span", { class: "api-list-tip" }, "管理多个 API Key，按需启用", -1));
-      const _hoisted_5$4 = { class: "api-config-card__meta" };
-      const _hoisted_6$4 = { class: "api-config-card__line" };
-      const _hoisted_7$4 = /* @__PURE__ */ _withScopeId$2(() => /* @__PURE__ */ createElementVNode("span", { class: "api-config-card__label" }, "Base URL", -1));
-      const _hoisted_8$3 = { class: "api-config-card__value" };
-      const _hoisted_9$3 = { class: "api-config-card__line" };
-      const _hoisted_10$3 = /* @__PURE__ */ _withScopeId$2(() => /* @__PURE__ */ createElementVNode("span", { class: "api-config-card__label" }, "模型", -1));
-      const _hoisted_11$3 = { class: "api-config-card__value" };
-      const _hoisted_12$3 = { class: "api-config-card__line" };
-      const _hoisted_13$2 = /* @__PURE__ */ _withScopeId$2(() => /* @__PURE__ */ createElementVNode("span", { class: "api-config-card__label" }, "API Key", -1));
-      const _hoisted_14$2 = { class: "api-config-card__value" };
+      const _hoisted_1$3 = { class: "api-view-panels" };
+      const _hoisted_2$3 = { class: "api-view-list api-config-list" };
+      const _hoisted_3$3 = { class: "api-list-header" };
+      const _hoisted_4$3 = /* @__PURE__ */ _withScopeId$2(() => /* @__PURE__ */ createElementVNode("span", { class: "api-list-tip" }, "管理多个 API Key，按需启用", -1));
+      const _hoisted_5$3 = { class: "api-config-card__meta" };
+      const _hoisted_6$3 = { class: "api-config-card__line" };
+      const _hoisted_7$3 = /* @__PURE__ */ _withScopeId$2(() => /* @__PURE__ */ createElementVNode("span", { class: "api-config-card__label" }, "Base URL", -1));
+      const _hoisted_8$2 = { class: "api-config-card__value" };
+      const _hoisted_9$2 = { class: "api-config-card__line" };
+      const _hoisted_10$2 = /* @__PURE__ */ _withScopeId$2(() => /* @__PURE__ */ createElementVNode("span", { class: "api-config-card__label" }, "模型", -1));
+      const _hoisted_11$2 = { class: "api-config-card__value" };
+      const _hoisted_12$1 = { class: "api-config-card__line" };
+      const _hoisted_13$1 = /* @__PURE__ */ _withScopeId$2(() => /* @__PURE__ */ createElementVNode("span", { class: "api-config-card__label" }, "API Key", -1));
+      const _hoisted_14$1 = { class: "api-config-card__value" };
       const _hoisted_15$1 = { class: "api-config-card__actions" };
       const _hoisted_16$1 = { class: "api-config-card__buttons" };
       const _hoisted_17 = { class: "api-view-edit" };
       const _hoisted_18 = { class: "api-edit-header" };
       const _hoisted_19 = { class: "api-edit-title" };
-      const _sfc_main$6 = /* @__PURE__ */ defineComponent({
+      const _sfc_main$5 = /* @__PURE__ */ defineComponent({
         __name: "ApiKeyManager",
         setup(__props) {
           const state = inject("aiConfigState");
@@ -6707,10 +7292,10 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
             return openBlock(), createElementBlock("div", {
               class: normalizeClass(["api-view-wrapper", apiView.value === "edit" ? "is-edit" : ""])
             }, [
-              createElementVNode("div", _hoisted_1$4, [
-                createElementVNode("div", _hoisted_2$4, [
-                  createElementVNode("div", _hoisted_3$4, [
-                    _hoisted_4$4,
+              createElementVNode("div", _hoisted_1$3, [
+                createElementVNode("div", _hoisted_2$3, [
+                  createElementVNode("div", _hoisted_3$3, [
+                    _hoisted_4$3,
                     createVNode(_component_el_button, {
                       type: "primary",
                       onClick: startNewConfig
@@ -6726,18 +7311,18 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                       key: item.id,
                       class: "api-config-card"
                     }, [
-                      createElementVNode("div", _hoisted_5$4, [
-                        createElementVNode("div", _hoisted_6$4, [
-                          _hoisted_7$4,
-                          createElementVNode("span", _hoisted_8$3, toDisplayString(item.baseUrl || "--"), 1)
+                      createElementVNode("div", _hoisted_5$3, [
+                        createElementVNode("div", _hoisted_6$3, [
+                          _hoisted_7$3,
+                          createElementVNode("span", _hoisted_8$2, toDisplayString(item.baseUrl || "--"), 1)
                         ]),
-                        createElementVNode("div", _hoisted_9$3, [
-                          _hoisted_10$3,
-                          createElementVNode("span", _hoisted_11$3, toDisplayString(item.modelName || "--"), 1)
+                        createElementVNode("div", _hoisted_9$2, [
+                          _hoisted_10$2,
+                          createElementVNode("span", _hoisted_11$2, toDisplayString(item.modelName || "--"), 1)
                         ]),
-                        createElementVNode("div", _hoisted_12$3, [
-                          _hoisted_13$2,
-                          createElementVNode("span", _hoisted_14$2, toDisplayString(maskApiKey(item.apiKey)), 1)
+                        createElementVNode("div", _hoisted_12$1, [
+                          _hoisted_13$1,
+                          createElementVNode("span", _hoisted_14$1, toDisplayString(maskApiKey(item.apiKey)), 1)
                         ])
                       ]),
                       createElementVNode("div", _hoisted_15$1, [
@@ -6920,25 +7505,25 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
           };
         }
       });
-      const ApiKeyManager = /* @__PURE__ */ _export_sfc(_sfc_main$6, [["__scopeId", "data-v-d31aa50b"]]);
+      const ApiKeyManager = /* @__PURE__ */ _export_sfc(_sfc_main$5, [["__scopeId", "data-v-d31aa50b"]]);
       const _withScopeId$1 = (n) => (pushScopeId("data-v-865ef1d4"), n = n(), popScopeId(), n);
-      const _hoisted_1$3 = { class: "preset-view-panels" };
-      const _hoisted_2$3 = { class: "preset-view-list" };
-      const _hoisted_3$3 = { class: "preset-list-header" };
-      const _hoisted_4$3 = /* @__PURE__ */ _withScopeId$1(() => /* @__PURE__ */ createElementVNode("span", { class: "preset-list-tip" }, "管理提示词预设，启用后自动合并到系统提示词", -1));
-      const _hoisted_5$3 = { class: "preset-card__header" };
-      const _hoisted_6$3 = { class: "preset-card__name" };
-      const _hoisted_7$3 = { class: "preset-card__content" };
-      const _hoisted_8$2 = { class: "preset-card__actions" };
-      const _hoisted_9$2 = { class: "preset-card__buttons" };
-      const _hoisted_10$2 = { class: "preset-view-edit" };
-      const _hoisted_11$2 = { class: "preset-edit-header" };
-      const _hoisted_12$2 = { class: "preset-edit-title" };
-      const _hoisted_13$1 = { class: "variable-hint" };
-      const _hoisted_14$1 = /* @__PURE__ */ _withScopeId$1(() => /* @__PURE__ */ createElementVNode("div", { class: "variable-hint__title" }, "可用变量（输入后投递时自动替换为岗位真实信息）", -1));
+      const _hoisted_1$2 = { class: "preset-view-panels" };
+      const _hoisted_2$2 = { class: "preset-view-list" };
+      const _hoisted_3$2 = { class: "preset-list-header" };
+      const _hoisted_4$2 = /* @__PURE__ */ _withScopeId$1(() => /* @__PURE__ */ createElementVNode("span", { class: "preset-list-tip" }, "管理提示词预设，启用后自动合并到系统提示词", -1));
+      const _hoisted_5$2 = { class: "preset-card__header" };
+      const _hoisted_6$2 = { class: "preset-card__name" };
+      const _hoisted_7$2 = { class: "preset-card__content" };
+      const _hoisted_8$1 = { class: "preset-card__actions" };
+      const _hoisted_9$1 = { class: "preset-card__buttons" };
+      const _hoisted_10$1 = { class: "preset-view-edit" };
+      const _hoisted_11$1 = { class: "preset-edit-header" };
+      const _hoisted_12 = { class: "preset-edit-title" };
+      const _hoisted_13 = { class: "variable-hint" };
+      const _hoisted_14 = /* @__PURE__ */ _withScopeId$1(() => /* @__PURE__ */ createElementVNode("div", { class: "variable-hint__title" }, "可用变量（输入后投递时自动替换为岗位真实信息）", -1));
       const _hoisted_15 = { class: "variable-hint__tags" };
       const _hoisted_16 = { style: { "display": "flex", "gap": "8px", "justify-content": "flex-end" } };
-      const _sfc_main$5 = /* @__PURE__ */ defineComponent({
+      const _sfc_main$4 = /* @__PURE__ */ defineComponent({
         __name: "PromptPresetManager",
         setup(__props) {
           const state = inject("aiConfigState");
@@ -7071,10 +7656,10 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
             return openBlock(), createElementBlock("div", {
               class: normalizeClass(["preset-view-wrapper", presetView.value === "edit" ? "is-edit" : ""])
             }, [
-              createElementVNode("div", _hoisted_1$3, [
-                createElementVNode("div", _hoisted_2$3, [
-                  createElementVNode("div", _hoisted_3$3, [
-                    _hoisted_4$3,
+              createElementVNode("div", _hoisted_1$2, [
+                createElementVNode("div", _hoisted_2$2, [
+                  createElementVNode("div", _hoisted_3$2, [
+                    _hoisted_4$2,
                     createVNode(_component_el_button, {
                       type: "primary",
                       size: "small",
@@ -7091,8 +7676,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                       key: preset.id,
                       class: "preset-card"
                     }, [
-                      createElementVNode("div", _hoisted_5$3, [
-                        createElementVNode("span", _hoisted_6$3, toDisplayString(preset.name), 1),
+                      createElementVNode("div", _hoisted_5$2, [
+                        createElementVNode("span", _hoisted_6$2, toDisplayString(preset.name), 1),
                         createVNode(_component_el_tag, {
                           size: "small",
                           type: preset.scope === "global" ? "warning" : "primary"
@@ -7103,8 +7688,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                           _: 2
                         }, 1032, ["type"])
                       ]),
-                      createElementVNode("div", _hoisted_7$3, toDisplayString((preset.content || "").length > 80 ? `${(preset.content || "").slice(0, 80)}...` : preset.content || "暂无内容"), 1),
-                      createElementVNode("div", _hoisted_8$2, [
+                      createElementVNode("div", _hoisted_7$2, toDisplayString((preset.content || "").length > 80 ? `${(preset.content || "").slice(0, 80)}...` : preset.content || "暂无内容"), 1),
+                      createElementVNode("div", _hoisted_8$1, [
                         createVNode(_component_el_switch, {
                           "model-value": preset.enabled !== false,
                           size: "small",
@@ -7112,7 +7697,7 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                           "inactive-text": "",
                           "onUpdate:modelValue": ($event) => togglePresetEnabled(preset.id)
                         }, null, 8, ["model-value", "onUpdate:modelValue"]),
-                        createElementVNode("div", _hoisted_9$2, [
+                        createElementVNode("div", _hoisted_9$1, [
                           createVNode(_component_el_button, {
                             size: "small",
                             type: "primary",
@@ -7144,8 +7729,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                     description: "暂无预设，点击右上角新增"
                   }))
                 ]),
-                createElementVNode("div", _hoisted_10$2, [
-                  createElementVNode("div", _hoisted_11$2, [
+                createElementVNode("div", _hoisted_10$1, [
+                  createElementVNode("div", _hoisted_11$1, [
                     createVNode(_component_el_button, {
                       link: "",
                       type: "primary",
@@ -7156,7 +7741,7 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                       ]),
                       _: 1
                     }),
-                    createElementVNode("span", _hoisted_12$2, toDisplayString(editingPresetId.value ? "编辑预设" : "新增预设"), 1)
+                    createElementVNode("span", _hoisted_12, toDisplayString(editingPresetId.value ? "编辑预设" : "新增预设"), 1)
                   ]),
                   createVNode(_component_el_form_item, { label: "预设名称" }, {
                     default: withCtx(() => [
@@ -7182,8 +7767,8 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
                     ]),
                     _: 1
                   }),
-                  createElementVNode("div", _hoisted_13$1, [
-                    _hoisted_14$1,
+                  createElementVNode("div", _hoisted_13, [
+                    _hoisted_14,
                     createElementVNode("div", _hoisted_15, [
                       (openBlock(true), createElementBlock(Fragment, null, renderList(unref(PROMPT_VARIABLE_DEFS), (v) => {
                         return openBlock(), createBlock(_component_el_tag, {
@@ -7224,18 +7809,18 @@ System.register("./__monkey.entry-ChmJ-yVl.js", ['vue', 'pinia', 'element-plus',
           };
         }
       });
-      const PromptPresetManager = /* @__PURE__ */ _export_sfc(_sfc_main$5, [["__scopeId", "data-v-865ef1d4"]]);
-      const _hoisted_1$2 = { class: "chat-history" };
-      const _hoisted_2$2 = { class: "bubble" };
-      const _hoisted_3$2 = { class: "meta" };
-      const _hoisted_4$2 = { class: "content" };
-      const _hoisted_5$2 = {
+      const PromptPresetManager = /* @__PURE__ */ _export_sfc(_sfc_main$4, [["__scopeId", "data-v-865ef1d4"]]);
+      const _hoisted_1$1 = { class: "chat-history" };
+      const _hoisted_2$1 = { class: "bubble" };
+      const _hoisted_3$1 = { class: "meta" };
+      const _hoisted_4$1 = { class: "content" };
+      const _hoisted_5$1 = {
         key: 0,
         class: "tags"
       };
-      const _hoisted_6$2 = { class: "chat-composer" };
-      const _hoisted_7$2 = { class: "composer-input" };
-      const _sfc_main$4 = /* @__PURE__ */ defineComponent({
+      const _hoisted_6$1 = { class: "chat-composer" };
+      const _hoisted_7$1 = { class: "composer-input" };
+      const _sfc_main$3 = /* @__PURE__ */ defineComponent({
         __name: "DebugConsole",
         setup(__props, { expose: __expose }) {
           const state = inject("aiConfigState");
@@ -7411,7 +7996,7 @@ ${preset.content}`).join("\n\n");
                 })
               ]),
               default: withCtx(() => [
-                createElementVNode("div", _hoisted_1$2, [
+                createElementVNode("div", _hoisted_1$1, [
                   withDirectives(createVNode(_component_el_empty, { description: "暂无历史消息，请在下方开始你的调试吧" }, null, 512), [
                     [vShow, debugHistory.value.length === 0]
                   ]),
@@ -7420,10 +8005,10 @@ ${preset.content}`).join("\n\n");
                       key: idx,
                       class: normalizeClass(["chat-row", m.role === "user" ? "from-user" : "from-ai"])
                     }, [
-                      createElementVNode("div", _hoisted_2$2, [
-                        createElementVNode("div", _hoisted_3$2, toDisplayString(mapRoleTitle(m.role)), 1),
-                        createElementVNode("div", _hoisted_4$2, toDisplayString(m.content), 1),
-                        m.role === "assistant" ? (openBlock(), createElementBlock("div", _hoisted_5$2, [
+                      createElementVNode("div", _hoisted_2$1, [
+                        createElementVNode("div", _hoisted_3$1, toDisplayString(mapRoleTitle(m.role)), 1),
+                        createElementVNode("div", _hoisted_4$1, toDisplayString(m.content), 1),
+                        m.role === "assistant" ? (openBlock(), createElementBlock("div", _hoisted_5$1, [
                           (openBlock(true), createElementBlock(Fragment, null, renderList(m.answerTypes || [], (t, i) => {
                             return openBlock(), createBlock(_component_el_tag, {
                               key: `a-${i}`,
@@ -7453,8 +8038,8 @@ ${preset.content}`).join("\n\n");
                     ], 2);
                   }), 128))
                 ]),
-                createElementVNode("div", _hoisted_6$2, [
-                  createElementVNode("div", _hoisted_7$2, [
+                createElementVNode("div", _hoisted_6$1, [
+                  createElementVNode("div", _hoisted_7$1, [
                     createVNode(_component_el_input, {
                       modelValue: debugQuestion.value,
                       "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => debugQuestion.value = $event),
@@ -7484,529 +8069,8 @@ ${preset.content}`).join("\n\n");
           };
         }
       });
-      const DebugConsole = /* @__PURE__ */ _export_sfc(_sfc_main$4, [["__scopeId", "data-v-5871d477"]]);
-      const STALE_DAYS = 14;
-      const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1e3;
-      const REQUEST_DELAY_MIN = 800;
-      const REQUEST_DELAY_MAX = 1500;
-      const HISTORY_MSG_COUNT = 10;
-      function getZpToken() {
-        return Tools.getCookieValue("bst") || "";
-      }
-      async function fetchFriendList() {
-        var _a, _b, _c;
-        const resp = await axios.get(
-          "https://www.zhipin.com/wapi/zprelation/friend/geekFilterByLabel?labelId=0"
-        );
-        if (((_a = resp.data) == null ? void 0 : _a.message) === "当前登录状态已失效") {
-          throw new Error("未登录 BOSS 直聘");
-        }
-        const list = (_c = (_b = resp.data) == null ? void 0 : _b.zpData) == null ? void 0 : _c.friendList;
-        if (!Array.isArray(list)) return [];
-        return list.map((f) => ({
-          friendId: f.friendId,
-          encryptFriendId: f.encryptFriendId || "",
-          name: f.name || "",
-          updateTime: f.updateTime || 0,
-          brandName: f.brandName || ""
-        }));
-      }
-      async function fetchFriendDetails(friendIds) {
-        var _a, _b;
-        if (!friendIds.length) return [];
-        const ids = friendIds.slice(0, 199).join(",");
-        const resp = await axios.get(
-          "https://www.zhipin.com/wapi/zprelation/friend/getGeekFriendList.json?friendIds=" + ids
-        );
-        const list = (_b = (_a = resp.data) == null ? void 0 : _a.zpData) == null ? void 0 : _b.result;
-        if (!Array.isArray(list)) return [];
-        return list.map((f) => ({
-          uid: f.uid,
-          encryptBossId: f.encryptBossId || "",
-          securityId: f.securityId || "",
-          encryptJobId: f.encryptJobId || "",
-          brandName: f.brandName || "",
-          title: f.title || "",
-          name: f.name || ""
-        }));
-      }
-      async function fetchHistoryMessages(encryptBossId, securityId, count = HISTORY_MSG_COUNT) {
-        var _a, _b;
-        const params = new URLSearchParams({
-          bossId: encryptBossId,
-          groupId: encryptBossId,
-          maxMsgId: "0",
-          c: String(count),
-          page: "1",
-          src: "0",
-          securityId,
-          loading: "true",
-          _t: String(Date.now())
-        });
-        const resp = await axios.get(
-          "https://www.zhipin.com/wapi/zpchat/geek/historyMsg?" + params.toString()
-        );
-        const messages = (_b = (_a = resp.data) == null ? void 0 : _a.zpData) == null ? void 0 : _b.messages;
-        if (!Array.isArray(messages)) return [];
-        return messages.map((m) => {
-          var _a2, _b2, _c, _d;
-          return {
-            mid: m.mid,
-            time: m.time || 0,
-            fromUid: ((_a2 = m.from) == null ? void 0 : _a2.uid) || 0,
-            toUid: ((_b2 = m.to) == null ? void 0 : _b2.uid) || 0,
-            bodyType: ((_c = m.body) == null ? void 0 : _c.type) || 0,
-            text: ((_d = m.body) == null ? void 0 : _d.text) || ""
-          };
-        });
-      }
-      async function deleteFriend(securityId) {
-        var _a;
-        const token = getZpToken();
-        if (!token) throw new Error("未获取到 Zp_token");
-        const resp = await axios.post(
-          "https://www.zhipin.com/wapi/zprelation/friend/delete.json",
-          "securityId=" + encodeURIComponent(securityId),
-          {
-            headers: {
-              "Zp_token": token,
-              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
-            }
-          }
-        );
-        return ((_a = resp.data) == null ? void 0 : _a.code) === 0;
-      }
-      const REJECT_KEYWORDS = [
-        "不合适",
-        "不太合适",
-        "不匹配",
-        "不太匹配",
-        "暂不考虑",
-        "不考虑",
-        "岗位已关闭",
-        "岗位已满",
-        "已招到",
-        "已经招到",
-        "不太符合",
-        "不符合",
-        "抱歉",
-        "很遗憾",
-        "祝您求职顺利",
-        "再看看其他",
-        "已向您表达不合适"
-      ];
-      const SELF_REJECT_KEYWORDS = [
-        "不考虑了",
-        "不合适",
-        "算了",
-        "不去了",
-        "放弃",
-        "不感兴趣"
-      ];
-      function detectByKeywords(messages, myUid) {
-        for (let i = messages.length - 1; i >= 0; i--) {
-          const m = messages[i];
-          if (m.bodyType !== 1 || !m.text) continue;
-          const isFromMe = m.fromUid === myUid;
-          const text = m.text;
-          if (!isFromMe) {
-            for (const kw of REJECT_KEYWORDS) {
-              if (text.includes(kw)) {
-                return { reason: "hr_rejected", detail: `HR: "${text.substring(0, 60)}"` };
-              }
-            }
-          } else {
-            for (const kw of SELF_REJECT_KEYWORDS) {
-              if (text.includes(kw)) {
-                return { reason: "self_rejected", detail: `我: "${text.substring(0, 60)}"` };
-              }
-            }
-          }
-        }
-        return null;
-      }
-      async function analyzeWithAi(messages, myUid, contactName) {
-        const config = getActiveDirectConfig();
-        if (!config) {
-          return { shouldClean: false, reason: "无可用 AI 配置" };
-        }
-        const textMessages = messages.filter((m) => m.bodyType === 1 && m.text).map((m) => {
-          const role = m.fromUid === myUid ? "我" : contactName;
-          return `[${role}]: ${m.text}`;
-        }).join("\n");
-        if (!textMessages.trim()) {
-          return { shouldClean: false, reason: "无文本消息" };
-        }
-        const prompt = `分析以下求职对话，判断是否属于以下情况之一：
-1. HR明确拒绝了求职者（如不合适、岗位已满等）
-2. 求职者明确拒绝了该岗位
-3. 对话已经结束，双方不再有继续沟通的意向
-
-对话内容：
-${textMessages}
-
-请只回复 JSON 格式：{"shouldClean": true/false, "reason": "简短原因"}`;
-        const aiMessages = [
-          { role: "system", content: "你是一个求职对话分析助手，只输出 JSON，不要输出其他内容。" },
-          { role: "user", content: prompt }
-        ];
-        try {
-          const answer = await directAiCall(config, aiMessages);
-          const jsonMatch = answer.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            return {
-              shouldClean: !!parsed.shouldClean,
-              reason: parsed.reason || ""
-            };
-          }
-          return { shouldClean: false, reason: "AI 返回格式异常" };
-        } catch (e) {
-          return { shouldClean: false, reason: `AI 调用失败: ${(e == null ? void 0 : e.message) || e}` };
-        }
-      }
-      async function scanConversations(onProgress) {
-        var _a, _b;
-        const candidates = [];
-        const now = Date.now();
-        const myUid = ((_b = (_a = Tools.window) == null ? void 0 : _a._PAGE) == null ? void 0 : _b.uid) || 0;
-        onProgress({ phase: "fetching", current: 0, total: 0, message: "获取会话列表..." });
-        let friendList;
-        try {
-          friendList = await fetchFriendList();
-        } catch (e) {
-          onProgress({ phase: "error", current: 0, total: 0, message: (e == null ? void 0 : e.message) || "获取会话列表失败" });
-          return [];
-        }
-        if (!friendList.length) {
-          onProgress({ phase: "done", current: 0, total: 0, message: "没有会话" });
-          return [];
-        }
-        const staleList = friendList.filter((f) => now - f.updateTime > STALE_MS);
-        if (!staleList.length) {
-          onProgress({ phase: "done", current: 0, total: friendList.length, message: `共 ${friendList.length} 个会话，无超过 ${STALE_DAYS} 天未活跃的` });
-          return [];
-        }
-        onProgress({
-          phase: "fetching",
-          current: 0,
-          total: staleList.length,
-          message: `找到 ${staleList.length} 个超过 ${STALE_DAYS} 天未活跃的会话，获取详情...`
-        });
-        const staleIds = staleList.map((f) => f.friendId);
-        let details = [];
-        for (let i = 0; i < staleIds.length; i += 199) {
-          const batch = staleIds.slice(i, i + 199);
-          const batchDetails = await fetchFriendDetails(batch);
-          details = details.concat(batchDetails);
-          await Tools.sleep(REQUEST_DELAY_MIN + Tools.getRandomNumber(0, REQUEST_DELAY_MAX - REQUEST_DELAY_MIN));
-        }
-        const detailMap = /* @__PURE__ */ new Map();
-        details.forEach((d) => detailMap.set(d.uid, d));
-        onProgress({
-          phase: "analyzing",
-          current: 0,
-          total: staleList.length,
-          message: "分析会话内容..."
-        });
-        for (let i = 0; i < staleList.length; i++) {
-          const friend = staleList[i];
-          const detail = detailMap.get(friend.friendId);
-          if (!detail || !detail.securityId) continue;
-          onProgress({
-            phase: "analyzing",
-            current: i + 1,
-            total: staleList.length,
-            message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${staleList.length})`
-          });
-          try {
-            const messages = await fetchHistoryMessages(detail.encryptBossId, detail.securityId);
-            await Tools.sleep(REQUEST_DELAY_MIN + Tools.getRandomNumber(0, REQUEST_DELAY_MAX - REQUEST_DELAY_MIN));
-            const lastTextMsg = [...messages].reverse().find((m) => m.bodyType === 1 && m.text);
-            const kwResult = detectByKeywords(messages, myUid);
-            if (kwResult) {
-              candidates.push({
-                friendId: friend.friendId,
-                encryptBossId: detail.encryptBossId,
-                securityId: detail.securityId,
-                name: detail.name,
-                brandName: detail.brandName,
-                title: detail.title,
-                updateTime: friend.updateTime,
-                lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
-                reason: kwResult.reason,
-                reasonDetail: kwResult.detail,
-                selected: true
-              });
-              continue;
-            }
-            const lastMsg = messages[messages.length - 1];
-            if (lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
-              candidates.push({
-                friendId: friend.friendId,
-                encryptBossId: detail.encryptBossId,
-                securityId: detail.securityId,
-                name: detail.name,
-                brandName: detail.brandName,
-                title: detail.title,
-                updateTime: friend.updateTime,
-                lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
-                reason: "stale_no_reply",
-                reasonDetail: `已读不回超过 ${STALE_DAYS} 天`,
-                selected: true
-              });
-              continue;
-            }
-            const aiResult = await analyzeWithAi(messages, myUid, detail.name);
-            if (aiResult.shouldClean) {
-              candidates.push({
-                friendId: friend.friendId,
-                encryptBossId: detail.encryptBossId,
-                securityId: detail.securityId,
-                name: detail.name,
-                brandName: detail.brandName,
-                title: detail.title,
-                updateTime: friend.updateTime,
-                lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
-                reason: "ai_detected",
-                reasonDetail: aiResult.reason,
-                selected: true
-              });
-            }
-          } catch (_e) {
-          }
-        }
-        onProgress({
-          phase: "done",
-          current: staleList.length,
-          total: staleList.length,
-          message: `扫描完成，找到 ${candidates.length} 个待清理会话`
-        });
-        return candidates;
-      }
-      async function batchDelete(items, onProgress) {
-        let success = 0;
-        let failed = 0;
-        const selected = items.filter((i) => i.selected);
-        for (let i = 0; i < selected.length; i++) {
-          const item = selected[i];
-          onProgress(i + 1, selected.length, item.name);
-          try {
-            const ok = await deleteFriend(item.securityId);
-            if (ok) success++;
-            else failed++;
-          } catch (_e) {
-            failed++;
-          }
-          if (i < selected.length - 1) {
-            await Tools.sleep(REQUEST_DELAY_MIN + Tools.getRandomNumber(0, REQUEST_DELAY_MAX - REQUEST_DELAY_MIN));
-          }
-        }
-        return { success, failed };
-      }
-      const _hoisted_1$1 = { class: "cleaner-wrapper" };
-      const _hoisted_2$1 = { class: "cleaner-toolbar" };
-      const _hoisted_3$1 = {
-        key: 1,
-        class: "cleaner-result"
-      };
-      const _hoisted_4$1 = {
-        key: 1,
-        class: "cleaner-list"
-      };
-      const _hoisted_5$1 = { class: "cleaner-list-header" };
-      const _hoisted_6$1 = { class: "cleaner-list-count" };
-      const _hoisted_7$1 = { class: "cleaner-card__info" };
-      const _hoisted_8$1 = { class: "cleaner-card__name" };
-      const _hoisted_9$1 = { class: "cleaner-card__detail" };
-      const _hoisted_10$1 = { class: "cleaner-card__reason" };
-      const _hoisted_11$1 = { class: "cleaner-card__meta" };
-      const _hoisted_12$1 = {
-        key: 2,
-        class: "cleaner-empty"
-      };
-      const _sfc_main$3 = /* @__PURE__ */ defineComponent({
-        __name: "ConversationCleaner",
-        setup(__props) {
-          const state = inject("aiConfigState");
-          const candidates = ref([]);
-          const scanning = ref(false);
-          const scanned = ref(false);
-          const deleting = ref(false);
-          const deleteResult = ref("");
-          const progress = ref({ phase: "idle", current: 0, total: 0, message: "" });
-          const progressMsg = computed(() => progress.value.message || "扫描中...");
-          const selectedCount = computed(() => candidates.value.filter((c) => c.selected).length);
-          const selectAll = computed({
-            get: () => candidates.value.length > 0 && candidates.value.every((c) => c.selected),
-            set: () => {
-            }
-          });
-          function toggleSelectAll(val) {
-            candidates.value.forEach((c) => c.selected = val);
-          }
-          function reasonLabel(reason) {
-            const map = {
-              hr_rejected: "HR拒绝",
-              self_rejected: "我拒绝",
-              stale_no_reply: "已读不回",
-              ai_detected: "AI判定"
-            };
-            return map[reason] || reason;
-          }
-          function reasonTagType(reason) {
-            const map = {
-              hr_rejected: "danger",
-              self_rejected: "warning",
-              stale_no_reply: "info",
-              ai_detected: ""
-            };
-            return map[reason] || "";
-          }
-          function formatTime(ts) {
-            if (!ts) return "--";
-            const d = new Date(ts);
-            const now = /* @__PURE__ */ new Date();
-            const diffDays = Math.floor((now.getTime() - ts) / (24 * 60 * 60 * 1e3));
-            const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
-            return diffDays > 0 ? `${dateStr} (${diffDays}天前)` : dateStr;
-          }
-          async function startScan() {
-            var _a;
-            scanning.value = true;
-            scanned.value = false;
-            candidates.value = [];
-            deleteResult.value = "";
-            try {
-              const result = await scanConversations((p) => {
-                progress.value = p;
-              });
-              candidates.value = result;
-            } catch (e) {
-              (_a = state == null ? void 0 : state.ElMessage) == null ? void 0 : _a.call(state, { type: "error", message: `扫描失败: ${(e == null ? void 0 : e.message) || e}` });
-            } finally {
-              scanning.value = false;
-              scanned.value = true;
-            }
-          }
-          async function confirmDelete() {
-            var _a, _b;
-            const count = selectedCount.value;
-            if (!count) return;
-            try {
-              await ((_a = state == null ? void 0 : state.ElMessageBox) == null ? void 0 : _a.confirm(
-                `确认删除选中的 ${count} 个会话？删除后将从 BOSS 直聘列表中移除，同时删除聊天记录。`,
-                "批量删除确认",
-                { confirmButtonText: "确认删除", cancelButtonText: "取消", type: "warning" }
-              ));
-            } catch {
-              return;
-            }
-            deleting.value = true;
-            deleteResult.value = "";
-            try {
-              const { success, failed } = await batchDelete(
-                candidates.value,
-                (cur, total, name) => {
-                  deleteResult.value = `删除中 ${cur}/${total}: ${name}`;
-                }
-              );
-              deleteResult.value = `完成: 成功 ${success} 个${failed ? `，失败 ${failed} 个` : ""}`;
-              candidates.value = candidates.value.filter((c) => !c.selected);
-            } catch (e) {
-              (_b = state == null ? void 0 : state.ElMessage) == null ? void 0 : _b.call(state, { type: "error", message: `删除失败: ${(e == null ? void 0 : e.message) || e}` });
-            } finally {
-              deleting.value = false;
-            }
-          }
-          return (_ctx, _cache) => {
-            const _component_el_button = resolveComponent("el-button");
-            const _component_el_progress = resolveComponent("el-progress");
-            const _component_el_checkbox = resolveComponent("el-checkbox");
-            const _component_el_tag = resolveComponent("el-tag");
-            return openBlock(), createElementBlock("div", _hoisted_1$1, [
-              createElementVNode("div", _hoisted_2$1, [
-                createVNode(_component_el_button, {
-                  type: "primary",
-                  loading: scanning.value,
-                  onClick: startScan,
-                  disabled: deleting.value
-                }, {
-                  default: withCtx(() => [
-                    createTextVNode(toDisplayString(scanning.value ? progressMsg.value : "扫描待清理会话"), 1)
-                  ]),
-                  _: 1
-                }, 8, ["loading", "disabled"]),
-                candidates.value.length && !scanning.value ? (openBlock(), createBlock(_component_el_button, {
-                  key: 0,
-                  type: "danger",
-                  loading: deleting.value,
-                  disabled: selectedCount.value === 0,
-                  onClick: confirmDelete
-                }, {
-                  default: withCtx(() => [
-                    createTextVNode(" 删除选中 (" + toDisplayString(selectedCount.value) + ") ", 1)
-                  ]),
-                  _: 1
-                }, 8, ["loading", "disabled"])) : createCommentVNode("", true),
-                deleteResult.value ? (openBlock(), createElementBlock("span", _hoisted_3$1, toDisplayString(deleteResult.value), 1)) : createCommentVNode("", true)
-              ]),
-              scanning.value && progress.value.total > 0 ? (openBlock(), createBlock(_component_el_progress, {
-                key: 0,
-                percentage: Math.round(progress.value.current / progress.value.total * 100),
-                "stroke-width": 6,
-                style: { "margin": "8px 0" }
-              }, null, 8, ["percentage"])) : createCommentVNode("", true),
-              candidates.value.length && !scanning.value ? (openBlock(), createElementBlock("div", _hoisted_4$1, [
-                createElementVNode("div", _hoisted_5$1, [
-                  createVNode(_component_el_checkbox, {
-                    modelValue: selectAll.value,
-                    "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => selectAll.value = $event),
-                    onChange: toggleSelectAll
-                  }, {
-                    default: withCtx(() => [
-                      createTextVNode("全选")
-                    ]),
-                    _: 1
-                  }, 8, ["modelValue"]),
-                  createElementVNode("span", _hoisted_6$1, "共 " + toDisplayString(candidates.value.length) + " 个待清理会话", 1)
-                ]),
-                (openBlock(true), createElementBlock(Fragment, null, renderList(candidates.value, (item, idx) => {
-                  return openBlock(), createElementBlock("div", {
-                    key: item.friendId,
-                    class: "cleaner-card"
-                  }, [
-                    createVNode(_component_el_checkbox, {
-                      modelValue: item.selected,
-                      "onUpdate:modelValue": ($event) => item.selected = $event,
-                      class: "cleaner-card__check"
-                    }, null, 8, ["modelValue", "onUpdate:modelValue"]),
-                    createElementVNode("div", _hoisted_7$1, [
-                      createElementVNode("div", _hoisted_8$1, toDisplayString(item.name) + " · " + toDisplayString(item.brandName) + " · " + toDisplayString(item.title), 1),
-                      createElementVNode("div", _hoisted_9$1, [
-                        createVNode(_component_el_tag, {
-                          size: "small",
-                          type: reasonTagType(item.reason)
-                        }, {
-                          default: withCtx(() => [
-                            createTextVNode(toDisplayString(reasonLabel(item.reason)), 1)
-                          ]),
-                          _: 2
-                        }, 1032, ["type"]),
-                        createElementVNode("span", _hoisted_10$1, toDisplayString(item.reasonDetail), 1)
-                      ]),
-                      createElementVNode("div", _hoisted_11$1, " 最后活跃: " + toDisplayString(formatTime(item.updateTime)) + " · 最后消息: " + toDisplayString((item.lastText || "(无文本)").substring(0, 50)), 1)
-                    ])
-                  ]);
-                }), 128))
-              ])) : createCommentVNode("", true),
-              !candidates.value.length && !scanning.value && scanned.value ? (openBlock(), createElementBlock("div", _hoisted_12$1, " 没有找到需要清理的会话 ")) : createCommentVNode("", true)
-            ]);
-          };
-        }
-      });
-      const ConversationCleaner = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["__scopeId", "data-v-85b7e682"]]);
-      const _withScopeId = (n) => (pushScopeId("data-v-14236cf1"), n = n(), popScopeId(), n);
+      const DebugConsole = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["__scopeId", "data-v-5871d477"]]);
+      const _withScopeId = (n) => (pushScopeId("data-v-237138cd"), n = n(), popScopeId(), n);
       const _hoisted_1 = { class: "ai-config" };
       const _hoisted_2 = { class: "ai-section" };
       const _hoisted_3 = /* @__PURE__ */ _withScopeId(() => /* @__PURE__ */ createElementVNode("div", { class: "ai-section-title" }, "提示词与记忆", -1));
@@ -8018,9 +8082,6 @@ ${textMessages}
       const _hoisted_9 = /* @__PURE__ */ _withScopeId(() => /* @__PURE__ */ createElementVNode("span", { style: { "font-size": "12px", "color": "#606266" } }, "摘要阈值", -1));
       const _hoisted_10 = { class: "ai-section" };
       const _hoisted_11 = /* @__PURE__ */ _withScopeId(() => /* @__PURE__ */ createElementVNode("div", { class: "ai-section-title" }, "自有API配置", -1));
-      const _hoisted_12 = { class: "ai-section" };
-      const _hoisted_13 = /* @__PURE__ */ _withScopeId(() => /* @__PURE__ */ createElementVNode("div", { class: "ai-section-title" }, "会话清理", -1));
-      const _hoisted_14 = { style: { "padding": "0 10px" } };
       const _sfc_main$2 = /* @__PURE__ */ defineComponent({
         __name: "AiConfig",
         setup(__props) {
@@ -8494,12 +8555,6 @@ ${preset.content}`).join("\n\n");
                 _hoisted_11,
                 createVNode(ApiKeyManager)
               ]),
-              createElementVNode("div", _hoisted_12, [
-                _hoisted_13,
-                createElementVNode("div", _hoisted_14, [
-                  createVNode(ConversationCleaner)
-                ])
-              ]),
               createVNode(DebugConsole, {
                 ref_key: "debugConsoleRef",
                 ref: debugConsoleRef
@@ -8508,7 +8563,7 @@ ${preset.content}`).join("\n\n");
           };
         }
       });
-      const AiConfig = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["__scopeId", "data-v-14236cf1"]]);
+      const AiConfig = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["__scopeId", "data-v-237138cd"]]);
       const STORAGE_KEY = "ai-job-panel-collapsed";
       const WIDTH_STORAGE_KEY = "ai-job-panel-width";
       const SVG_OPEN = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/></svg>';
@@ -9020,7 +9075,7 @@ ${preset.content}`).join("\n\n");
         }
         async getRenderComponent() {
           if (this.curUrl.includes("www.zhipin.com/web/geek/chat")) {
-            const mod = await __vitePreload(() => module.import('./BossMessage-tSrBQ-bg-CzaySA8D.js'), void 0 );
+            const mod = await __vitePreload(() => module.import('./BossMessage-BzvmP_Zl-ClaKfxlz.js'), void 0 );
             return mod.default;
           }
           if (this.curUrl.includes("www.zhipin.com/web/geek/job") || this.curUrl.includes("overseas")) {
@@ -9833,7 +9888,7 @@ ${preset.content}`).join("\n\n");
   };
 }));
 
-System.register("./BossMessage-tSrBQ-bg-CzaySA8D.js", ['vue', 'element-plus', './__monkey.entry-ChmJ-yVl.js', 'pinia', 'protobufjs'], (function (exports, module) {
+System.register("./BossMessage-BzvmP_Zl-ClaKfxlz.js", ['vue', 'element-plus', './__monkey.entry-CMGCLSER.js', 'pinia', 'protobufjs'], (function (exports, module) {
   'use strict';
   var defineComponent, openBlock, createBlock, unref, Vue, ElementPlus, _export_sfc, ElMessage, AiPower, Message, Tools;
   return {
