@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { computed, onMounted, provide, ref, watch } from 'vue';
-import { ElMessageBox, ElNotification } from 'element-plus';
+import { ElMessageBox } from 'element-plus';
 import { request, ElMessage } from '@/services/request';
 import { Tools } from '@/utils/tools';
 import ApiKeyManager from './ApiKeyManager.vue';
@@ -48,7 +48,7 @@ const form = ref({
 
 const isTestLoading = ref(false);
 const aiConfigExt = ref(Tools.getAiConfigExt());
-const selectedPresetId = ref('');
+
 
 const memoryScopeOptions = [
   { label: '会话级', value: 'session' },
@@ -190,50 +190,10 @@ const finalPromptPreview = computed(() => {
     .filter((preset) => preset.enabled !== false)
     .map((preset, index) => `# ${preset.scope === 'personal' ? '模型' : '全局'}预设${index + 1} ${preset.name}\n${preset.content}`)
     .join('\n\n');
-  const userPromptText = `${form.value.userPrompt || ''}`.trim();
-  const userPromptSection = userPromptText ? `# 用户附加提示词\n${userPromptText}` : '';
-  const mergedText = [enabledMergedText, userPromptSection].filter((text) => !!text).join('\n\n');
-  return mergedText || '暂无可用提示词内容';
+  return enabledMergedText || '暂无可用提示词内容';
 });
 
-const saveCurrentPromptAsPreset = async () => {
-  const promptText = `${form.value.userPrompt || ''}`.trim();
-  if (!promptText) {
-    ElMessage({ type: 'warning', message: '请先填写用户提示词' });
-    return;
-  }
-  const { value } = await ElMessageBox.prompt('请输入预设名称', '保存提示词预设', {
-    confirmButtonText: '保存',
-    cancelButtonText: '取消',
-    inputPlaceholder: '例如：技术岗稳健沟通',
-  }).catch(() => ({ value: '' }));
-  if (!value) {
-    return;
-  }
-  const preset = {
-    id: `personal-${Date.now()}`,
-    name: value,
-    tags: ['个人'],
-    content: promptText,
-    scope: 'personal',
-    enabled: true,
-    updatedAt: Date.now(),
-  };
-  getCurrentChannelPresetList().push(preset);
-  persistAiConfigExt();
-  selectedPresetId.value = preset.id;
-  ElMessage({ type: 'success', message: '已保存到当前模型预设库' });
-};
 
-const applySelectedPreset = () => {
-  const preset = getPresetById(selectedPresetId.value);
-  if (!preset) {
-    ElMessage({ type: 'warning', message: '请先选择预设' });
-    return;
-  }
-  form.value.userPrompt = preset.content || '';
-  ElMessage({ type: 'success', message: '预设已应用到用户提示词' });
-};
 
 const saveCurrentMemoryProfileSilently = () => {
   const ext = ensureAiConfigExtSchema();
@@ -331,7 +291,7 @@ const fetchConfig = async () => {
       handleProviderChange(form.value.provider, true);
       syncCurrentChannelToExt();
       loadCurrentMemoryProfile();
-      selectedPresetId.value = '';
+
     }
   } catch (error) {
     ElMessage({ type: 'error', message: '获取配置失败' });
@@ -396,8 +356,9 @@ const handleTempSave = async () => {
 
 const handleSavePrompt = async () => {
   try {
+    const composedPrompt = finalPromptPreview.value || '';
     const resp = await request.post('/api/user/ai/config/temp/save', {
-      userPrompt: form.value.userPrompt || '',
+      userPrompt: composedPrompt,
       userId: form.value.userId,
     });
     if (resp.data.code === 200) {
@@ -416,27 +377,13 @@ const handleTest = async () => {
       timeout: form.value.timeout * 1000 - 200,
     });
     if (response.data.code === 200) {
-      ElNotification({
-        title: '测试通过',
-        message: response.data.data,
-        type: 'success',
-      });
+      ElMessage({ type: 'success', message: `测试通过: ${response.data.data || ''}` });
       form.value.testPassed = 1;
       return;
     }
-    ElNotification({
-      title: '测试失败',
-      message: response.data.message,
-      type: 'error',
-      customClass: 'test-failed-notification',
-    });
+    ElMessage({ type: 'error', message: `测试失败: ${response.data.message || ''}` });
   } catch (e) {
-    ElNotification({
-      title: '测试失败',
-      message: `${e || ''}`,
-      type: 'error',
-      customClass: 'test-failed-notification',
-    });
+    ElMessage({ type: 'error', message: `测试失败: ${e || ''}` });
   } finally {
     isTestLoading.value = false;
   }
@@ -447,7 +394,7 @@ watch(
   () => {
     syncCurrentChannelToExt();
     loadCurrentMemoryProfile();
-    selectedPresetId.value = '';
+
   }
 );
 
@@ -458,7 +405,7 @@ const openDebugDialog = () => {
 provide('aiConfigState', {
   form,
   aiConfigExt,
-  selectedPresetId,
+
   memoryProfile,
 
   ensureAiConfigExtSchema,
@@ -487,31 +434,10 @@ onMounted(async () => {
 <template>
   <div class="ai-config">
     <div class="ai-section">
-      <div class="ai-section-title">模型微调</div>
+      <div class="ai-section-title">提示词与记忆</div>
       <div class="tune-form">
         <el-form ref="formRef" label-width="120px">
-          <el-form-item label="用户提示词">
-            <el-input
-              v-model="form.userPrompt"
-              type="textarea"
-              :rows="6"
-              :maxlength="5000"
-              show-word-limit
-              placeholder="请输入用于微调的用户提示词，将作为AI代聊的部分系统提示词使用 示例如下：
-## 语气风格
-- 使用比较轻快活泼的风格交流，同时保持积极专业的沟通态度
-- 避免过于正式或刻板的表达，保持对话流畅性
-
-## 信息处理
-- 用数据化成果突出个人价值，如完成3个百万级项目
-- 对薪资、到岗时间等敏感问题采用策略性回应
-
-## 以上仅作为示例写法，无实际意义
-"
-            />
-          </el-form-item>
-
-          <el-form-item label="提示词预设">
+          <el-form-item label="提示词管理">
             <PromptPresetManager />
           </el-form-item>
 

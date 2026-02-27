@@ -64,6 +64,13 @@
             <el-input v-model="editForm.modelName" placeholder="请输入模型名称，如 gpt-4o / deepseek-chat" />
           </el-form-item>
 
+          <el-form-item label="API 格式">
+            <el-select v-model="editForm.apiFormat" style="width:100%;">
+              <el-option label="Chat Completions（标准）" value="completions" />
+              <el-option label="Responses API（GPT-5 系列）" value="responses" />
+            </el-select>
+          </el-form-item>
+
           <el-form-item>
             <el-button type="info" @click="handleTempSave">暂存</el-button>
             <el-button type="success" :loading="isTestLoading" @click="handleTest">测试</el-button>
@@ -78,8 +85,8 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { computed, inject, onMounted, ref } from 'vue';
-import { ElNotification } from 'element-plus';
 import { request } from '@/services/request';
+import { directTest } from '@/services/direct-ai-client';
 
 const state = inject('aiConfigState');
 if (!state) {
@@ -92,12 +99,13 @@ const editingConfigId = ref(null);
 const formRef = ref();
 const isTestLoading = ref(false);
 const editForm = ref({
-  provider: 1,
+  provider: 0,
   modelName: '',
   apiKey: '',
   baseUrl: '',
   timeout: 60,
   completionsPath: '',
+  apiFormat: 'completions',
   status: 0,
   testPassed: 0,
 });
@@ -131,12 +139,13 @@ const normalizeApiConfigItem = (config) => {
   const current = config || {};
   return {
     id: current.id || createApiConfigId(),
-    provider: Number(current.provider ?? 1),
+    provider: 0,
     modelName: `${current.modelName || ''}`,
     apiKey: `${current.apiKey || ''}`,
     baseUrl: `${current.baseUrl || ''}`,
     timeout: Number(current.timeout || 60),
     completionsPath: `${current.completionsPath || ''}`,
+    apiFormat: current.apiFormat === 'responses' ? 'responses' : 'completions',
     status: Number(current.status || 0),
     testPassed: Number(current.testPassed || 0),
   };
@@ -167,6 +176,7 @@ const syncEditFormToParent = (config) => {
     baseUrl: normalizedConfig.baseUrl,
     timeout: normalizedConfig.timeout,
     completionsPath: normalizedConfig.completionsPath,
+    apiFormat: normalizedConfig.apiFormat,
     status: normalizedConfig.status,
     testPassed: normalizedConfig.testPassed,
   };
@@ -238,12 +248,13 @@ const backToList = () => {
 const startNewConfig = () => {
   editingConfigId.value = null;
   editForm.value = {
-    provider: Number(state.form.value.provider || 1),
+    provider: 0,
     modelName: '',
     apiKey: '',
     baseUrl: '',
     timeout: Number(state.form.value.timeout || 60),
     completionsPath: `${state.form.value.completionsPath || ''}`,
+    apiFormat: 'completions',
     status: 0,
     testPassed: 0,
   };
@@ -386,35 +397,18 @@ const handleTest = async () => {
 
     isTestLoading.value = true;
     try {
-      const payload = {
-        ...state.form.value,
-        ...editForm.value,
-      };
-      const response = await request.post('/api/user/ai/config/test', payload, {
-        timeout: Number(editForm.value.timeout || 60) * 1000 - 200,
+      // 直接调用用户 API 测试连通性
+      const answer = await directTest({
+        baseUrl: editForm.value.baseUrl,
+        apiKey: editForm.value.apiKey,
+        modelName: editForm.value.modelName,
+        apiFormat: editForm.value.apiFormat || 'completions',
+        timeout: Number(editForm.value.timeout || 60),
       });
-      if (response.data.code === 200) {
-        ElNotification({
-          title: '测试通过',
-          message: response.data.data,
-          type: 'success',
-        });
-        editForm.value.testPassed = 1;
-        return;
-      }
-      ElNotification({
-        title: '测试失败',
-        message: response.data.message,
-        type: 'error',
-        customClass: 'test-failed-notification',
-      });
+      state.ElMessage({ type: 'success', message: `测试通过: ${(answer || '').slice(0, 100)}` });
+      editForm.value.testPassed = 1;
     } catch (e) {
-      ElNotification({
-        title: '测试失败',
-        message: `${e || ''}`,
-        type: 'error',
-        customClass: 'test-failed-notification',
-      });
+      state.ElMessage({ type: 'error', message: `测试失败: ${e?.message || e || ''}` });
     } finally {
       isTestLoading.value = false;
     }
@@ -427,22 +421,25 @@ onMounted(() => {
 </script>
 
 <style scoped>
-:deep(.api-view-wrapper){position:relative;overflow:hidden}
-:deep(.api-view-panels){display:flex;width:200%;transition:transform .28s ease}
-:deep(.api-view-wrapper.is-edit .api-view-panels){transform:translateX(-50%)}
-:deep(.api-view-list), :deep(.api-view-edit){width:50%;flex-shrink:0}
-:deep(.api-config-list){padding-right:2px}
-:deep(.api-list-header){display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-:deep(.api-list-tip){font-size:12px;color:#909399}
-:deep(.api-config-card){border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}
-:deep(.api-config-card__meta){display:flex;flex-direction:column;gap:6px}
-:deep(.api-config-card__line){display:flex;justify-content:space-between;gap:8px;font-size:12px}
-:deep(.api-config-card__label){color:#909399}
-:deep(.api-config-card__value){color:#303133;word-break:break-all;text-align:right}
-:deep(.api-config-card__actions){margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-:deep(.api-config-card__buttons){display:flex;align-items:center;gap:8px}
-:deep(.api-view-edit){padding-left:4px}
-:deep(.api-edit-header){display:flex;align-items:center;gap:10px;margin-bottom:6px}
-:deep(.api-edit-title){font-size:13px;font-weight:600;color:#303133}
-:deep(.api-config-form){padding-right:2px}
+.api-view-wrapper{position:relative;overflow:hidden}
+.api-view-panels{display:flex;width:200%;transition:transform .28s ease}
+.api-view-wrapper.is-edit .api-view-panels{transform:translateX(-50%)}
+.api-view-list, .api-view-edit{width:50%;flex-shrink:0}
+.api-view-edit{visibility:hidden;max-height:0;overflow:hidden}
+.api-view-wrapper.is-edit .api-view-edit{visibility:visible;max-height:none;overflow:visible}
+.api-view-wrapper.is-edit .api-view-list{visibility:hidden;max-height:0;overflow:hidden}
+.api-config-list{padding-right:2px}
+.api-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.api-list-tip{font-size:12px;color:#909399}
+.api-config-card{border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}
+.api-config-card__meta{display:flex;flex-direction:column;gap:6px}
+.api-config-card__line{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+.api-config-card__label{color:#909399}
+.api-config-card__value{color:#303133;word-break:break-all;text-align:right}
+.api-config-card__actions{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.api-config-card__buttons{display:flex;align-items:center;gap:8px}
+.api-view-edit{padding-left:4px}
+.api-edit-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.api-edit-title{font-size:13px;font-weight:600;color:#303133}
+.api-config-form{padding-right:2px}
 </style>

@@ -51,6 +51,7 @@
 import { computed, inject, ref, watch } from 'vue';
 import { request } from '@/services/request';
 import { Tools, resolvePromptVariables, PROMPT_VARIABLE_DEFS } from '@/utils/tools';
+import { getActiveDirectConfig, directAiCall } from '@/services/direct-ai-client';
 
 const state = inject('aiConfigState');
 if (!state) {
@@ -71,10 +72,7 @@ const finalPromptPreview = computed(() => {
     .filter((preset) => preset.enabled !== false)
     .map((preset, index) => `# ${preset.scope === 'personal' ? '模型' : '全局'}预设${index + 1} ${preset.name}\n${preset.content}`)
     .join('\n\n');
-  const userPromptText = `${state.form.value.userPrompt || ''}`.trim();
-  const userPromptSection = userPromptText ? `# 用户附加提示词\n${userPromptText}` : '';
-  const mergedText = [enabledMergedText, userPromptSection].filter((text) => !!text).join('\n\n');
-  return mergedText || '暂无可用提示词内容';
+  return enabledMergedText || '暂无可用提示词内容';
 });
 
 const openDebugDialog = () => {
@@ -142,25 +140,44 @@ const handleSendDebug = async () => {
   isDebugLoading.value = true;
 
   try {
-    const payload = {
-      jobKey: getJobKey(),
-      question,
-      jobInfo: {},
-      userPrompt: resolvePromptVariables(finalPromptPreview.value || '', DEBUG_MOCK_VARS),
-      messageList: debugHistory.value.slice(0, debugHistory.value.length - 1),
-    };
-    const resp = await request.post('/api/user/ai/config/debug', payload, {
-      timeout: 60000,
-      headers: { 'Content-Type': 'application/json' },
-    });
-    const data = resp?.data?.data || {};
-    const answer = data?.answerContent || '';
-    const answerTypes = Array.isArray(data?.answerTypeList) ? data.answerTypeList : [];
-    const operationTypes = Array.isArray(data?.operationTypeList) ? data.operationTypeList : [];
-    debugHistory.value.push({ role: 'assistant', content: answer, answerTypes, operationTypes });
-    persistCurrentDebugHistory();
+    const directConfig = getActiveDirectConfig();
+    if (directConfig) {
+      // 直接调用用户 API
+      const systemPrompt = resolvePromptVariables(finalPromptPreview.value || '', DEBUG_MOCK_VARS);
+      const messages = [];
+      if (systemPrompt) {
+        messages.push({ role: 'system', content: systemPrompt });
+      }
+      // 添加历史消息
+      debugHistory.value.slice(0, debugHistory.value.length - 1).forEach((m) => {
+        messages.push({ role: m.role, content: m.content });
+      });
+      messages.push({ role: 'user', content: question });
+      const answer = await directAiCall(directConfig, messages);
+      debugHistory.value.push({ role: 'assistant', content: answer || '(未返回内容)', answerTypes: [1], operationTypes: [] });
+      persistCurrentDebugHistory();
+    } else {
+      // 走后端
+      const payload = {
+        jobKey: getJobKey(),
+        question,
+        jobInfo: {},
+        userPrompt: resolvePromptVariables(finalPromptPreview.value || '', DEBUG_MOCK_VARS),
+        messageList: debugHistory.value.slice(0, debugHistory.value.length - 1),
+      };
+      const resp = await request.post('/api/user/ai/config/debug', payload, {
+        timeout: 60000,
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = resp?.data?.data || {};
+      const answer = data?.answerContent || '';
+      const answerTypes = Array.isArray(data?.answerTypeList) ? data.answerTypeList : [];
+      const operationTypes = Array.isArray(data?.operationTypeList) ? data.operationTypeList : [];
+      debugHistory.value.push({ role: 'assistant', content: answer, answerTypes, operationTypes });
+      persistCurrentDebugHistory();
+    }
   } catch (e) {
-    state.ElMessage({ type: 'error', message: '调试失败' });
+    state.ElMessage({ type: 'error', message: `调试失败: ${e?.message || e || ''}` });
   } finally {
     isDebugLoading.value = false;
   }
