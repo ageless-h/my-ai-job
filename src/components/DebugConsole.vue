@@ -50,12 +50,14 @@
 // @ts-nocheck
 import { computed, inject, ref, watch } from 'vue';
 import { request } from '@/services/request';
-import { Tools } from '@/utils/tools';
+import { Tools, resolvePromptVariables, PROMPT_VARIABLE_DEFS } from '@/utils/tools';
 
 const state = inject('aiConfigState');
 if (!state) {
   throw new Error('DebugConsole 缺少 aiConfigState 注入');
 }
+const DEBUG_MOCK_VARS: Record<string, string> = {};
+PROMPT_VARIABLE_DEFS.forEach((v) => { DEBUG_MOCK_VARS[v.key] = `[示例${v.label}]`; });
 
 const debugDialogVisible = ref(false);
 const debugQuestion = ref('');
@@ -144,7 +146,7 @@ const handleSendDebug = async () => {
       jobKey: getJobKey(),
       question,
       jobInfo: {},
-      userPrompt: finalPromptPreview.value || '',
+      userPrompt: resolvePromptVariables(finalPromptPreview.value || '', DEBUG_MOCK_VARS),
       messageList: debugHistory.value.slice(0, debugHistory.value.length - 1),
     };
     const resp = await request.post('/api/user/ai/config/debug', payload, {

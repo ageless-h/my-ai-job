@@ -3,7 +3,7 @@ import axios from "axios";
 import { AiPower } from "@/services/ai-power";
 import { AbsPlatform, PushResultStatus, PushStatus, pushResultCounter, userStore$2 } from "@/services/push-engine";
 import { Logger } from "@/utils/logger";
-import { Tools } from "@/utils/tools";
+import { Tools, resolvePromptVariables, buildPromptVarsFromJob } from "@/utils/tools";
 import { TampermonkeyApi } from "@/utils/tampermonkey";
 import {
   NotMatchException,
@@ -280,8 +280,10 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (userStore$2.user.preference.afE && userStore$2.user.preference.af) {
+      const promptVars = buildPromptVarsFromJob(jobDetail);
+      const resolvedFilterPrompt = resolvePromptVariables(userStore$2.user.preference.af, promptVars);
       const filterResp = await AiPower.filter(
-        userStore$2.user.preference.af,
+        resolvedFilterPrompt,
         JSON.stringify(this.unpackBaseInfo(jobDetail)),
         JSON.stringify(this.unpackExtInfo(jobDetailExt))
       );

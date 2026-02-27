@@ -224,8 +224,49 @@ export abstract class AbsPlatform {
             case error instanceof PublishLimitExp:
               this.logRecorder.info(`停止${actionName} ${error.message}`);
               return;
-            default:
-              logger$1.error("未捕获异常--->", error);
+            default: {
+              const isNetwork = this.isNetworkError(error);
+              if (isNetwork) {
+                const maxRetries = 3;
+                let retried = false;
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                  const delayMs = Math.pow(2, attempt) * 1000;
+                  this.logRecorder.warn(`网络异常，${delayMs / 1000}s 后第 ${attempt}/${maxRetries} 次重试... 原因：${error?.message || error}`);
+                  await Tools.sleep(delayMs);
+                  if (this.pushStatus === PushStatus.PAUSE) {
+                    this.logRecorder.info(`重试期间手动暂停`);
+                    return;
+                  }
+                  try {
+                    this.preMatchJob();
+                    await this.matchJob(jobDetail);
+                    if (this._collectMode) {
+                      this.collectPreHandler(jobDetail);
+                      const collectResult = await this.collect(jobDetail);
+                      await this.collectAfterHandler(collectResult, jobDetail);
+                    } else {
+                      this.pushPreHandler(jobDetail);
+                      const pushResult = await this.push(jobDetail);
+                      await this.pushAfterHandler(pushResult, jobDetail);
+                    }
+                    retried = true;
+                    break;
+                  } catch (retryError: any) {
+                    if (!this.isNetworkError(retryError)) {
+                      logger$1.error("重试后非网络异常--->", retryError);
+                      break;
+                    }
+                    if (attempt === maxRetries) {
+                      this.logRecorder.error(`网络异常重试 ${maxRetries} 次后仍失败，暂停${actionName}`);
+                      this.pushStatus = PushStatus.PAUSE;
+                      return;
+                    }
+                  }
+                }
+              } else {
+                logger$1.error("未捕获异常--->", error);
+              }
+            }
           }
         }
       }
@@ -235,6 +276,15 @@ export abstract class AbsPlatform {
   }
 
   pausePush(): void {
+  }
+
+  /** 检测是否为网络异常 */
+  protected isNetworkError(error: any): boolean {
+    if (!error) return false;
+    const code = error?.code || '';
+    if (['ECONNABORTED', 'ERR_NETWORK', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'].includes(code)) return true;
+    const msg = `${error?.message || ''}`.toLowerCase();
+    return msg.includes('timeout') || msg.includes('network') || msg.includes('econnaborted') || msg.includes('fetch');
   }
 
   preMatchJob(): void {

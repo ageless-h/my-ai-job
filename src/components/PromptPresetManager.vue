@@ -69,6 +69,22 @@
           />
         </el-form-item>
 
+        <div class="variable-hint">
+          <div class="variable-hint__title">可用变量（输入后投递时自动替换为岗位真实信息）</div>
+          <div class="variable-hint__tags">
+            <el-tag
+              v-for="v in PROMPT_VARIABLE_DEFS"
+              :key="v.key"
+              size="small"
+              type="info"
+              class="variable-tag"
+              @click="insertVariable(v.label)"
+            >
+              {{ v.label }}
+            </el-tag>
+          </div>
+        </div>
+
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           <el-button @click="backToPresetList">取消</el-button>
           <el-button type="primary" @click="savePreset">保存预设</el-button>
@@ -81,6 +97,7 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { computed, inject, ref } from 'vue';
+import { PROMPT_VARIABLE_DEFS } from '@/utils/tools';
 
 const state = inject('aiConfigState');
 if (!state) {
@@ -107,6 +124,9 @@ const startNewPreset = () => {
   editingPresetId.value = null;
   presetForm.value = { name: '', content: '', scope: 'personal' };
   presetView.value = 'edit';
+};
+const insertVariable = (label: string) => {
+  presetForm.value.content = (presetForm.value.content || '') + label;
 };
 
 const startEditPreset = (id) => {
@@ -236,4 +256,9 @@ const deletePresetById = async (id) => {
 :deep(.preset-view-edit){padding-left:4px}
 :deep(.preset-edit-header){display:flex;align-items:center;gap:10px;margin-bottom:6px}
 :deep(.preset-edit-title){font-size:13px;font-weight:600;color:#303133}
+:deep(.variable-hint){margin-top:4px;padding:8px 10px;background:#fafafa;border:1px dashed #dcdfe6;border-radius:4px}
+:deep(.variable-hint__title){font-size:12px;color:#909399;margin-bottom:6px}
+:deep(.variable-hint__tags){display:flex;flex-wrap:wrap;gap:6px}
+:deep(.variable-tag){cursor:pointer}
+:deep(.variable-tag:hover){color:var(--ai-primary,#409eff);border-color:var(--ai-primary,#409eff)}
 </style>

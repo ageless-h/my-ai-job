@@ -14,6 +14,7 @@ import { LogRecorder, PushStatus } from "@/services/push-engine";
 import { loginInterceptor, silentlyLogin, fetchWithGM_request } from "@/services/auth";
 import { AiPower } from "@/services/ai-power";
 import { Message } from "@/protocol/message";
+import { TampermonkeyApi } from "@/utils/tampermonkey";
 
 const VueAny = Vue as any;
 const ElementAny = ElementPlus as any;
@@ -186,8 +187,32 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             logRecorder.clearLogs();
             fetchLogs();
           };
+          // === 趋势图数据 ===
+          const trendData = ref([]);
+          const loadTrendData = () => {
+            const days = [];
+            for (let i = 6; i >= 0; i--) {
+              const d = new Date();
+              d.setDate(d.getDate() - i);
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              const dateStr = `${y}-${m}-${day}`;
+              const label = `${m}-${day}`;
+              const success = TampermonkeyApi.GmGetValue(`pushSuccessCount:${dateStr}`, 0);
+              const fail = TampermonkeyApi.GmGetValue(`pushFailCount:${dateStr}`, 0);
+              days.push({ date: dateStr, label, success, fail });
+            }
+            trendData.value = days;
+          };
+          const trendMax = computed(() => {
+            let max = 0;
+            trendData.value.forEach((d) => { if (d.success > max) max = d.success; if (d.fail > max) max = d.fail; });
+            return max || 1;
+          });
           onMounted(() => {
             fetchLogs();
+            loadTrendData();
           });
           return (_ctx, _cache) => {
             const _component_el_button = ElButton;
@@ -202,6 +227,55 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             const _component_el_table = ElTable;
             const _component_el_pagination = ElPagination;
             return openBlock(), createElementBlock("div", null, [
+              // === 趋势图 SVG ===
+              createElementVNode("div", { class: "trend-chart-wrapper" }, [
+                createElementVNode("div", { class: "trend-chart-title" }, "最近 7 天投递趋势"),
+                (openBlock(), createElementBlock("svg", {
+                  viewBox: "0 0 420 140",
+                  class: "trend-chart-svg"
+                }, [
+                  // Y轴网格线
+                  ...[0, 0.25, 0.5, 0.75, 1].map((ratio) =>
+                    createElementVNode("line", {
+                      x1: 40, y1: 10 + (1 - ratio) * 100,
+                      x2: 410, y2: 10 + (1 - ratio) * 100,
+                      stroke: "#eee", "stroke-width": 1
+                    })
+                  ),
+                  // 柱状图
+                  ...trendData.value.flatMap((d, i) => {
+                    const barW = 16;
+                    const gap = 50;
+                    const x = 55 + i * gap;
+                    const maxH = 100;
+                    const sH = Math.round((d.success / trendMax.value) * maxH);
+                    const fH = Math.round((d.fail / trendMax.value) * maxH);
+                    return [
+                      createElementVNode("rect", {
+                        x: x, y: 110 - sH, width: barW, height: Math.max(sH, 0),
+                        fill: "#67c23a", rx: 2
+                      }),
+                      createElementVNode("rect", {
+                        x: x + barW + 2, y: 110 - fH, width: barW, height: Math.max(fH, 0),
+                        fill: "#f56c6c", rx: 2
+                      }),
+                      createElementVNode("text", {
+                        x: x + barW, y: 128,
+                        "text-anchor": "middle",
+                        style: "font-size:10px;fill:#909399"
+                      }, d.label)
+                    ];
+                  }),
+                  // 图例
+                  createElementVNode("rect", { x: 42, y: 132, width: 10, height: 6, fill: "#67c23a", rx: 1 }),
+                  createElementVNode("text", { x: 55, y: 138, style: "font-size:9px;fill:#606266" }, "成功"),
+                  createElementVNode("rect", { x: 82, y: 132, width: 10, height: 6, fill: "#f56c6c", rx: 1 }),
+                  createElementVNode("text", { x: 95, y: 138, style: "font-size:9px;fill:#606266" }, "失败"),
+                  // Y轴标签
+                  createElementVNode("text", { x: 36, y: 14, "text-anchor": "end", style: "font-size:9px;fill:#909399" }, String(trendMax.value)),
+                  createElementVNode("text", { x: 36, y: 114, "text-anchor": "end", style: "font-size:9px;fill:#909399" }, "0"),
+                ])),
+              ]),
               createVNode(_component_el_row, {
                 gutter: 20,
                 class: "filter-bar"
@@ -337,4 +411,7 @@ const RenderComponent = _sfc_main$6;
 
 <style scoped>
 :deep(.filter-bar){margin-bottom:20px}
+:deep(.trend-chart-wrapper){margin-bottom:16px;padding:12px;background:#fafafa;border:1px solid #eee;border-radius:6px}
+:deep(.trend-chart-title){font-size:13px;font-weight:600;color:#303133;margin-bottom:8px}
+:deep(.trend-chart-svg){width:100%;max-width:420px;height:auto}
 </style>
