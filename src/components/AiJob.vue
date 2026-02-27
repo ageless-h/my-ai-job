@@ -3,7 +3,6 @@
 import * as Vue from "vue";
 import * as ElementPlus from "element-plus";
 import * as Icons from "@element-plus/icons-vue";
-import axios from "axios";
 import { request, ElMessage, isProdEnv } from "@/services/request";
 import { Tools } from "@/utils/tools";
 import { UserStore } from "@/stores/user";
@@ -11,7 +10,7 @@ import { LoginStore } from "@/stores/login";
 import { pushResultCount } from "@/stores/push-result";
 import { ProductStore } from "@/stores/product";
 import { LogRecorder, PushStatus } from "@/services/push-engine";
-import { loginInterceptor, silentlyLogin, fetchWithGM_request } from "@/services/auth";
+import { loginInterceptor, silentlyLogin } from "@/services/auth";
 import { AiPower } from "@/services/ai-power";
 import { Message } from "@/protocol/message";
 import ConversationCleaner from './ConversationCleaner.vue';
@@ -112,7 +111,6 @@ const {
 
 const {
   CircleCloseFilled,
-  Upload,
   Promotion,
   Collection,
   Service,
@@ -139,7 +137,6 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
       const _hoisted_1$6 = { key: 0 };
       const _hoisted_2$5 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("br", null, null, -1));
       const _hoisted_3$3 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("br", null, null, -1));
-      const _hoisted_4$3 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("p", { style: { "font-size": "15px" } }, "导入简历", -1));
       const _hoisted_5$3 = { style: { "font-size": "15px" } };
       const _hoisted_6$3 = { style: { "font-size": "15px" } };
       const _hoisted_7$3 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("span", null, "AI代聊 ", -1));
@@ -185,7 +182,6 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
           const pushBtnType = ref("primary");
           const pushBtnText = ref(getStartButtonText());
           const aiSeatBuyVisible = ref(false);
-          const importResumeLoading = ref(false);
           const productListLoading = ref(false);
           const logRecorder = new LogRecorder();
           const latestPushRecords = ref([]);
@@ -250,71 +246,6 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               top: 0,
               behavior: "smooth"
             });
-          };
-          const handlerImport = async () => {
-            var _a, _b, _c, _d;
-            if (!loginInterceptor()) {
-              return;
-            }
-            const token = (_b = (_a = Tools.window) == null ? void 0 : _a._PAGE) == null ? void 0 : _b.token;
-            let bossUserId = (_d = (_c = Tools.window) == null ? void 0 : _c._PAGE) == null ? void 0 : _d.uid;
-            if (!bossUserId) {
-              ElMessage({
-                message: "未获取到Boss userId 请刷新页面重试",
-                type: "error",
-                duration: 3e3
-              });
-              return;
-            }
-            importResumeLoading.value = true;
-            let resumeInfoResp = await axios.get("https://www.zhipin.com/wapi/zpgeek/resume/sidebar.json", { headers: { "Zp_token": token } });
-            let zpData = resumeInfoResp.data.zpData;
-            if (!zpData.attachmentList || zpData.attachmentList.length == 0) {
-              importResumeLoading.value = false;
-              ElMessage({
-                message: "请先在BOSS个人中心上传附件简历；作为AI代聊定制化回复的基础",
-                type: "error",
-                duration: 3e3
-              });
-              return;
-            }
-            let resumeId = zpData.attachmentList[0].resumeId;
-            let resumeFileResp = await fetchWithGM_request(
-              "https://docdownload.zhipin.com/wflow/zpgeek/download/download4geek?resumeId=" + resumeId,
-              { headers: { "Zp_token": token }, responseType: "arraybuffer" }
-            );
-            let fileBlob = new Blob([resumeFileResp.response], { type: "application/pdf" });
-            let formData = new FormData();
-            formData.append("file", fileBlob);
-            formData.append("resumeId", resumeId);
-            formData.append("uniqueId", bossUserId);
-            let importResp = await axios$1.post("/api/user/import/resume", formData, { headers: { "Content-Type": "multipart/form-data" } });
-            if (importResp.data.code != 200) {
-              ElMessage({
-                message: "导入简历失败" + importResp.data.data.msg,
-                type: "error",
-                duration: 3e3
-              });
-              importResumeLoading.value = false;
-              return;
-            }
-            let loginResp = await axios$1.post("/api/user/silently/login?uniqueId=" + bossUserId);
-            localStorage.setItem("Authorization", loginResp.data.data);
-            if (!importResp.data.data.email) {
-              ElMessage({
-                message: "导入简历成功；但未识别到邮箱，请在偏好设置中完善[通知邮箱]",
-                type: "warning",
-                duration: 3e3
-              });
-              importResumeLoading.value = false;
-              return;
-            }
-            ElMessage({
-              message: "导入简历成功",
-              type: "success",
-              duration: 3e3
-            });
-            importResumeLoading.value = false;
           };
           const handlerPush = () => {
             switch (pushStatus.value) {
@@ -585,27 +516,6 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               createElementVNode("div", { class: "aj-section" }, [
                 createElementVNode("div", { class: "aj-section__title" }, "操作"),
                 createElementVNode("div", { class: "aj-section__body aj-action-row" }, [
-              createVNode(_component_el_tooltip, {
-                effect: "dark",
-                "raw-content": "",
-                content: "\r\n    在Boss中更新了附件简历后请重新导入<p/>\r\n    - 仅用于AI代聊定制化回复\r\n    ",
-                placement: "bottom"
-              }, {
-                default: withCtx(() => [
-                  createVNode(_component_el_button, {
-                    icon: unref(Upload),
-                    type: "primary",
-                    onClick: handlerImport,
-                    loading: importResumeLoading.value
-                  }, {
-                    default: withCtx(() => [
-                      _hoisted_4$3
-                    ]),
-                    _: 1
-                  }, 8, ["icon", "loading"])
-                  ]),
-                  _: 1
-                }),
                   createVNode(_component_el_tooltip, {
                     effect: "dark",
                     "raw-content": "",
@@ -635,7 +545,8 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                     default: withCtx(() => [
                       createVNode(_component_el_button, {
                         icon: unref(Service),
-                        color: "#626aef"
+                        type: "primary",
+                        plain: ""
                       }, {
                         default: withCtx(() => [
                           createElementVNode("p", _hoisted_6$3, [
@@ -644,7 +555,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                               "active-text": "开",
                               "inactive-text": "关",
                               "inline-prompt": "",
-                              style: { "--el-switch-on-color": "#13ce66", "--el-switch-off-color": "#ff4949" },
+                              style: { "--el-switch-on-color": "#409eff", "--el-switch-off-color": "#dcdfe6" },
                               modelValue: unref(userStore).user.aiSeatStatus,
                               "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => unref(userStore).user.aiSeatStatus = $event),
                               onChange: handlerAISeatStatusChange
