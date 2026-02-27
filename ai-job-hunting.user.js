@@ -38,7 +38,7 @@ System.set("user:pinia", (()=>{const _=Pinia;('default' in _)||(_.default=_);ret
 System.set("user:element-plus", (()=>{const _=ElementPlus;('default' in _)||(_.default=_);return _})());
 System.set("user:protobufjs", (()=>{const _=protobuf;('default' in _)||(_.default=_);return _})());
 
-System.register("./__entry.js", ['./__monkey.entry-hN8OtY7m.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-Cw8dt_oD.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -50,7 +50,7 @@ System.register("./__entry.js", ['./__monkey.entry-hN8OtY7m.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-hN8OtY7m.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
+System.register("./__monkey.entry-Cw8dt_oD.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
   'use strict';
   var ref, reactive, createApp, defineComponent, openBlock, createBlock, unref, Vue, createElementBlock, createVNode, createElementVNode, computed, watch, provide, onMounted, resolveComponent, withCtx, Fragment, renderList, createTextVNode, pushScopeId, popScopeId, toDisplayString, createCommentVNode, inject, normalizeClass, withDirectives, vShow, defineStore, createPinia, ElMessage$1, ElementPlus__default, ElMessageBox, ElementPlus, protobuf;
   return {
@@ -4412,7 +4412,7 @@ ${textMessages}
           phase: "fetching",
           current: 0,
           total: staleList.length,
-          message: `找到 ${staleList.length} 个超过 ${STALE_DAYS} 天未活跃的会话，获取详情...`
+          message: `共 ${friendList.length} 个会话，${staleList.length} 个超过 ${STALE_DAYS} 天未活跃，获取详情...`
         });
         const staleIds = staleList.map((f) => f.friendId);
         let details = [];
@@ -4437,7 +4437,7 @@ ${textMessages}
             phase: "analyzing",
             current: i + 1,
             total: staleList.length,
-            message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${staleList.length})`
+            message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${staleList.length}，共 ${friendList.length} 个会话)`
           });
           try {
             const messages = await bossThrottle.enqueue(() => fetchHistoryMessages(detail.encryptBossId, detail.securityId));
@@ -9079,7 +9079,7 @@ ${preset.content}`).join("\n\n");
         }
         async getRenderComponent() {
           if (this.curUrl.includes("www.zhipin.com/web/geek/chat")) {
-            const mod = await __vitePreload(() => module.import('./BossMessage-c9mrvMHS-CdWsX5qt.js'), void 0 );
+            const mod = await __vitePreload(() => module.import('./BossMessage-oqHw8aqa-CP2A3Eg1.js'), void 0 );
             return mod.default;
           }
           if (this.curUrl.includes("www.zhipin.com/web/geek/job") || this.curUrl.includes("overseas")) {
@@ -9892,7 +9892,7 @@ ${preset.content}`).join("\n\n");
   };
 }));
 
-System.register("./BossMessage-c9mrvMHS-CdWsX5qt.js", ['vue', 'element-plus', './__monkey.entry-hN8OtY7m.js', 'pinia', 'protobufjs'], (function (exports, module) {
+System.register("./BossMessage-oqHw8aqa-CP2A3Eg1.js", ['vue', 'element-plus', './__monkey.entry-Cw8dt_oD.js', 'pinia', 'protobufjs'], (function (exports, module) {
   'use strict';
   var defineComponent, openBlock, createBlock, unref, Vue, ElementPlus, _export_sfc, ElMessage, AiPower, Message, Tools;
   return {
