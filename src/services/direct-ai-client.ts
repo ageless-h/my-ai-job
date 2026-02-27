@@ -182,8 +182,8 @@ function gmRequest(url: string, apiKey: string, body: string, timeoutMs: number)
           reject(new Error(errMsg));
         }
       },
-      onerror: () => {
-        reject(new Error('网络错误'));
+      onerror: (err: any) => {
+        reject(new Error(`网络错误: 请检查 URL 是否正确，或刷新页面后在油猴弹窗中允许跨域请求 (${url})`));
       },
       ontimeout: () => {
         reject(new Error('请求超时'));

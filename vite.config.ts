@@ -26,7 +26,7 @@ export default defineConfig(async () => ({
         license: 'Apache License 2.0',
         icon: 'https://gitee.com/yangfeng20/ai-job/raw/master/file/icon.png',
         match: ['https://www.zhipin.com/web/geek/*', 'https://www.zhipin.com/overseas/*'],
-        connect: ['docdownload.zhipin.com'],
+        connect: ['docdownload.zhipin.com', '*'],
         grant: [
           'GM_addStyle',
           'GM_addValueChangeListener',
