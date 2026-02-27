@@ -6,6 +6,7 @@ import axios from 'axios';
 import { Tools } from '@/utils/tools';
 import { directAiCall, getActiveDirectConfig } from '@/services/direct-ai-client';
 import type { DirectAiMessage } from '@/services/direct-ai-client';
+import { bossThrottle } from '@/services/request-throttle';
 
 // ============ 类型定义 ============
 
@@ -67,8 +68,6 @@ export interface ScanProgress {
 
 const STALE_DAYS = 14;
 const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1000;
-const REQUEST_DELAY_MIN = 800;
-const REQUEST_DELAY_MAX = 1500;
 const HISTORY_MSG_COUNT = 10;
 
 // ============ API 调用 ============
@@ -309,9 +308,8 @@ export async function scanConversations(
   // 分批获取，每批 199 个
   for (let i = 0; i < staleIds.length; i += 199) {
     const batch = staleIds.slice(i, i + 199);
-    const batchDetails = await fetchFriendDetails(batch);
+    const batchDetails = await bossThrottle.enqueue(() => fetchFriendDetails(batch));
     details = details.concat(batchDetails);
-    await Tools.sleep(REQUEST_DELAY_MIN + Tools.getRandomNumber(0, REQUEST_DELAY_MAX - REQUEST_DELAY_MIN));
   }
 
   const detailMap = new Map<number, FriendDetail>();
@@ -338,8 +336,7 @@ export async function scanConversations(
     });
 
     try {
-      const messages = await fetchHistoryMessages(detail.encryptBossId, detail.securityId);
-      await Tools.sleep(REQUEST_DELAY_MIN + Tools.getRandomNumber(0, REQUEST_DELAY_MAX - REQUEST_DELAY_MIN));
+      const messages = await bossThrottle.enqueue(() => fetchHistoryMessages(detail.encryptBossId, detail.securityId));
 
       // 最后一条文本消息
       const lastTextMsg = [...messages].reverse().find((m) => m.bodyType === 1 && m.text);
@@ -427,14 +424,11 @@ export async function batchDelete(
     const item = selected[i];
     onProgress(i + 1, selected.length, item.name);
     try {
-      const ok = await deleteFriend(item.securityId);
+      const ok = await bossThrottle.enqueue(() => deleteFriend(item.securityId));
       if (ok) success++;
       else failed++;
     } catch (_e) {
       failed++;
-    }
-    if (i < selected.length - 1) {
-      await Tools.sleep(REQUEST_DELAY_MIN + Tools.getRandomNumber(0, REQUEST_DELAY_MAX - REQUEST_DELAY_MIN));
     }
   }
 

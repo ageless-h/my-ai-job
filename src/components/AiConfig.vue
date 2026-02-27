@@ -7,7 +7,6 @@ import { Tools } from '@/utils/tools';
 import ApiKeyManager from './ApiKeyManager.vue';
 import PromptPresetManager from './PromptPresetManager.vue';
 import DebugConsole from './DebugConsole.vue';
-import ConversationCleaner from './ConversationCleaner.vue';
 
 const formRef = ref();
 const debugConsoleRef = ref();
@@ -474,13 +473,6 @@ onMounted(async () => {
     <div class="ai-section">
       <div class="ai-section-title">自有API配置</div>
       <ApiKeyManager />
-    </div>
-
-    <div class="ai-section">
-      <div class="ai-section-title">会话清理</div>
-      <div style="padding:0 10px;">
-        <ConversationCleaner />
-      </div>
     </div>
 
     <DebugConsole ref="debugConsoleRef" />

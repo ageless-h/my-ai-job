@@ -14,6 +14,7 @@ import { LogRecorder, PushStatus } from "@/services/push-engine";
 import { loginInterceptor, silentlyLogin, fetchWithGM_request } from "@/services/auth";
 import { AiPower } from "@/services/ai-power";
 import { Message } from "@/protocol/message";
+import ConversationCleaner from './ConversationCleaner.vue';
 
 const VueAny = Vue as any;
 const ElementAny = ElementPlus as any;
@@ -939,7 +940,13 @@ const RenderComponent = _sfc_main$8;
 </script>
 
 <template>
-  <RenderComponent />
+  <div>
+    <RenderComponent />
+    <div class="cleaner-section">
+      <div class="cleaner-section__title">会话清理</div>
+      <ConversationCleaner />
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -963,4 +970,6 @@ const RenderComponent = _sfc_main$8;
 :deep(.push-records-content::-webkit-scrollbar-track){background:#0000000d;border-radius:2px}
 :deep(.push-records-content::-webkit-scrollbar-thumb){background:#0003;border-radius:2px}
 :deep(.push-records-content::-webkit-scrollbar-thumb:hover){background:#0000004d}
+:deep(.cleaner-section){margin-top:16px;padding:12px;background:#fff;border-radius:6px;border:1px solid rgba(0,0,0,.08)}
+:deep(.cleaner-section__title){font-size:14px;font-weight:600;color:#303133;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #ebeef5}
 </style>

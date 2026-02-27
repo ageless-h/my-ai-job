@@ -57,15 +57,15 @@
 
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, computed, inject } from 'vue';
+import { ref, computed } from 'vue';
 import {
   scanConversations,
   batchDelete,
 } from '@/services/conversation-cleaner';
 import type { CleanCandidate, ScanProgress } from '@/services/conversation-cleaner';
 
-const state = inject('aiConfigState');
-
+import { ElMessage } from '@/services/request';
+import { ElMessageBox } from 'element-plus';
 const candidates = ref<CleanCandidate[]>([]);
 const scanning = ref(false);
 const scanned = ref(false);
@@ -125,7 +125,7 @@ async function startScan() {
     });
     candidates.value = result;
   } catch (e: any) {
-    state?.ElMessage?.({ type: 'error', message: `扫描失败: ${e?.message || e}` });
+    ElMessage({ type: 'error', message: `扫描失败: ${e?.message || e}` });
   } finally {
     scanning.value = false;
     scanned.value = true;
@@ -137,7 +137,7 @@ async function confirmDelete() {
   if (!count) return;
 
   try {
-    await state?.ElMessageBox?.confirm(
+    await ElMessageBox.confirm(
       `确认删除选中的 ${count} 个会话？删除后将从 BOSS 直聘列表中移除，同时删除聊天记录。`,
       '批量删除确认',
       { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' },
@@ -160,7 +160,7 @@ async function confirmDelete() {
     // 移除已成功删除的
     candidates.value = candidates.value.filter((c) => !c.selected);
   } catch (e: any) {
-    state?.ElMessage?.({ type: 'error', message: `删除失败: ${e?.message || e}` });
+    ElMessage({ type: 'error', message: `删除失败: ${e?.message || e}` });
   } finally {
     deleting.value = false;
   }
