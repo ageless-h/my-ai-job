@@ -10,7 +10,7 @@ import { LoginStore } from "@/stores/login";
 import { pushResultCount } from "@/stores/push-result";
 import { ProductStore } from "@/stores/product";
 import { LogRecorder, PushStatus } from "@/services/push-engine";
-import { loginInterceptor, silentlyLogin } from "@/services/auth";
+import { loginInterceptor, silentlyLogin, userRemoteLoad } from "@/services/auth";
 import { AiPower } from "@/services/ai-power";
 import { Message } from "@/protocol/message";
 import ConversationCleaner from './ConversationCleaner.vue';
@@ -209,10 +209,23 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
           const shouldEnableRecommendLoop = () => {
             return !!(userStore == null ? void 0 : userStore.user) && !!userStore.user.preference.imE && !collectMode.value && isRecommendSalaryLoopPage();
           };
+          const getRecommendLoopTargetUrl = () => {
+            const href = String((Tools.window == null ? void 0 : Tools.window.location) ? Tools.window.location.href : location.href || "");
+            try {
+              const url = new URL(href);
+              url.pathname = "/web/geek/jobs";
+              url.searchParams.set("salary", "406");
+              url.searchParams.set("city", "101280600");
+              return url.toString();
+            } catch (_e) {
+              return "https://www.zhipin.com/web/geek/jobs?salary=406&city=101280600";
+            }
+          };
           const markRecommendLoopReload = () => {
             const payload = {
               ts: Date.now(),
-              mode: collectMode.value ? "collect" : "push"
+              mode: collectMode.value ? "collect" : "push",
+              targetUrl: getRecommendLoopTargetUrl()
             };
             localStorage.setItem(RECOMMEND_LOOP_RELOAD_KEY, JSON.stringify(payload));
           };
@@ -233,7 +246,19 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
           };
           const tryAutoResumeRecommendLoop = () => {
             const payload = consumeRecommendLoopReload();
-            if (!payload || !isRecommendSalaryLoopPage()) {
+            if (!payload) {
+              return;
+            }
+            const currentHref = String((Tools.window == null ? void 0 : Tools.window.location) ? Tools.window.location.href : location.href || "");
+            if (payload.targetUrl && currentHref !== payload.targetUrl) {
+              if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.assign === "function") {
+                Tools.window.location.assign(payload.targetUrl);
+              } else {
+                window.location.href = payload.targetUrl;
+              }
+              return;
+            }
+            if (!isRecommendSalaryLoopPage()) {
               return;
             }
             collectMode.value = payload.mode === "collect";
@@ -326,6 +351,15 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             if (!loginInterceptor()) {
               return;
             }
+            if (userStore.preferenceLoadStatus !== "success") {
+              userRemoteLoad();
+              ElMessage({
+                message: userStore.preferenceLoadStatus === "failed" ? "偏好加载失败，正在重试加载，请稍后再启动" : "偏好设置加载中，请稍后再启动",
+                type: "warning",
+                duration: 2500
+              });
+              return;
+            }
             platform.collectMode = collectMode.value;
             platform.pushMock = mockPush.value;
             pushStatus.value = PushStatus.PUSHING;
@@ -344,10 +378,11 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                 });
                 stopRecordsUpdate();
                 setTimeout(() => {
-                  if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.reload === "function") {
-                    Tools.window.location.reload();
+                  const targetUrl = getRecommendLoopTargetUrl();
+                  if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.assign === "function") {
+                    Tools.window.location.assign(targetUrl);
                   } else {
-                    window.location.reload();
+                    window.location.href = targetUrl;
                   }
                 }, 1200);
                 return;

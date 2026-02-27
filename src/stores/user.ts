@@ -30,9 +30,13 @@ export function getLocalUser(): AiUser {
 export const UserStore = defineStore("ai-user", () => {
   const platformType = ref<number | undefined>();
   const user = reactive<AiUser>(getLocalUser());
+  const preferenceLoadStatus = ref<"idle" | "loading" | "success" | "failed">("idle");
+  const preferenceLoadError = ref<string>("");
 
   return {
     user,
-    platformType
+    platformType,
+    preferenceLoadStatus,
+    preferenceLoadError
   };
 });

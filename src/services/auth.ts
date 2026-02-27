@@ -193,6 +193,8 @@ export function userRemoteLoad(): void {
   logRecorder$1.info("加载用户偏好配置");
   const userStore2 = UserStore() as any;
   const loginStore = LoginStore() as any;
+  userStore2.preferenceLoadStatus = "loading";
+  userStore2.preferenceLoadError = "";
 
   if (loginStore.loginFailStatus) {
     return;
@@ -212,6 +214,9 @@ export function userRemoteLoad(): void {
 
       userStore2.user.preference.pi = userStore2.user.preference.pi || 3;
       userStore2.user.preference.npi = userStore2.user.preference.npi || 6;
+      userStore2.preferenceLoadStatus = "success";
+      userStore2.preferenceLoadError = "";
+      localStorage.setItem("ai-job-user", JSON.stringify(userStore2.user));
       logRecorder$1.info("加载用户偏好配置成功");
     })
     .catch((error: any) => {
@@ -219,6 +224,8 @@ export function userRemoteLoad(): void {
         loginStore.loginFail();
       }
       const errorMsg = typeof error === "string" ? error : error?.message || error?.response?.data?.message || "未知错误";
+      userStore2.preferenceLoadStatus = "failed";
+      userStore2.preferenceLoadError = errorMsg;
       logRecorder$1.error("加载用户偏好配置失败", errorMsg);
     })
     .finally(() => {
