@@ -259,6 +259,65 @@ const _withScopeId$2 = (n) => (pushScopeId("data-v-b36666e5"), n = n(), popScope
             userStore.user.email = "";
             userStore.user.preference = {};
           };
+          const importResumeLoading = ref(false);
+          const handlerImportResume = async () => {
+            var _a, _b, _c, _d;
+            if (!loginInterceptor()) {
+              return;
+            }
+            const token = (_b = (_a = Tools.window) == null ? void 0 : _a._PAGE) == null ? void 0 : _b.token;
+            const bossUserId = (_d = (_c = Tools.window) == null ? void 0 : _c._PAGE) == null ? void 0 : _d.uid;
+            if (!token || !bossUserId) {
+              ElMessage({ type: "error", message: "未获取到 Boss 登录信息，请刷新页面后重试" });
+              return;
+            }
+            importResumeLoading.value = true;
+            try {
+              const resumeInfoResp = await axios.get("https://www.zhipin.com/wapi/zpgeek/resume/sidebar.json", {
+                headers: { Zp_token: token }
+              });
+              const attachmentList = (resumeInfoResp == null ? void 0 : resumeInfoResp.data) && resumeInfoResp.data.zpData ? resumeInfoResp.data.zpData.attachmentList || [] : [];
+              if (!attachmentList.length) {
+                ElMessage({ type: "error", message: "请先在 BOSS 个人中心上传附件简历，再执行导入" });
+                return;
+              }
+              const resumeId = attachmentList[0].resumeId;
+              const resumeFileResp = await fetchWithGM_request(
+                "https://docdownload.zhipin.com/wflow/zpgeek/download/download4geek?resumeId=" + resumeId,
+                { headers: { Zp_token: token }, responseType: "arraybuffer" }
+              );
+              const fileBlob = new Blob([resumeFileResp.response], { type: "application/pdf" });
+              const formData = new FormData();
+              formData.append("file", fileBlob);
+              formData.append("resumeId", resumeId);
+              formData.append("uniqueId", String(bossUserId));
+              const importResp = await request.post("/api/user/import/resume", formData, {
+                headers: { "Content-Type": "multipart/form-data" }
+              });
+              if ((importResp == null ? void 0 : importResp.data) && importResp.data.code !== 200) {
+                const importMsg = importResp.data.data && importResp.data.data.msg ? importResp.data.data.msg : importResp.data.message || "未知错误";
+                ElMessage({ type: "error", message: `导入简历失败: ${importMsg}` });
+                return;
+              }
+              const loginResp = await request.post("/api/user/silently/login?uniqueId=" + bossUserId);
+              if ((loginResp == null ? void 0 : loginResp.data) && loginResp.data.data) {
+                localStorage.setItem("Authorization", loginResp.data.data);
+              }
+              if (!(importResp == null ? void 0 : importResp.data) || !importResp.data.data || !importResp.data.data.email) {
+                ElMessage({
+                  type: "warning",
+                  message: "导入简历成功，但未识别到邮箱，请在偏好设置中完善通知邮箱"
+                });
+                return;
+              }
+              ElMessage({ type: "success", message: "导入简历成功" });
+            } catch (e) {
+              const msg = (e == null ? void 0 : e.response) && e.response.data ? e.response.data.message : (e == null ? void 0 : e.message) || "未知错误";
+              ElMessage({ type: "error", message: `导入简历失败: ${msg}` });
+            } finally {
+              importResumeLoading.value = false;
+            }
+          };
           const firstFile = ref(null);
           let jobDetail = platform.getFistJobDetail();
           const uploadData = {
@@ -719,6 +778,36 @@ const _withScopeId$2 = (n) => (pushScopeId("data-v-b36666e5"), n = n(), popScope
                         modelValue: unref(userStore).user.preference.cg,
                         "onUpdate:modelValue": _cache[22] || (_cache[22] = ($event) => unref(userStore).user.preference.cg = $event)
                       }, null, 8, ["modelValue"])
+                    ]),
+                    _: 1
+                  }),
+                  createVNode(_component_el_form_item, {
+                    label: "导入附件简历",
+                    prop: "importResume",
+                    class: "form-item-upload",
+                    style: { "margin-left": "0" }
+                  }, {
+                    default: withCtx(() => [
+                      createVNode(_component_el_tooltip, {
+                        effect: "dark",
+                        "raw-content": "",
+                        content: "\r\n    在Boss中更新了附件简历后请重新导入<p/>\r\n    - 仅用于AI代聊定制化回复\r\n    ",
+                        placement: "bottom"
+                      }, {
+                        default: withCtx(() => [
+                          createVNode(_component_el_button, {
+                            type: "primary",
+                            loading: importResumeLoading.value,
+                            onClick: handlerImportResume
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode("导入附件简历")
+                            ]),
+                            _: 1
+                          }, 8, ["loading"])
+                        ]),
+                        _: 1
+                      })
                     ]),
                     _: 1
                   }),

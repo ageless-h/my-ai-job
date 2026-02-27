@@ -1,10 +1,8 @@
 <script setup lang="ts">
 // @ts-nocheck
-import axios from 'axios';
 import { computed, onMounted, provide, ref, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import { request, ElMessage } from '@/services/request';
-import { fetchWithGM_request, loginInterceptor } from '@/services/auth';
 import { Tools } from '@/utils/tools';
 import ApiKeyManager from './ApiKeyManager.vue';
 import PromptPresetManager from './PromptPresetManager.vue';
@@ -49,7 +47,6 @@ const form = ref({
 });
 
 const isTestLoading = ref(false);
-const importResumeLoading = ref(false);
 const aiConfigExt = ref(Tools.getAiConfigExt());
 
 
@@ -393,77 +390,6 @@ const handleTest = async () => {
   }
 };
 
-const handleImportResume = async () => {
-  var _a, _b, _c, _d;
-  if (!loginInterceptor()) {
-    return;
-  }
-
-  const token = (_b = (_a = Tools.window) == null ? void 0 : _a._PAGE) == null ? void 0 : _b.token;
-  const bossUserId = (_d = (_c = Tools.window) == null ? void 0 : _c._PAGE) == null ? void 0 : _d.uid;
-
-  if (!token || !bossUserId) {
-    ElMessage({ type: 'error', message: '未获取到 Boss 登录信息，请刷新页面后重试' });
-    return;
-  }
-
-  importResumeLoading.value = true;
-  try {
-    const resumeInfoResp = await axios.get('https://www.zhipin.com/wapi/zpgeek/resume/sidebar.json', {
-      headers: { Zp_token: token },
-    });
-    const attachmentList = resumeInfoResp?.data?.zpData?.attachmentList || [];
-    if (!attachmentList.length) {
-      ElMessage({
-        type: 'error',
-        message: '请先在 BOSS 个人中心上传附件简历，再执行导入',
-      });
-      return;
-    }
-
-    const resumeId = attachmentList[0].resumeId;
-    const resumeFileResp = await fetchWithGM_request(
-      'https://docdownload.zhipin.com/wflow/zpgeek/download/download4geek?resumeId=' + resumeId,
-      { headers: { Zp_token: token }, responseType: 'arraybuffer' },
-    );
-
-    const fileBlob = new Blob([resumeFileResp.response], { type: 'application/pdf' });
-    const formData = new FormData();
-    formData.append('file', fileBlob);
-    formData.append('resumeId', resumeId);
-    formData.append('uniqueId', String(bossUserId));
-
-    const importResp = await request.post('/api/user/import/resume', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    if (importResp?.data?.code !== 200) {
-      const importMsg = importResp?.data?.data?.msg || importResp?.data?.message || '未知错误';
-      ElMessage({ type: 'error', message: `导入简历失败: ${importMsg}` });
-      return;
-    }
-
-    const loginResp = await request.post('/api/user/silently/login?uniqueId=' + bossUserId);
-    if (loginResp?.data?.data) {
-      localStorage.setItem('Authorization', loginResp.data.data);
-    }
-
-    if (!importResp?.data?.data?.email) {
-      ElMessage({
-        type: 'warning',
-        message: '导入简历成功，但未识别到邮箱，请在偏好设置中完善通知邮箱',
-      });
-      return;
-    }
-
-    ElMessage({ type: 'success', message: '导入简历成功' });
-  } catch (e) {
-    const msg = e?.response?.data?.message || e?.message || '未知错误';
-    ElMessage({ type: 'error', message: `导入简历失败: ${msg}` });
-  } finally {
-    importResumeLoading.value = false;
-  }
-};
-
 watch(
   () => `${form.value.provider}:${form.value.modelName || ''}`,
   () => {
@@ -545,17 +471,7 @@ onMounted(async () => {
     </div>
 
     <div class="ai-section">
-      <div class="ai-section-header">
-        <div class="ai-section-title">自有API配置</div>
-        <el-tooltip
-          effect="dark"
-          placement="bottom"
-          raw-content
-          content="在 Boss 更新附件简历后请重新导入，仅用于 AI 代聊定制化回复"
-        >
-          <el-button type="primary" :loading="importResumeLoading" @click="handleImportResume">导入简历</el-button>
-        </el-tooltip>
-      </div>
+      <div class="ai-section-title">自有API配置</div>
       <ApiKeyManager />
     </div>
 
@@ -565,7 +481,6 @@ onMounted(async () => {
 
 <style scoped>
 :deep(.ai-config){padding:15px 1px 1px;background:#fff}
-:deep(.ai-section-header){display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 :deep(.config-form){margin:0}
 :deep(.tune-form){margin-bottom:10px;padding:0 10px;font-weight:700}
 </style>
