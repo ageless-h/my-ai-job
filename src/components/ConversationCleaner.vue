@@ -150,7 +150,11 @@ async function confirmDelete() {
   deleteResult.value = '';
 
   try {
-    const { success, failed, lastError, successSecurityIds } = await batchDelete(
+    const selectedBeforeDelete = new Set(
+      candidates.value.filter((c) => c.selected).map((c) => c.securityId),
+    );
+
+    const { success, failed, lastError, topFailReason, successSecurityIds } = await batchDelete(
       candidates.value,
       (cur, total, name, failReason) => {
         deleteResult.value = failReason
@@ -159,11 +163,12 @@ async function confirmDelete() {
       },
     );
     const successSet = new Set(successSecurityIds);
-    deleteResult.value = `完成: 成功 ${success} 个${failed ? `，失败 ${failed} 个 (${lastError})，失败项已保留可再次清理` : ''}`;
+    const failReasonText = topFailReason || lastError;
+    deleteResult.value = `完成: 成功 ${success} 个${failed ? `，失败 ${failed} 个 (${failReasonText})，失败项已保留可再次清理` : ''}`;
     // 只移除成功删除项，失败项保留便于再次清理
     candidates.value = candidates.value.filter((c) => !successSet.has(c.securityId));
     candidates.value.forEach((c) => {
-      c.selected = !successSet.has(c.securityId);
+      c.selected = selectedBeforeDelete.has(c.securityId) && !successSet.has(c.securityId);
     });
   } catch (e: any) {
     ElMessage({ type: 'error', message: `删除失败: ${e?.message || e}` });

@@ -149,7 +149,7 @@ export async function fetchHistoryMessages(
 }
 
 /** 删除好友/会话 */
-export async function deleteFriend(securityId: string): Promise<{ ok: boolean; message: string }> {
+export async function deleteFriend(securityId: string): Promise<{ ok: boolean; message: string; code?: number }> {
   const token = getZpToken();
   if (!token) return { ok: false, message: '未获取到 Zp_token' };
   const resp = await axios.post(
@@ -163,8 +163,8 @@ export async function deleteFriend(securityId: string): Promise<{ ok: boolean; m
     },
   );
   const code = resp.data?.code;
-  if (code === 0) return { ok: true, message: '' };
-  return { ok: false, message: resp.data?.message || `code=${code}` };
+  if (code === 0) return { ok: true, message: '', code };
+  return { ok: false, message: resp.data?.message || `code=${code}`, code };
 }
 
 // ============ 分析逻辑 ============
@@ -417,14 +417,16 @@ export async function scanConversations(
 export async function batchDelete(
   items: CleanCandidate[],
   onProgress: (current: number, total: number, name: string, failReason?: string) => void,
-): Promise<{ success: number; failed: number; lastError: string; successSecurityIds: string[] }> {
+): Promise<{ success: number; failed: number; lastError: string; topFailReason: string; successSecurityIds: string[] }> {
   let success = 0;
   let failed = 0;
   let lastError = '';
+  const failReasonCounter: Record<string, number> = {};
   const successSecurityIds: string[] = [];
   const selected = items.filter((i) => i.selected);
 
-  const isRetryableDeleteError = (msg: string): boolean => {
+  const isRetryableDeleteError = (msg: string, status?: number): boolean => {
+    if (status === 429 || (typeof status === 'number' && status >= 500)) return true;
     const text = `${msg || ''}`.toLowerCase();
     if (!text) return false;
     if (text.includes('未获取到 zp_token') || text.includes('securityid')) return false;
@@ -434,7 +436,7 @@ export async function batchDelete(
       || text.includes('繁忙')
       || text.includes('稍后')
       || text.includes('429')
-      || text.includes('5xx')
+      || text.includes('status code 5')
       || text.includes('服务异常');
   };
 
@@ -446,16 +448,17 @@ export async function batchDelete(
         const result = await bossThrottle.enqueue(() => deleteFriend(securityId));
         if (result.ok) return result;
         latestMsg = result.message || '删除失败';
-        if (!isRetryableDeleteError(latestMsg) || attempt === maxRetries) {
+        if (!isRetryableDeleteError(latestMsg, result.code) || attempt === maxRetries) {
           return { ok: false, message: latestMsg };
         }
       } catch (e: any) {
         latestMsg = e?.message || String(e);
-        if (!isRetryableDeleteError(latestMsg) || attempt === maxRetries) {
+        const status = e?.response?.status;
+        if (!isRetryableDeleteError(latestMsg, status) || attempt === maxRetries) {
           return { ok: false, message: latestMsg };
         }
       }
-      await Tools.sleep(600 * attempt);
+      await Tools.sleep(3000 * attempt);
     }
     return { ok: false, message: latestMsg || '删除失败' };
   };
@@ -471,14 +474,19 @@ export async function batchDelete(
       } else {
         failed++;
         lastError = result.message;
+        failReasonCounter[result.message || '未知错误'] = (failReasonCounter[result.message || '未知错误'] || 0) + 1;
         onProgress(i + 1, selected.length, item.name, result.message);
       }
     } catch (e: any) {
       failed++;
       lastError = e?.message || String(e);
+      failReasonCounter[lastError || '未知错误'] = (failReasonCounter[lastError || '未知错误'] || 0) + 1;
       onProgress(i + 1, selected.length, item.name, lastError);
     }
   }
 
-  return { success, failed, lastError, successSecurityIds };
+  const topFailReason = Object.entries(failReasonCounter)
+    .sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+
+  return { success, failed, lastError, topFailReason, successSecurityIds };
 }
