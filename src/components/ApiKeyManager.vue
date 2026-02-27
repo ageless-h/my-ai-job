@@ -65,7 +65,7 @@
           </el-form-item>
 
           <el-form-item label="API 格式">
-            <el-select v-model="editForm.apiFormat" style="width:100%;">
+            <el-select v-model="editForm.apiFormat" style="width:100%;" :teleported="false">
               <el-option label="Chat Completions（标准）" value="completions" />
               <el-option label="Responses API（GPT-5 系列）" value="responses" />
             </el-select>

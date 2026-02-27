@@ -447,7 +447,7 @@ onMounted(async () => {
               <el-switch v-model="memoryProfile.enabled" />
 
               <span style="font-size:12px;color:#606266;">范围</span>
-              <el-select v-model="memoryProfile.scope" style="width:120px;">
+              <el-select v-model="memoryProfile.scope" style="width:120px;" :teleported="false">
                 <el-option v-for="option in memoryScopeOptions" :key="option.value" :label="option.label" :value="option.value" />
               </el-select>
 
