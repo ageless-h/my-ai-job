@@ -38,7 +38,7 @@ System.set("user:pinia", (()=>{const _=Pinia;('default' in _)||(_.default=_);ret
 System.set("user:element-plus", (()=>{const _=ElementPlus;('default' in _)||(_.default=_);return _})());
 System.set("user:protobufjs", (()=>{const _=protobuf;('default' in _)||(_.default=_);return _})());
 
-System.register("./__entry.js", ['./__monkey.entry-RX-PH2J-.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-FoKd4yT8.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -50,7 +50,7 @@ System.register("./__entry.js", ['./__monkey.entry-RX-PH2J-.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-RX-PH2J-.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
+System.register("./__monkey.entry-FoKd4yT8.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
   'use strict';
   var ref, reactive, createApp, defineComponent, openBlock, createBlock, unref, Vue, createElementBlock, createVNode, createElementVNode, computed, watch, provide, onMounted, resolveComponent, withCtx, Fragment, renderList, createTextVNode, pushScopeId, popScopeId, toDisplayString, createCommentVNode, inject, normalizeClass, withDirectives, vShow, defineStore, createPinia, ElMessage$1, ElementPlus__default, ElMessageBox, ElementPlus, protobuf;
   return {
@@ -4196,6 +4196,7 @@ System.register("./__monkey.entry-RX-PH2J-.js", ['vue', 'pinia', 'element-plus',
       const STALE_DAYS = 14;
       const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1e3;
       const HISTORY_MSG_COUNT = 10;
+      const HISTORY_MAX_PAGES = 3;
       function getZpToken() {
         return Tools.getCookieValue("bst") || "";
       }
@@ -4236,35 +4237,53 @@ System.register("./__monkey.entry-RX-PH2J-.js", ['vue', 'pinia', 'element-plus',
           name: f.name || ""
         }));
       }
-      async function fetchHistoryMessages(encryptBossId, securityId, count = HISTORY_MSG_COUNT) {
+      async function fetchHistoryMessages(encryptBossId, securityId, count = HISTORY_MSG_COUNT, maxPages = HISTORY_MAX_PAGES) {
         var _a, _b;
-        const params = new URLSearchParams({
-          bossId: encryptBossId,
-          groupId: encryptBossId,
-          maxMsgId: "0",
-          c: String(count),
-          page: "1",
-          src: "0",
-          securityId,
-          loading: "true",
-          _t: String(Date.now())
-        });
-        const resp = await axios.get(
-          "https://www.zhipin.com/wapi/zpchat/geek/historyMsg?" + params.toString()
-        );
-        const messages = (_b = (_a = resp.data) == null ? void 0 : _a.zpData) == null ? void 0 : _b.messages;
-        if (!Array.isArray(messages)) return [];
-        return messages.map((m) => {
-          var _a2, _b2, _c, _d;
-          return {
-            mid: m.mid,
-            time: m.time || 0,
-            fromUid: ((_a2 = m.from) == null ? void 0 : _a2.uid) || 0,
-            toUid: ((_b2 = m.to) == null ? void 0 : _b2.uid) || 0,
-            bodyType: ((_c = m.body) == null ? void 0 : _c.type) || 0,
-            text: ((_d = m.body) == null ? void 0 : _d.text) || ""
-          };
-        });
+        let maxMsgId = "0";
+        const merged = [];
+        const seenMid = /* @__PURE__ */ new Set();
+        for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
+          const params = new URLSearchParams({
+            bossId: encryptBossId,
+            groupId: encryptBossId,
+            maxMsgId,
+            c: String(count),
+            page: "1",
+            src: "0",
+            securityId,
+            loading: "true",
+            _t: String(Date.now())
+          });
+          const resp = await axios.get(
+            "https://www.zhipin.com/wapi/zpchat/geek/historyMsg?" + params.toString()
+          );
+          const messages = (_b = (_a = resp.data) == null ? void 0 : _a.zpData) == null ? void 0 : _b.messages;
+          if (!Array.isArray(messages) || !messages.length) break;
+          const parsed = messages.map((m) => {
+            var _a2, _b2, _c, _d;
+            return {
+              mid: m.mid,
+              time: m.time || 0,
+              fromUid: ((_a2 = m.from) == null ? void 0 : _a2.uid) || 0,
+              toUid: ((_b2 = m.to) == null ? void 0 : _b2.uid) || 0,
+              bodyType: ((_c = m.body) == null ? void 0 : _c.type) || 0,
+              text: ((_d = m.body) == null ? void 0 : _d.text) || ""
+            };
+          });
+          for (const msg of parsed) {
+            const key = msg.mid ? `mid:${msg.mid}` : `fallback:${msg.time}:${msg.fromUid}:${msg.bodyType}:${msg.text}`;
+            if (seenMid.has(key)) continue;
+            seenMid.add(key);
+            merged.push(msg);
+          }
+          const mids = parsed.map((m) => Number(m.mid || 0)).filter((n) => Number.isFinite(n) && n > 0);
+          if (!mids.length) break;
+          const nextMaxMsgId = String(Math.min(...mids));
+          if (nextMaxMsgId === maxMsgId) break;
+          maxMsgId = nextMaxMsgId;
+          if (messages.length < count) break;
+        }
+        return merged;
       }
       async function deleteFriend(securityId) {
         var _a, _b;
@@ -4390,17 +4409,13 @@ ${textMessages}
           onProgress({ phase: "done", current: 0, total: 0, message: "没有会话" });
           return [];
         }
-        const staleList = friendList.filter((f) => now - f.updateTime > STALE_MS);
-        const staleIdSet = new Set(staleList.map((f) => f.friendId));
-        const analysisList = [
-          ...staleList,
-          ...friendList.filter((f) => !staleIdSet.has(f.friendId))
-        ];
+        const staleCount = friendList.filter((f) => now - f.updateTime > STALE_MS).length;
+        const analysisList = friendList;
         onProgress({
           phase: "fetching",
           current: 0,
           total: analysisList.length,
-          message: `共 ${friendList.length} 个会话，其中 ${staleList.length} 个超过 ${STALE_DAYS} 天未活跃；开始全量关键词扫描（AI仅分析超期会话）`
+          message: `共 ${friendList.length} 个会话，其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始全量关键词+AI扫描，日期作为最后兜底判断`
         });
         const analysisIds = analysisList.map((f) => f.friendId);
         let details = [];
@@ -4421,7 +4436,6 @@ ${textMessages}
           const friend = analysisList[i];
           const detail = detailMap.get(friend.friendId);
           if (!detail || !detail.securityId) continue;
-          const isStale = staleIdSet.has(friend.friendId);
           onProgress({
             phase: "analyzing",
             current: i + 1,
@@ -4448,8 +4462,25 @@ ${textMessages}
               });
               continue;
             }
+            const aiResult = await analyzeWithAi(messages, myUid, detail.name);
+            if (aiResult.shouldClean) {
+              candidates.push({
+                friendId: friend.friendId,
+                encryptBossId: detail.encryptBossId,
+                securityId: detail.securityId,
+                name: detail.name,
+                brandName: detail.brandName,
+                title: detail.title,
+                updateTime: friend.updateTime,
+                lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
+                reason: "ai_detected",
+                reasonDetail: aiResult.reason,
+                selected: true
+              });
+              continue;
+            }
             const lastMsg = messages[messages.length - 1];
-            if (isStale && lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
+            if (lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
               candidates.push({
                 friendId: friend.friendId,
                 encryptBossId: detail.encryptBossId,
@@ -4463,25 +4494,6 @@ ${textMessages}
                 reasonDetail: `已读不回超过 ${STALE_DAYS} 天`,
                 selected: true
               });
-              continue;
-            }
-            if (isStale) {
-              const aiResult = await analyzeWithAi(messages, myUid, detail.name);
-              if (aiResult.shouldClean) {
-                candidates.push({
-                  friendId: friend.friendId,
-                  encryptBossId: detail.encryptBossId,
-                  securityId: detail.securityId,
-                  name: detail.name,
-                  brandName: detail.brandName,
-                  title: detail.title,
-                  updateTime: friend.updateTime,
-                  lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
-                  reason: "ai_detected",
-                  reasonDetail: aiResult.reason,
-                  selected: true
-                });
-              }
             }
           } catch (_e) {
           }
@@ -9124,7 +9136,7 @@ ${preset.content}`).join("\n\n");
         }
         async getRenderComponent() {
           if (this.curUrl.includes("www.zhipin.com/web/geek/chat")) {
-            const mod = await __vitePreload(() => module.import('./BossMessage-CmMR0-aE-BzHZOoD9.js'), void 0 );
+            const mod = await __vitePreload(() => module.import('./BossMessage-Bedid2DN-BGDR1Nk3.js'), void 0 );
             return mod.default;
           }
           if (this.curUrl.includes("www.zhipin.com/web/geek/job") || this.curUrl.includes("overseas")) {
@@ -9937,7 +9949,7 @@ ${preset.content}`).join("\n\n");
   };
 }));
 
-System.register("./BossMessage-CmMR0-aE-BzHZOoD9.js", ['vue', 'element-plus', './__monkey.entry-RX-PH2J-.js', 'pinia', 'protobufjs'], (function (exports, module) {
+System.register("./BossMessage-Bedid2DN-BGDR1Nk3.js", ['vue', 'element-plus', './__monkey.entry-FoKd4yT8.js', 'pinia', 'protobufjs'], (function (exports, module) {
   'use strict';
   var defineComponent, openBlock, createBlock, unref, Vue, ElementPlus, _export_sfc, ElMessage, AiPower, Message, Tools;
   return {
