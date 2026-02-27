@@ -3,6 +3,12 @@
 import { Logger } from "./logger";
 
 declare const unsafeWindow: Window & Record<string, unknown>;
+declare const GM_getValue:
+  | (<T = unknown>(key: string, defaultValue?: T) => T)
+  | undefined;
+declare const GM_setValue:
+  | (<T = unknown>(key: string, value: T) => void)
+  | undefined;
 
 export type SalaryType = "month" | "day" | "hour";
 export type SalaryFilterType = "1" | "2" | string;
@@ -25,6 +31,9 @@ export interface AiConfigExt {
 }
 
 const logger = Logger.rootLogger;
+const AI_CONFIG_EXT_STORAGE_KEY = "ai-job-ai-config-ext";
+const _GM_getValue = typeof GM_getValue !== "undefined" ? GM_getValue : undefined;
+const _GM_setValue = typeof GM_setValue !== "undefined" ? GM_setValue : undefined;
 const _unsafeWindow =
   typeof unsafeWindow !== "undefined" ? unsafeWindow : (window as Window & Record<string, unknown>);
 
@@ -168,7 +177,15 @@ export class Tools {
       }
     };
     try {
-      const raw = localStorage.getItem("ai-job-ai-config-ext");
+      let raw = _GM_getValue?.(AI_CONFIG_EXT_STORAGE_KEY, "") ?? "";
+      if (!raw) {
+        const legacyRaw = localStorage.getItem(AI_CONFIG_EXT_STORAGE_KEY);
+        if (legacyRaw) {
+          _GM_setValue?.(AI_CONFIG_EXT_STORAGE_KEY, legacyRaw);
+          localStorage.removeItem(AI_CONFIG_EXT_STORAGE_KEY);
+          raw = legacyRaw;
+        }
+      }
       if (!raw) {
         return defaultExt;
       }
@@ -204,7 +221,8 @@ export class Tools {
       ...Tools.getAiConfigExt(),
       ...(ext || {})
     } as AiConfigExt;
-    localStorage.setItem("ai-job-ai-config-ext", JSON.stringify(data));
+    _GM_setValue?.(AI_CONFIG_EXT_STORAGE_KEY, JSON.stringify(data));
+    localStorage.removeItem(AI_CONFIG_EXT_STORAGE_KEY);
     return data;
   }
 
