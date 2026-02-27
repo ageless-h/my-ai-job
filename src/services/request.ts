@@ -2,6 +2,7 @@
 import axios, { type AxiosInstance, type AxiosResponse } from "axios";
 import { ElMessage as ElMessage$1 } from "element-plus";
 import { Logger } from "@/utils/logger";
+declare const __API_BASE_URL__: string;
 
 const logger$1 = Logger.rootLogger;
 
@@ -35,7 +36,7 @@ export const request: AxiosInstance = axios.create({
   }
 });
 
-request.defaults.baseURL = "https://43.138.246.37/";
+request.defaults.baseURL = __API_BASE_URL__;
 
 request.interceptors.request.use((req) => {
   const authorization = localStorage.getItem("Authorization");

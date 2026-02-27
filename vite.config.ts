@@ -9,6 +9,9 @@ export default defineConfig(async () => ({
       '@': path.resolve(__dirname, 'src')
     }
   },
+  define: {
+    __API_BASE_URL__: JSON.stringify(process.env.API_BASE_URL || 'https://43.138.246.37/')
+  },
   plugins: [
     vue(),
     monkey({
