@@ -185,6 +185,8 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
           const productListLoading = ref(false);
           const logRecorder = new LogRecorder();
           const latestPushRecords = ref([]);
+          const RECOMMEND_LOOP_RELOAD_KEY = "ai-job-recommend-loop-reload";
+          const RECOMMEND_LOOP_TTL_MS = 5 * 60 * 1e3;
           let recordsUpdateTimer = null;
           const buyProductList = ref([]);
           const showOtherProduct = ref(true);
@@ -195,6 +197,57 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
           let loginStore = LoginStore();
           let pushResultCounter = pushResultCount();
           const userStore = UserStore();
+          const isRecommendSalaryLoopPage = () => {
+            const href = String((Tools.window == null ? void 0 : Tools.window.location) ? Tools.window.location.href : location.href || "");
+            try {
+              const url = new URL(href);
+              return url.pathname.includes("/web/geek/jobs") && url.searchParams.get("salary") === "406";
+            } catch (_e) {
+              return href.includes("/web/geek/jobs") && href.includes("salary=406");
+            }
+          };
+          const shouldEnableRecommendLoop = () => {
+            return !!(userStore == null ? void 0 : userStore.user) && !!userStore.user.preference.imE && !collectMode.value && isRecommendSalaryLoopPage();
+          };
+          const markRecommendLoopReload = () => {
+            const payload = {
+              ts: Date.now(),
+              mode: collectMode.value ? "collect" : "push"
+            };
+            localStorage.setItem(RECOMMEND_LOOP_RELOAD_KEY, JSON.stringify(payload));
+          };
+          const consumeRecommendLoopReload = () => {
+            const raw = localStorage.getItem(RECOMMEND_LOOP_RELOAD_KEY);
+            if (!raw)
+              return null;
+            localStorage.removeItem(RECOMMEND_LOOP_RELOAD_KEY);
+            try {
+              const payload = JSON.parse(raw);
+              if (!payload || !payload.ts || Date.now() - Number(payload.ts) > RECOMMEND_LOOP_TTL_MS) {
+                return null;
+              }
+              return payload;
+            } catch (_e) {
+              return null;
+            }
+          };
+          const tryAutoResumeRecommendLoop = () => {
+            const payload = consumeRecommendLoopReload();
+            if (!payload || !isRecommendSalaryLoopPage()) {
+              return;
+            }
+            collectMode.value = payload.mode === "collect";
+            ElMessage({
+              message: "推荐页无限循环：页面已刷新，自动继续运行",
+              type: "info",
+              duration: 2e3
+            });
+            setTimeout(() => {
+              if (pushStatus.value !== PushStatus.PUSHING) {
+                startPush();
+              }
+            }, 1200);
+          };
           const updateLatestPushRecords = () => {
             const allLogs = logRecorder.getLogs(1, logRecorder.getLogCount());
             const pushLogs = allLogs.filter(
@@ -281,6 +334,24 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             startRecordsUpdate();
             let pushResultPromise = platform.startPush();
             pushResultPromise.then(() => {
+              const shouldLoopRestart = pushStatus.value === PushStatus.PUSHING && shouldEnableRecommendLoop();
+              if (shouldLoopRestart) {
+                markRecommendLoopReload();
+                ElMessage({
+                  message: "推荐页无限循环：本轮完成，正在刷新并自动继续投递",
+                  type: "info",
+                  duration: 2500
+                });
+                stopRecordsUpdate();
+                setTimeout(() => {
+                  if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.reload === "function") {
+                    Tools.window.location.reload();
+                  } else {
+                    window.location.reload();
+                  }
+                }, 1200);
+                return;
+              }
               ElMessage({
                 message: `批量${actionLabel.value}完成`,
                 type: "success",
@@ -418,6 +489,9 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             silentlyLogin("").catch((_) => {
             });
           }
+          setTimeout(() => {
+            tryAutoResumeRecommendLoop();
+          }, 1500);
           watch(collectMode, () => {
             if (pushStatus.value !== PushStatus.PUSHING) {
               pushBtnText.value = getStartButtonText();
