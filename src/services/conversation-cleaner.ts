@@ -417,19 +417,57 @@ export async function scanConversations(
 export async function batchDelete(
   items: CleanCandidate[],
   onProgress: (current: number, total: number, name: string, failReason?: string) => void,
-): Promise<{ success: number; failed: number; lastError: string }> {
+): Promise<{ success: number; failed: number; lastError: string; successSecurityIds: string[] }> {
   let success = 0;
   let failed = 0;
   let lastError = '';
+  const successSecurityIds: string[] = [];
   const selected = items.filter((i) => i.selected);
+
+  const isRetryableDeleteError = (msg: string): boolean => {
+    const text = `${msg || ''}`.toLowerCase();
+    if (!text) return false;
+    if (text.includes('未获取到 zp_token') || text.includes('securityid')) return false;
+    return text.includes('network')
+      || text.includes('timeout')
+      || text.includes('频繁')
+      || text.includes('繁忙')
+      || text.includes('稍后')
+      || text.includes('429')
+      || text.includes('5xx')
+      || text.includes('服务异常');
+  };
+
+  const deleteWithRetry = async (securityId: string): Promise<{ ok: boolean; message: string }> => {
+    const maxRetries = 3;
+    let latestMsg = '';
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await bossThrottle.enqueue(() => deleteFriend(securityId));
+        if (result.ok) return result;
+        latestMsg = result.message || '删除失败';
+        if (!isRetryableDeleteError(latestMsg) || attempt === maxRetries) {
+          return { ok: false, message: latestMsg };
+        }
+      } catch (e: any) {
+        latestMsg = e?.message || String(e);
+        if (!isRetryableDeleteError(latestMsg) || attempt === maxRetries) {
+          return { ok: false, message: latestMsg };
+        }
+      }
+      await Tools.sleep(600 * attempt);
+    }
+    return { ok: false, message: latestMsg || '删除失败' };
+  };
 
   for (let i = 0; i < selected.length; i++) {
     const item = selected[i];
     onProgress(i + 1, selected.length, item.name);
     try {
-      const result = await bossThrottle.enqueue(() => deleteFriend(item.securityId));
+      const result = await deleteWithRetry(item.securityId);
       if (result.ok) {
         success++;
+        successSecurityIds.push(item.securityId);
       } else {
         failed++;
         lastError = result.message;
@@ -442,5 +480,5 @@ export async function batchDelete(
     }
   }
 
-  return { success, failed, lastError };
+  return { success, failed, lastError, successSecurityIds };
 }
