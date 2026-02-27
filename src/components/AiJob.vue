@@ -512,74 +512,79 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             const _component_el_dialog = ElDialog;
             const _directive_loading = vLoading;
             return openBlock(), createElementBlock(Fragment, null, [
-              createVNode(_component_el_text, {
-                size: "large",
-                class: "mx-1",
-                type: "primary"
-              }, {
-                default: withCtx(() => [
-                  createTextVNode(toDisplayString(actionLabel.value) + "成功：" + toDisplayString(unref(pushResultCounter).successCount) + "    ", 1)
-                ]),
-                _: 1
-              }),
-              createVNode(_component_el_text, {
-                size: "large",
-                class: "mx-1",
-                type: "danger"
-              }, {
-                default: withCtx(() => [
-                  createTextVNode(" " + toDisplayString(actionLabel.value) + "失败：" + toDisplayString(unref(pushResultCounter).failCount) + "    ", 1)
-                ]),
-                _: 1
-              }),
-              createVNode(_component_el_button, {
-                type: "info",
-                size: "small",
-                plain: "",
-                onClick: handlerClearPushRecords,
-                style: { "margin-right": "10px" }
-              }, {
-                default: withCtx(() => [
-                  createTextVNode("清理投递记录")
-                ]),
-                _: 1
-              }),
-              createVNode(_component_el_text, {
-                size: "large",
-                class: "mx-1"
-              }, {
-                default: withCtx(() => [
-                  createTextVNode(" 单次处理限制数量：")
-                ]),
-                _: 1
-              }),
-              createVNode(_component_el_input_number, {
-                modelValue: selfDefPushCountLimit.value,
-                "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => selfDefPushCountLimit.value = $event),
-                min: -1,
-                max: 100,
-                onChange: selfDefPushCountLimitChange
-              }, null, 8, ["modelValue"]),
-              !unref(isProdEnv)() ? (openBlock(), createElementBlock("span", _hoisted_1$6, [
-                createTextVNode("    MOCK投递  "),
-                createVNode(_component_el_switch, {
-                  modelValue: mockPush.value,
-                  "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => mockPush.value = $event)
-                }, null, 8, ["modelValue"])
-              ])) : createCommentVNode("", true),
-              createElementVNode("span", { style: { "margin-left": "12px" } }, [
-                createTextVNode("按条件收藏 "),
-                createVNode(_component_el_switch, {
-                  modelValue: collectMode.value,
-                  "onUpdate:modelValue": ($event) => collectMode.value = $event,
-                  "active-text": "开",
-                  "inactive-text": "关",
-                  "inline-prompt": "",
-                  style: { "--el-switch-on-color": "#67c23a", "--el-switch-off-color": "#dcdfe6" }
-                }, null, 8, ["modelValue"])
+              createElementVNode("div", { class: "aj-section" }, [
+                createElementVNode("div", { class: "aj-section__title" }, "投递统计"),
+                createElementVNode("div", { class: "aj-section__body aj-stats-row" }, [
+                  createVNode(_component_el_text, {
+                    size: "large",
+                    class: "mx-1",
+                    type: "primary"
+                  }, {
+                    default: withCtx(() => [
+                      createTextVNode(toDisplayString(actionLabel.value) + "成功：" + toDisplayString(unref(pushResultCounter).successCount) + "    ", 1)
+                    ]),
+                    _: 1
+                  }),
+                  createVNode(_component_el_text, {
+                    size: "large",
+                    class: "mx-1",
+                    type: "danger"
+                  }, {
+                    default: withCtx(() => [
+                      createTextVNode(" " + toDisplayString(actionLabel.value) + "失败：" + toDisplayString(unref(pushResultCounter).failCount) + "    ", 1)
+                    ]),
+                    _: 1
+                  }),
+                  createVNode(_component_el_button, {
+                    type: "info",
+                    size: "small",
+                    plain: "",
+                    onClick: handlerClearPushRecords
+                  }, {
+                    default: withCtx(() => [
+                      createTextVNode("清理投递记录")
+                    ]),
+                    _: 1
+                  })
+                ])
               ]),
-              _hoisted_2$5,
-              _hoisted_3$3,
+              createElementVNode("div", { class: "aj-section" }, [
+                createElementVNode("div", { class: "aj-section__title" }, "投递设置"),
+                createElementVNode("div", { class: "aj-section__body aj-settings-row" }, [
+                  createElementVNode("span", { class: "aj-setting-item" }, [
+                    createTextVNode("单次处理限制："),
+                    createVNode(_component_el_input_number, {
+                      modelValue: selfDefPushCountLimit.value,
+                      "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => selfDefPushCountLimit.value = $event),
+                      min: -1,
+                      max: 100,
+                      size: "small",
+                      onChange: selfDefPushCountLimitChange
+                    }, null, 8, ["modelValue"])
+                  ]),
+                  !unref(isProdEnv)() ? createElementVNode("span", { class: "aj-setting-item" }, [
+                    createTextVNode("MOCK投递 "),
+                    createVNode(_component_el_switch, {
+                      modelValue: mockPush.value,
+                      "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => mockPush.value = $event)
+                    }, null, 8, ["modelValue"])
+                  ]) : createCommentVNode("", true),
+                  createElementVNode("span", { class: "aj-setting-item" }, [
+                    createTextVNode("按条件收藏 "),
+                    createVNode(_component_el_switch, {
+                      modelValue: collectMode.value,
+                      "onUpdate:modelValue": ($event) => collectMode.value = $event,
+                      "active-text": "开",
+                      "inactive-text": "关",
+                      "inline-prompt": "",
+                      style: { "--el-switch-on-color": "#67c23a", "--el-switch-off-color": "#dcdfe6" }
+                    }, null, 8, ["modelValue"])
+                  ])
+                ])
+              ]),
+              createElementVNode("div", { class: "aj-section" }, [
+                createElementVNode("div", { class: "aj-section__title" }, "操作"),
+                createElementVNode("div", { class: "aj-section__body aj-action-row" }, [
               createVNode(_component_el_tooltip, {
                 effect: "dark",
                 "raw-content": "",
@@ -598,59 +603,61 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                     ]),
                     _: 1
                   }, 8, ["icon", "loading"])
-                ]),
-                _: 1
-              }),
-              createVNode(_component_el_tooltip, {
-                effect: "dark",
-                "raw-content": "",
-                content: "\r\n    先通过Boss的筛选功能圈选你的意向岗位<p/><span style='color:red;'>在【偏好设置-投递设置】中选择</span><br/>您的投递偏好，用于精准投递岗位\r\n    ",
-                placement: "bottom"
-              }, {
-                default: withCtx(() => [
-                  createVNode(_component_el_button, {
-                    icon: unref(Promotion),
-                    type: pushBtnType.value,
-                    onClick: handlerPush
+                  ]),
+                  _: 1
+                }),
+                  createVNode(_component_el_tooltip, {
+                    effect: "dark",
+                    "raw-content": "",
+                    content: "\r\n    先通过Boss的筛选功能圈选你的意向岗位<p/><span style='color:red;'>在【偏好设置-投递设置】中选择</span><br/>您的投递偏好，用于精准投递岗位\r\n    ",
+                    placement: "bottom"
                   }, {
                     default: withCtx(() => [
-                      createElementVNode("p", _hoisted_5$3, toDisplayString(pushBtnText.value), 1)
+                      createVNode(_component_el_button, {
+                        icon: unref(Promotion),
+                        type: pushBtnType.value,
+                        onClick: handlerPush
+                      }, {
+                        default: withCtx(() => [
+                          createElementVNode("p", _hoisted_5$3, toDisplayString(pushBtnText.value), 1)
+                        ]),
+                        _: 1
+                      }, 8, ["icon", "type"])
                     ]),
                     _: 1
-                  }, 8, ["icon", "type"])
-                ]),
-                _: 1
-              }),
-              createVNode(_component_el_tooltip, {
-                effect: "dark",
-                "raw-content": "",
-                content: "\r\n    AI代聊：自动响应hr的消息,根据您的简历信息进行定制化回答。<br/>\r\n    - 高意向职位邮件通知，快速筛选出最合适的职位。<br/>\r\n    - 快捷发送简历，交换 wx、联系方式。<br/>\r\n    - hr拒绝挽留，不放过每一个机会。<br/>\r\n    ",
-                placement: "bottom"
-              }, {
-                default: withCtx(() => [
-                  createVNode(_component_el_button, {
-                    icon: unref(Service),
-                    color: "#626aef"
+                  }),
+                  createVNode(_component_el_tooltip, {
+                    effect: "dark",
+                    "raw-content": "",
+                    content: "\r\n    AI代聊：自动响应hr的消息,根据您的简历信息进行定制化回答。<br/>\r\n    - 高意向职位邮件通知，快速筛选出最合适的职位。<br/>\r\n    - 快捷发送简历，交换 wx、联系方式。<br/>\r\n    - hr拒绝挝留，不放过每一个机会。<br/>\r\n    ",
+                    placement: "bottom"
                   }, {
                     default: withCtx(() => [
-                      createElementVNode("p", _hoisted_6$3, [
-                        _hoisted_7$3,
-                        createVNode(_component_el_switch, {
-                          "active-text": "开",
-                          "inactive-text": "关",
-                          "inline-prompt": "",
-                          style: { "--el-switch-on-color": "#13ce66", "--el-switch-off-color": "#ff4949" },
-                          modelValue: unref(userStore).user.aiSeatStatus,
-                          "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => unref(userStore).user.aiSeatStatus = $event),
-                          onChange: handlerAISeatStatusChange
-                        }, null, 8, ["modelValue"])
-                      ])
+                      createVNode(_component_el_button, {
+                        icon: unref(Service),
+                        color: "#626aef"
+                      }, {
+                        default: withCtx(() => [
+                          createElementVNode("p", _hoisted_6$3, [
+                            _hoisted_7$3,
+                            createVNode(_component_el_switch, {
+                              "active-text": "开",
+                              "inactive-text": "关",
+                              "inline-prompt": "",
+                              style: { "--el-switch-on-color": "#13ce66", "--el-switch-off-color": "#ff4949" },
+                              modelValue: unref(userStore).user.aiSeatStatus,
+                              "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => unref(userStore).user.aiSeatStatus = $event),
+                              onChange: handlerAISeatStatusChange
+                            }, null, 8, ["modelValue"])
+                          ])
+                        ]),
+                        _: 1
+                      }, 8, ["icon"])
                     ]),
                     _: 1
-                  }, 8, ["icon"])
-                ]),
-                _: 1
-              }),
+                  })
+                ])
+              ]),
               withDirectives(createElementVNode("div", _hoisted_8$3, [
                 createElementVNode("div", _hoisted_9$3, [
                   _hoisted_10$3,
@@ -970,6 +977,13 @@ const RenderComponent = _sfc_main$8;
 :deep(.push-records-content::-webkit-scrollbar-track){background:#0000000d;border-radius:2px}
 :deep(.push-records-content::-webkit-scrollbar-thumb){background:#0003;border-radius:2px}
 :deep(.push-records-content::-webkit-scrollbar-thumb:hover){background:#0000004d}
-:deep(.cleaner-section){margin-top:16px;padding:12px;background:#fff;border-radius:6px;border:1px solid rgba(0,0,0,.08)}
-:deep(.cleaner-section__title){font-size:14px;font-weight:600;color:#303133;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #ebeef5}
+:deep(.aj-section){margin-bottom:12px;padding:10px 12px;background:#fff;border-radius:6px;border:1px solid rgba(0,0,0,.08)}
+:deep(.aj-section__title){font-size:13px;font-weight:600;color:#303133;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #ebeef5}
+:deep(.aj-section__body){display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+:deep(.aj-stats-row .mx-1){margin-right:6px}
+:deep(.aj-settings-row){gap:12px}
+:deep(.aj-setting-item){display:inline-flex;align-items:center;gap:4px;font-size:13px;color:#606266}
+:deep(.aj-action-row){gap:8px}
+:deep(.cleaner-section){margin-top:0;padding:10px 12px;background:#fff;border-radius:6px;border:1px solid rgba(0,0,0,.08)}
+:deep(.cleaner-section__title){font-size:13px;font-weight:600;color:#303133;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #ebeef5}
 </style>
