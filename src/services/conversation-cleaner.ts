@@ -299,7 +299,7 @@ export async function scanConversations(
     phase: 'fetching',
     current: 0,
     total: staleList.length,
-    message: `找到 ${staleList.length} 个超过 ${STALE_DAYS} 天未活跃的会话，获取详情...`,
+    message: `共 ${friendList.length} 个会话，${staleList.length} 个超过 ${STALE_DAYS} 天未活跃，获取详情...`,
   });
 
   // Phase 3: 批量获取详情
@@ -332,7 +332,7 @@ export async function scanConversations(
       phase: 'analyzing',
       current: i + 1,
       total: staleList.length,
-      message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${staleList.length})`,
+      message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${staleList.length}，共 ${friendList.length} 个会话)`,
     });
 
     try {
