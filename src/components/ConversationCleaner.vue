@@ -150,13 +150,15 @@ async function confirmDelete() {
   deleteResult.value = '';
 
   try {
-    const { success, failed } = await batchDelete(
+    const { success, failed, lastError } = await batchDelete(
       candidates.value,
-      (cur, total, name) => {
-        deleteResult.value = `删除中 ${cur}/${total}: ${name}`;
+      (cur, total, name, failReason) => {
+        deleteResult.value = failReason
+          ? `删除中 ${cur}/${total}: ${name} — 失败: ${failReason}`
+          : `删除中 ${cur}/${total}: ${name}`;
       },
     );
-    deleteResult.value = `完成: 成功 ${success} 个${failed ? `，失败 ${failed} 个` : ''}`;
+    deleteResult.value = `完成: 成功 ${success} 个${failed ? `，失败 ${failed} 个 (${lastError})` : ''}`;
     // 移除已成功删除的
     candidates.value = candidates.value.filter((c) => !c.selected);
   } catch (e: any) {

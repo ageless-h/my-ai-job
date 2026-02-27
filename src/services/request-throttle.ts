@@ -9,8 +9,6 @@ export interface ThrottleOptions {
   minDelay?: number;
   /** 最大间隔（毫秒），默认 5000 */
   maxDelay?: number;
-  /** 同一批次内首次请求是否也延迟，默认 false */
-  delayFirst?: boolean;
 }
 
 const DEFAULT_MIN = 2000;
@@ -31,13 +29,12 @@ export class RequestThrottle {
   private running = false;
   private minDelay: number;
   private maxDelay: number;
-  private delayFirst: boolean;
   private _aborted = false;
+  private lastExecTime = 0;
 
   constructor(opts?: ThrottleOptions) {
     this.minDelay = opts?.minDelay ?? DEFAULT_MIN;
     this.maxDelay = opts?.maxDelay ?? DEFAULT_MAX;
-    this.delayFirst = opts?.delayFirst ?? false;
   }
 
   /** 入队一个异步请求，返回 Promise */
@@ -69,17 +66,17 @@ export class RequestThrottle {
   private async drain() {
     if (this.running) return;
     this.running = true;
-    let isFirst = true;
 
     while (this.queue.length > 0 && !this._aborted) {
       const item = this.queue.shift()!;
 
-      // 非首次请求（或 delayFirst=true 时首次也延迟）前等待随机间隔
-      if (!isFirst || this.delayFirst) {
-        const delay = this.minDelay + Tools.getRandomNumber(0, this.maxDelay - this.minDelay);
-        await Tools.sleep(delay);
+      // 基于上次执行时间计算需要等待的间隔
+      const elapsed = Date.now() - this.lastExecTime;
+      const targetDelay = this.minDelay + Tools.getRandomNumber(0, this.maxDelay - this.minDelay);
+      const waitTime = Math.max(0, targetDelay - elapsed);
+      if (waitTime > 0 && this.lastExecTime > 0) {
+        await Tools.sleep(waitTime);
       }
-      isFirst = false;
 
       if (this._aborted) {
         item.reject(new Error('Throttle aborted'));
@@ -87,9 +84,11 @@ export class RequestThrottle {
       }
 
       try {
+        this.lastExecTime = Date.now();
         const result = await item.fn();
         item.resolve(result);
       } catch (e) {
+        this.lastExecTime = Date.now();
         item.reject(e);
       }
     }

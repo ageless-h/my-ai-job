@@ -149,9 +149,9 @@ export async function fetchHistoryMessages(
 }
 
 /** 删除好友/会话 */
-export async function deleteFriend(securityId: string): Promise<boolean> {
+export async function deleteFriend(securityId: string): Promise<{ ok: boolean; message: string }> {
   const token = getZpToken();
-  if (!token) throw new Error('未获取到 Zp_token');
+  if (!token) return { ok: false, message: '未获取到 Zp_token' };
   const resp = await axios.post(
     'https://www.zhipin.com/wapi/zprelation/friend/delete.json',
     'securityId=' + encodeURIComponent(securityId),
@@ -162,7 +162,9 @@ export async function deleteFriend(securityId: string): Promise<boolean> {
       },
     },
   );
-  return resp.data?.code === 0;
+  const code = resp.data?.code;
+  if (code === 0) return { ok: true, message: '' };
+  return { ok: false, message: resp.data?.message || `code=${code}` };
 }
 
 // ============ 分析逻辑 ============
@@ -414,23 +416,31 @@ export async function scanConversations(
 /** 批量删除选中的会话 */
 export async function batchDelete(
   items: CleanCandidate[],
-  onProgress: (current: number, total: number, name: string) => void,
-): Promise<{ success: number; failed: number }> {
+  onProgress: (current: number, total: number, name: string, failReason?: string) => void,
+): Promise<{ success: number; failed: number; lastError: string }> {
   let success = 0;
   let failed = 0;
+  let lastError = '';
   const selected = items.filter((i) => i.selected);
 
   for (let i = 0; i < selected.length; i++) {
     const item = selected[i];
     onProgress(i + 1, selected.length, item.name);
     try {
-      const ok = await bossThrottle.enqueue(() => deleteFriend(item.securityId));
-      if (ok) success++;
-      else failed++;
-    } catch (_e) {
+      const result = await bossThrottle.enqueue(() => deleteFriend(item.securityId));
+      if (result.ok) {
+        success++;
+      } else {
+        failed++;
+        lastError = result.message;
+        onProgress(i + 1, selected.length, item.name, result.message);
+      }
+    } catch (e: any) {
       failed++;
+      lastError = e?.message || String(e);
+      onProgress(i + 1, selected.length, item.name, lastError);
     }
   }
 
-  return { success, failed };
+  return { success, failed, lastError };
 }
