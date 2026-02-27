@@ -69,6 +69,7 @@ export interface ScanProgress {
 const STALE_DAYS = 14;
 const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1000;
 const HISTORY_MSG_COUNT = 10;
+const HISTORY_MAX_PAGES = 3;
 
 // ============ API 调用 ============
 
@@ -121,31 +122,58 @@ export async function fetchHistoryMessages(
   encryptBossId: string,
   securityId: string,
   count = HISTORY_MSG_COUNT,
+  maxPages = HISTORY_MAX_PAGES,
 ): Promise<HistoryMessage[]> {
-  const params = new URLSearchParams({
-    bossId: encryptBossId,
-    groupId: encryptBossId,
-    maxMsgId: '0',
-    c: String(count),
-    page: '1',
-    src: '0',
-    securityId,
-    loading: 'true',
-    _t: String(Date.now()),
-  });
-  const resp = await axios.get(
-    'https://www.zhipin.com/wapi/zpchat/geek/historyMsg?' + params.toString()
-  );
-  const messages = resp.data?.zpData?.messages;
-  if (!Array.isArray(messages)) return [];
-  return messages.map((m: any) => ({
-    mid: m.mid,
-    time: m.time || 0,
-    fromUid: m.from?.uid || 0,
-    toUid: m.to?.uid || 0,
-    bodyType: m.body?.type || 0,
-    text: m.body?.text || '',
-  }));
+  let maxMsgId = '0';
+  const merged: HistoryMessage[] = [];
+  const seenMid = new Set<string>();
+
+  for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
+    const params = new URLSearchParams({
+      bossId: encryptBossId,
+      groupId: encryptBossId,
+      maxMsgId,
+      c: String(count),
+      page: '1',
+      src: '0',
+      securityId,
+      loading: 'true',
+      _t: String(Date.now()),
+    });
+    const resp = await axios.get(
+      'https://www.zhipin.com/wapi/zpchat/geek/historyMsg?' + params.toString()
+    );
+    const messages = resp.data?.zpData?.messages;
+    if (!Array.isArray(messages) || !messages.length) break;
+
+    const parsed = messages.map((m: any) => ({
+      mid: m.mid,
+      time: m.time || 0,
+      fromUid: m.from?.uid || 0,
+      toUid: m.to?.uid || 0,
+      bodyType: m.body?.type || 0,
+      text: m.body?.text || '',
+    }));
+
+    for (const msg of parsed) {
+      const key = msg.mid ? `mid:${msg.mid}` : `fallback:${msg.time}:${msg.fromUid}:${msg.bodyType}:${msg.text}`;
+      if (seenMid.has(key)) continue;
+      seenMid.add(key);
+      merged.push(msg);
+    }
+
+    const mids = parsed
+      .map((m) => Number(m.mid || 0))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (!mids.length) break;
+    const nextMaxMsgId = String(Math.min(...mids));
+    if (nextMaxMsgId === maxMsgId) break;
+    maxMsgId = nextMaxMsgId;
+
+    if (messages.length < count) break;
+  }
+
+  return merged;
 }
 
 /** 删除好友/会话 */
@@ -290,19 +318,15 @@ export async function scanConversations(
     return [];
   }
 
-  // Phase 2: 全量扫描队列（优先扫描超过 STALE_DAYS 天未活跃会话）
-  const staleList = friendList.filter((f) => now - f.updateTime > STALE_MS);
-  const staleIdSet = new Set(staleList.map((f) => f.friendId));
-  const analysisList = [
-    ...staleList,
-    ...friendList.filter((f) => !staleIdSet.has(f.friendId)),
-  ];
+  // Phase 2: 全量扫描队列（日期只做最后兜底判断）
+  const staleCount = friendList.filter((f) => now - f.updateTime > STALE_MS).length;
+  const analysisList = friendList;
 
   onProgress({
     phase: 'fetching',
     current: 0,
     total: analysisList.length,
-    message: `共 ${friendList.length} 个会话，其中 ${staleList.length} 个超过 ${STALE_DAYS} 天未活跃；开始全量关键词扫描（AI仅分析超期会话）`,
+    message: `共 ${friendList.length} 个会话，其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始全量关键词+AI扫描，日期作为最后兜底判断`,
   });
 
   // Phase 3: 批量获取详情
@@ -330,7 +354,6 @@ export async function scanConversations(
     const friend = analysisList[i];
     const detail = detailMap.get(friend.friendId);
     if (!detail || !detail.securityId) continue;
-    const isStale = staleIdSet.has(friend.friendId);
 
     onProgress({
       phase: 'analyzing',
@@ -364,9 +387,28 @@ export async function scanConversations(
         continue;
       }
 
-      // Step B: 超过 STALE_DAYS 天且最后一条是自己发的（已读不回）
+      // Step B: AI 分析（全量会话）
+      const aiResult = await analyzeWithAi(messages, myUid, detail.name);
+      if (aiResult.shouldClean) {
+        candidates.push({
+          friendId: friend.friendId,
+          encryptBossId: detail.encryptBossId,
+          securityId: detail.securityId,
+          name: detail.name,
+          brandName: detail.brandName,
+          title: detail.title,
+          updateTime: friend.updateTime,
+          lastText: lastTextMsg?.text || '',
+          reason: 'ai_detected',
+          reasonDetail: aiResult.reason,
+          selected: true,
+        });
+        continue;
+      }
+
+      // Step C: 日期兜底判断（最后执行）
       const lastMsg = messages[messages.length - 1];
-      if (isStale && lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
+      if (lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
         candidates.push({
           friendId: friend.friendId,
           encryptBossId: detail.encryptBossId,
@@ -380,27 +422,6 @@ export async function scanConversations(
           reasonDetail: `已读不回超过 ${STALE_DAYS} 天`,
           selected: true,
         });
-        continue;
-      }
-
-      // Step C: AI 分析
-      if (isStale) {
-        const aiResult = await analyzeWithAi(messages, myUid, detail.name);
-        if (aiResult.shouldClean) {
-          candidates.push({
-            friendId: friend.friendId,
-            encryptBossId: detail.encryptBossId,
-            securityId: detail.securityId,
-            name: detail.name,
-            brandName: detail.brandName,
-            title: detail.title,
-            updateTime: friend.updateTime,
-            lastText: lastTextMsg?.text || '',
-            reason: 'ai_detected',
-            reasonDetail: aiResult.reason,
-            selected: true,
-          });
-        }
       }
     } catch (_e) {
       // 单个会话分析失败不影响整体
