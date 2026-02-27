@@ -380,7 +380,8 @@ const handleTempSave = async () => {
         await state.fetchConfig?.();
       }
     } catch (error) {
-      state.ElMessage({ type: 'error', message: '保存失败' });
+      const msg = error?.response?.data?.message || error?.message || '未知错误';
+      state.ElMessage({ type: 'error', message: `保存失败: ${msg}` });
     }
   });
 };
