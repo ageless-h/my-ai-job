@@ -105,7 +105,7 @@ request.interceptors.response.use(
         grouping: true,
         duration: 2000
       });
-      return Promise.reject("time out");
+      return Promise.reject(error);
     }
 
     if (error?.code === "ERR_NETWORK") {
@@ -115,8 +115,7 @@ request.interceptors.response.use(
         grouping: true,
         duration: 2000
       });
-      return Promise.reject(() => {
-      });
+      return Promise.reject(error);
     }
 
     if (error?.response?.data) {

@@ -14,6 +14,31 @@ const logger$1 = Logger.rootLogger;
 const logRecorder$2 = new LogRecorder();
 let loginIng = false;
 
+const isNetworkLikeError = (error: any): boolean => {
+  const code = error?.code || "";
+  if (["ECONNABORTED", "ERR_NETWORK", "ECONNRESET", "ETIMEDOUT", "ENOTFOUND"].includes(code)) {
+    return true;
+  }
+  const msg = `${typeof error === "string" ? error : error?.message || error?.response?.data?.message || ""}`.toLowerCase();
+  return msg.includes("timeout") || msg.includes("time out") || msg.includes("network") || msg.includes("econnaborted");
+};
+
+const runWithRetry = async <T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> => {
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      if (!isNetworkLikeError(error) || attempt === maxRetries) {
+        throw error;
+      }
+      await Tools.sleep(800 * attempt);
+    }
+  }
+  throw lastError;
+};
+
 export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
   let loginCount = 0;
   while (loginIng && loginCount < 6) {
@@ -64,7 +89,9 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
     })
     .catch((e: unknown) => {
       logRecorder$2.error("静默登录失败", e);
-      loginStore.loginFail();
+      if (!isNetworkLikeError(e)) {
+        loginStore.loginFail();
+      }
       return Promise.reject(e);
     })
     .finally(() => {
@@ -171,10 +198,10 @@ export function userRemoteLoad(): void {
     return;
   }
 
-  silentlyLogin("")
+  runWithRetry(() => silentlyLogin(""), 3)
     .then(() => {
       logger$1.debug("调用接口加载用户偏好配置");
-      return request.post("/api/user/userinfo", {});
+      return runWithRetry(() => request.post("/api/user/userinfo", {}, { timeout: 20_000 }), 3);
     })
     .then((resp: any) => {
       userStore2.user = resp?.data?.data;
@@ -188,8 +215,11 @@ export function userRemoteLoad(): void {
       logRecorder$1.info("加载用户偏好配置成功");
     })
     .catch((error: any) => {
-      loginStore.loginFail();
-      logRecorder$1.error("加载用户偏好配置失败", error.message);
+      if (!isNetworkLikeError(error)) {
+        loginStore.loginFail();
+      }
+      const errorMsg = typeof error === "string" ? error : error?.message || error?.response?.data?.message || "未知错误";
+      logRecorder$1.error("加载用户偏好配置失败", errorMsg);
     })
     .finally(() => {
       if (!userStore2.user.preference) {

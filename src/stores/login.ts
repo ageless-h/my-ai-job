@@ -8,9 +8,11 @@ export const LoginStore = defineStore("LoginStore", () => {
 
   function loginSuccess(): void {
     login.value = true;
+    loginFailStatus.value = false;
   }
 
   function loginFail(): void {
+    login.value = false;
     loginFailStatus.value = true;
   }
 
