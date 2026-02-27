@@ -344,6 +344,9 @@ const _withScopeId$2 = (n) => (pushScopeId("data-v-b36666e5"), n = n(), popScope
             if (!userStore.user.preference.srT) {
               userStore.user.preference.srT = "1";
             }
+            if (typeof userStore.user.preference.imE !== "boolean") {
+              userStore.user.preference.imE = false;
+            }
           };
           preferenceDefaultValueHandler();
           return (_ctx, _cache) => {
@@ -949,7 +952,19 @@ const _withScopeId$2 = (n) => (pushScopeId("data-v-b36666e5"), n = n(), popScope
                       max: 60,
                       size: "small"
                     }, null, 8, ["modelValue"]),
-                    _hoisted_14
+                    _hoisted_14,
+                    createTextVNode("         "),
+                    createVNode(_component_el_checkbox, {
+                      modelValue: unref(userStore).user.preference.imE,
+                      "onUpdate:modelValue": ($event) => unref(userStore).user.preference.imE = $event,
+                      label: "",
+                      size: "large"
+                    }, {
+                      default: withCtx(() => [
+                        createTextVNode("推荐页无限循环")
+                      ]),
+                      _: 1
+                    }, 8, ["modelValue"])
                   ]),
                   createVNode(_component_el_text, {
                     class: "mx-1 top-title",

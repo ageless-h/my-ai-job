@@ -157,6 +157,9 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (this.curUrl.includes("job-recommend")) {
+      if (userStore$2?.user?.preference?.imE) {
+        return true;
+      }
       return !!document.querySelector("#footer");
     }
 
@@ -184,6 +187,9 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (this.curUrl.includes("job-recommend")) {
+      if (userStore$2?.user?.preference?.imE && this.getJobList().length === 0) {
+        this.logRecorder.info("推荐页无限模式：当前批次已处理完成，继续滚动拉取新推荐职位");
+      }
       simulateScrollToEnd().then(() => {
         logger$1.info("获取下一页成功");
       }).catch((e) => {
