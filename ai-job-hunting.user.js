@@ -38,7 +38,7 @@ System.set("user:pinia", (()=>{const _=Pinia;('default' in _)||(_.default=_);ret
 System.set("user:element-plus", (()=>{const _=ElementPlus;('default' in _)||(_.default=_);return _})());
 System.set("user:protobufjs", (()=>{const _=protobuf;('default' in _)||(_.default=_);return _})());
 
-System.register("./__entry.js", ['./__monkey.entry-BUz09Zb9.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-Cj29pKC1.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -50,7 +50,7 @@ System.register("./__entry.js", ['./__monkey.entry-BUz09Zb9.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-BUz09Zb9.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
+System.register("./__monkey.entry-Cj29pKC1.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
   'use strict';
   var ref, reactive, createApp, defineComponent, openBlock, createBlock, unref, Vue, createElementBlock, createVNode, createElementVNode, computed, watch, provide, onMounted, resolveComponent, withCtx, Fragment, renderList, createTextVNode, pushScopeId, popScopeId, toDisplayString, createCommentVNode, inject, normalizeClass, withDirectives, vShow, defineStore, createPinia, ElMessage$1, ElementPlus__default, ElMessageBox, ElementPlus, protobuf;
   return {
@@ -3021,7 +3021,7 @@ System.register("./__monkey.entry-BUz09Zb9.js", ['vue', 'pinia', 'element-plus',
               grouping: true,
               duration: 2e3
             });
-            return Promise.reject("time out");
+            return Promise.reject(error);
           }
           if ((error == null ? void 0 : error.code) === "ERR_NETWORK") {
             ElMessage({
@@ -3030,8 +3030,7 @@ System.register("./__monkey.entry-BUz09Zb9.js", ['vue', 'pinia', 'element-plus',
               grouping: true,
               duration: 2e3
             });
-            return Promise.reject(() => {
-            });
+            return Promise.reject(error);
           }
           if ((_a = error == null ? void 0 : error.response) == null ? void 0 : _a.data) {
             error.message = error.response.data.message;
@@ -3080,8 +3079,10 @@ System.register("./__monkey.entry-BUz09Zb9.js", ['vue', 'pinia', 'element-plus',
         const loginFailStatus = ref();
         function loginSuccess() {
           login.value = true;
+          loginFailStatus.value = false;
         }
         function loginFail() {
+          login.value = false;
           loginFailStatus.value = true;
         }
         return {
@@ -3838,6 +3839,30 @@ System.register("./__monkey.entry-BUz09Zb9.js", ['vue', 'pinia', 'element-plus',
       const logger$1$1 = Logger.rootLogger;
       const logRecorder$2 = new LogRecorder();
       let loginIng = false;
+      const isNetworkLikeError = (error) => {
+        var _a, _b;
+        const code2 = (error == null ? void 0 : error.code) || "";
+        if (["ECONNABORTED", "ERR_NETWORK", "ECONNRESET", "ETIMEDOUT", "ENOTFOUND"].includes(code2)) {
+          return true;
+        }
+        const msg = `${typeof error === "string" ? error : (error == null ? void 0 : error.message) || ((_b = (_a = error == null ? void 0 : error.response) == null ? void 0 : _a.data) == null ? void 0 : _b.message) || ""}`.toLowerCase();
+        return msg.includes("timeout") || msg.includes("time out") || msg.includes("network") || msg.includes("econnaborted");
+      };
+      const runWithRetry = async (fn, maxRetries = 3) => {
+        let lastError;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            return await fn();
+          } catch (error) {
+            lastError = error;
+            if (!isNetworkLikeError(error) || attempt === maxRetries) {
+              throw error;
+            }
+            await Tools.sleep(800 * attempt);
+          }
+        }
+        throw lastError;
+      };
       const silentlyLogin = async (bossUserId) => {
         var _a, _b, _c, _d, _e, _f;
         let loginCount = 0;
@@ -3879,7 +3904,9 @@ System.register("./__monkey.entry-BUz09Zb9.js", ['vue', 'pinia', 'element-plus',
           logRecorder$2.info("静默登录成功");
         }).catch((e) => {
           logRecorder$2.error("静默登录失败", e);
-          loginStore.loginFail();
+          if (!isNetworkLikeError(e)) {
+            loginStore.loginFail();
+          }
           return Promise.reject(e);
         }).finally(() => {
           loginIng = false;
@@ -3970,9 +3997,9 @@ System.register("./__monkey.entry-BUz09Zb9.js", ['vue', 'pinia', 'element-plus',
         if (loginStore.loginFailStatus) {
           return;
         }
-        silentlyLogin("").then(() => {
+        runWithRetry(() => silentlyLogin(""), 3).then(() => {
           logger$1$1.debug("调用接口加载用户偏好配置");
-          return request.post("/api/user/userinfo", {});
+          return runWithRetry(() => request.post("/api/user/userinfo", {}, { timeout: 2e4 }), 3);
         }).then((resp) => {
           var _a;
           userStore2.user = (_a = resp == null ? void 0 : resp.data) == null ? void 0 : _a.data;
@@ -3984,8 +4011,12 @@ System.register("./__monkey.entry-BUz09Zb9.js", ['vue', 'pinia', 'element-plus',
           userStore2.user.preference.npi = userStore2.user.preference.npi || 6;
           logRecorder$1.info("加载用户偏好配置成功");
         }).catch((error) => {
-          loginStore.loginFail();
-          logRecorder$1.error("加载用户偏好配置失败", error.message);
+          var _a, _b;
+          if (!isNetworkLikeError(error)) {
+            loginStore.loginFail();
+          }
+          const errorMsg = typeof error === "string" ? error : (error == null ? void 0 : error.message) || ((_b = (_a = error == null ? void 0 : error.response) == null ? void 0 : _a.data) == null ? void 0 : _b.message) || "未知错误";
+          logRecorder$1.error("加载用户偏好配置失败", errorMsg);
         }).finally(() => {
           if (!userStore2.user.preference) {
             userStore2.user.preference = {};
@@ -9047,7 +9078,7 @@ ${preset.content}`).join("\n\n");
         }
         async getRenderComponent() {
           if (this.curUrl.includes("www.zhipin.com/web/geek/chat")) {
-            const mod = await __vitePreload(() => module.import('./BossMessage--EIhOFFq-DmuG4EvJ.js'), void 0 );
+            const mod = await __vitePreload(() => module.import('./BossMessage-RYvu9s0w-BOkTdBAZ.js'), void 0 );
             return mod.default;
           }
           if (this.curUrl.includes("www.zhipin.com/web/geek/job") || this.curUrl.includes("overseas")) {
@@ -9860,7 +9891,7 @@ ${preset.content}`).join("\n\n");
   };
 }));
 
-System.register("./BossMessage--EIhOFFq-DmuG4EvJ.js", ['vue', 'element-plus', './__monkey.entry-BUz09Zb9.js', 'pinia', 'protobufjs'], (function (exports, module) {
+System.register("./BossMessage-RYvu9s0w-BOkTdBAZ.js", ['vue', 'element-plus', './__monkey.entry-Cj29pKC1.js', 'pinia', 'protobufjs'], (function (exports, module) {
   'use strict';
   var defineComponent, openBlock, createBlock, unref, Vue, ElementPlus, _export_sfc, ElMessage, AiPower, Message, Tools;
   return {
