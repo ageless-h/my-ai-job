@@ -38,7 +38,7 @@ System.set("user:pinia", (()=>{const _=Pinia;('default' in _)||(_.default=_);ret
 System.set("user:element-plus", (()=>{const _=ElementPlus;('default' in _)||(_.default=_);return _})());
 System.set("user:protobufjs", (()=>{const _=protobuf;('default' in _)||(_.default=_);return _})());
 
-System.register("./__entry.js", ['./__monkey.entry-DMZyUR5k.js'], (function (exports, module) {
+System.register("./__entry.js", ['./__monkey.entry-RX-PH2J-.js'], (function (exports, module) {
 	'use strict';
 	return {
 		setters: [null],
@@ -50,7 +50,7 @@ System.register("./__entry.js", ['./__monkey.entry-DMZyUR5k.js'], (function (exp
 	};
 }));
 
-System.register("./__monkey.entry-DMZyUR5k.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
+System.register("./__monkey.entry-RX-PH2J-.js", ['vue', 'pinia', 'element-plus', 'protobufjs'], (function (exports, module) {
   'use strict';
   var ref, reactive, createApp, defineComponent, openBlock, createBlock, unref, Vue, createElementBlock, createVNode, createElementVNode, computed, watch, provide, onMounted, resolveComponent, withCtx, Fragment, renderList, createTextVNode, pushScopeId, popScopeId, toDisplayString, createCommentVNode, inject, normalizeClass, withDirectives, vShow, defineStore, createPinia, ElMessage$1, ElementPlus__default, ElMessageBox, ElementPlus, protobuf;
   return {
@@ -4391,20 +4391,21 @@ ${textMessages}
           return [];
         }
         const staleList = friendList.filter((f) => now - f.updateTime > STALE_MS);
-        if (!staleList.length) {
-          onProgress({ phase: "done", current: 0, total: friendList.length, message: `共 ${friendList.length} 个会话，无超过 ${STALE_DAYS} 天未活跃的` });
-          return [];
-        }
+        const staleIdSet = new Set(staleList.map((f) => f.friendId));
+        const analysisList = [
+          ...staleList,
+          ...friendList.filter((f) => !staleIdSet.has(f.friendId))
+        ];
         onProgress({
           phase: "fetching",
           current: 0,
-          total: staleList.length,
-          message: `共 ${friendList.length} 个会话，${staleList.length} 个超过 ${STALE_DAYS} 天未活跃，获取详情...`
+          total: analysisList.length,
+          message: `共 ${friendList.length} 个会话，其中 ${staleList.length} 个超过 ${STALE_DAYS} 天未活跃；开始全量关键词扫描（AI仅分析超期会话）`
         });
-        const staleIds = staleList.map((f) => f.friendId);
+        const analysisIds = analysisList.map((f) => f.friendId);
         let details = [];
-        for (let i = 0; i < staleIds.length; i += 199) {
-          const batch = staleIds.slice(i, i + 199);
+        for (let i = 0; i < analysisIds.length; i += 199) {
+          const batch = analysisIds.slice(i, i + 199);
           const batchDetails = await bossThrottle.enqueue(() => fetchFriendDetails(batch));
           details = details.concat(batchDetails);
         }
@@ -4413,18 +4414,19 @@ ${textMessages}
         onProgress({
           phase: "analyzing",
           current: 0,
-          total: staleList.length,
+          total: analysisList.length,
           message: "分析会话内容..."
         });
-        for (let i = 0; i < staleList.length; i++) {
-          const friend = staleList[i];
+        for (let i = 0; i < analysisList.length; i++) {
+          const friend = analysisList[i];
           const detail = detailMap.get(friend.friendId);
           if (!detail || !detail.securityId) continue;
+          const isStale = staleIdSet.has(friend.friendId);
           onProgress({
             phase: "analyzing",
             current: i + 1,
-            total: staleList.length,
-            message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${staleList.length}，共 ${friendList.length} 个会话)`
+            total: analysisList.length,
+            message: `分析 ${detail.name}@${detail.brandName} (${i + 1}/${analysisList.length}，共 ${friendList.length} 个会话)`
           });
           try {
             const messages = await bossThrottle.enqueue(() => fetchHistoryMessages(detail.encryptBossId, detail.securityId));
@@ -4447,7 +4449,7 @@ ${textMessages}
               continue;
             }
             const lastMsg = messages[messages.length - 1];
-            if (lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
+            if (isStale && lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
               candidates.push({
                 friendId: friend.friendId,
                 encryptBossId: detail.encryptBossId,
@@ -4463,29 +4465,31 @@ ${textMessages}
               });
               continue;
             }
-            const aiResult = await analyzeWithAi(messages, myUid, detail.name);
-            if (aiResult.shouldClean) {
-              candidates.push({
-                friendId: friend.friendId,
-                encryptBossId: detail.encryptBossId,
-                securityId: detail.securityId,
-                name: detail.name,
-                brandName: detail.brandName,
-                title: detail.title,
-                updateTime: friend.updateTime,
-                lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
-                reason: "ai_detected",
-                reasonDetail: aiResult.reason,
-                selected: true
-              });
+            if (isStale) {
+              const aiResult = await analyzeWithAi(messages, myUid, detail.name);
+              if (aiResult.shouldClean) {
+                candidates.push({
+                  friendId: friend.friendId,
+                  encryptBossId: detail.encryptBossId,
+                  securityId: detail.securityId,
+                  name: detail.name,
+                  brandName: detail.brandName,
+                  title: detail.title,
+                  updateTime: friend.updateTime,
+                  lastText: (lastTextMsg == null ? void 0 : lastTextMsg.text) || "",
+                  reason: "ai_detected",
+                  reasonDetail: aiResult.reason,
+                  selected: true
+                });
+              }
             }
           } catch (_e) {
           }
         }
         onProgress({
           phase: "done",
-          current: staleList.length,
-          total: staleList.length,
+          current: analysisList.length,
+          total: analysisList.length,
           message: `扫描完成，找到 ${candidates.length} 个待清理会话`
         });
         return candidates;
@@ -9120,7 +9124,7 @@ ${preset.content}`).join("\n\n");
         }
         async getRenderComponent() {
           if (this.curUrl.includes("www.zhipin.com/web/geek/chat")) {
-            const mod = await __vitePreload(() => module.import('./BossMessage-DxdhECrX-BOT_frVm.js'), void 0 );
+            const mod = await __vitePreload(() => module.import('./BossMessage-CmMR0-aE-BzHZOoD9.js'), void 0 );
             return mod.default;
           }
           if (this.curUrl.includes("www.zhipin.com/web/geek/job") || this.curUrl.includes("overseas")) {
@@ -9933,7 +9937,7 @@ ${preset.content}`).join("\n\n");
   };
 }));
 
-System.register("./BossMessage-DxdhECrX-BOT_frVm.js", ['vue', 'element-plus', './__monkey.entry-DMZyUR5k.js', 'pinia', 'protobufjs'], (function (exports, module) {
+System.register("./BossMessage-CmMR0-aE-BzHZOoD9.js", ['vue', 'element-plus', './__monkey.entry-RX-PH2J-.js', 'pinia', 'protobufjs'], (function (exports, module) {
   'use strict';
   var defineComponent, openBlock, createBlock, unref, Vue, ElementPlus, _export_sfc, ElMessage, AiPower, Message, Tools;
   return {
