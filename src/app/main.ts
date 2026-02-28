@@ -5,9 +5,9 @@ import ElementPlus from "element-plus";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import "element-plus/dist/index.css";
 
-import App from "@/App.vue";
-import { request } from "@/services/request";
-import { PlatformFactory } from "@/services/platform-factory";
+import App from "@/app/App.vue";
+import { request } from "@/core/http/request";
+import { PlatformFactory } from "@/core/platform/platform-factory";
 
 const app = createApp(App);
 app.use(createPinia());

@@ -15,7 +15,7 @@ export default defineConfig(async () => ({
   plugins: [
     vue(),
     monkey({
-      entry: 'src/main.ts',
+      entry: 'src/app/main.ts',
       userscript: {
         name: 'AI工作猎手-让ai帮您找工作！',
         namespace: 'https://github.com/yangfeng20',
