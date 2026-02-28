@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 import { defineStore } from "pinia";
 import { reactive, ref } from "vue";
-import { Logger } from '@/utils/logger';
+import { Logger } from '@/shared/utils/logger';
 
 const logger = Logger.rootLogger;
 export interface UserPreference {

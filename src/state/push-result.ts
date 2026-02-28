@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { TampermonkeyApi } from '@/utils/tampermonkey';
+import { TampermonkeyApi } from '@/shared/utils/tampermonkey';
 
 export const pushResultCount = defineStore("pushResultCount", () => {
   const notMatchCount = ref(0);

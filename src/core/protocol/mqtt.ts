@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-import { Logger, LogLevel } from "@/utils/logger";
+import { Logger, LogLevel } from "@/shared/utils/logger";
 
 export type MqttEncodePacket = {
   messageId?: number;

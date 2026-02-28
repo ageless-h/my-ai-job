@@ -2,8 +2,8 @@
 
 import protobuf from "protobufjs";
 
-import { Logger } from "../utils/logger";
-import { Tools } from "../utils/tools";
+import { Logger } from "@/shared/utils/logger";
+import { Tools } from "@/shared/utils/tools";
 import type {
   ChatChannel,
   ChatRuntimeWindow,
@@ -88,7 +88,7 @@ export class Message {
   send(): boolean {
     const runtimeWindow = getRuntimeWindow();
     const trySendByChannel = (channel: ChatChannel | undefined, failLogTitle: string): boolean => {
-      if (!isChannelConnected(channel)) {
+      if (!channel || !isChannelConnected(channel)) {
         return false;
       }
       try {

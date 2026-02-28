@@ -35,7 +35,7 @@ const AI_CONFIG_EXT_STORAGE_KEY = "ai-job-ai-config-ext";
 const _GM_getValue = typeof GM_getValue !== "undefined" ? GM_getValue : undefined;
 const _GM_setValue = typeof GM_setValue !== "undefined" ? GM_setValue : undefined;
 const _unsafeWindow =
-  typeof unsafeWindow !== "undefined" ? unsafeWindow : (window as Window & Record<string, unknown>);
+  (typeof unsafeWindow !== "undefined" ? unsafeWindow : window) as unknown as Window & Record<string, unknown>;
 
 export class Tools {
   static window: Window & Record<string, unknown> = _unsafeWindow;
