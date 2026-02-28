@@ -187,6 +187,8 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
           const latestPushRecords = ref([]);
           const RECOMMEND_LOOP_RELOAD_KEY = "ai-job-recommend-loop-reload";
           const RECOMMEND_LOOP_TTL_MS = 5 * 60 * 1e3;
+          const RECOMMEND_LOOP_RESUME_MAX_ATTEMPTS = 15;
+          const RECOMMEND_LOOP_RESUME_INTERVAL_MS = 1200;
           let recordsUpdateTimer = null;
           const buyProductList = ref([]);
           const showOtherProduct = ref(true);
@@ -307,24 +309,13 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             if (!payload) {
               return;
             }
-            if (!isRecommendSalaryLoopPage()) {
-              const jumpUrl = payload.targetUrl || getRecommendLoopTargetUrl();
-              if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.assign === "function") {
-                Tools.window.location.assign(jumpUrl);
-              } else {
-                window.location.href = jumpUrl;
+            const jumpUrl = payload.targetUrl || getRecommendLoopTargetUrl();
+            for (let attempt = 1; attempt <= RECOMMEND_LOOP_RESUME_MAX_ATTEMPTS; attempt++) {
+              const latestPayload = readRecommendLoopReload();
+              if (!latestPayload) {
+                return;
               }
-              return;
-            }
-            collectMode.value = payload.mode === "collect";
-            if (!shouldEnableRecommendLoop()) {
-              clearRecommendLoopReload();
-              return;
-            }
-            if (payload.preferOtherShenzhen) {
-              const aligned = await alignOtherJobsShenzhen();
-              if (!aligned) {
-                const jumpUrl = payload.targetUrl || getRecommendLoopTargetUrl();
+              if (!isRecommendSalaryLoopPage()) {
                 if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.assign === "function") {
                   Tools.window.location.assign(jumpUrl);
                 } else {
@@ -332,18 +323,34 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                 }
                 return;
               }
-            }
-            clearRecommendLoopReload();
-            ElMessage({
-              message: "推荐页无限循环：页面已刷新，自动继续运行",
-              type: "info",
-              duration: 2e3
-            });
-            setTimeout(() => {
-              if (pushStatus.value !== PushStatus.PUSHING) {
-                startPush();
+              collectMode.value = latestPayload.mode === "collect";
+              if (latestPayload.preferOtherShenzhen) {
+                await alignOtherJobsShenzhen();
               }
-            }, 1200);
+              if (pushStatus.value !== PushStatus.PUSHING) {
+                const started = await startPush({ silent: true });
+                if (started) {
+                  clearRecommendLoopReload();
+                  ElMessage({
+                    message: "推荐页无限循环：页面已刷新，已切换到其他职位(深圳)并继续运行",
+                    type: "info",
+                    duration: 2e3
+                  });
+                  return;
+                }
+              }
+              await Tools.sleep(RECOMMEND_LOOP_RESUME_INTERVAL_MS);
+            }
+            ElMessage({
+              message: "推荐页无限循环恢复超时，正在重新进入目标页",
+              type: "warning",
+              duration: 2500
+            });
+            if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.assign === "function") {
+              Tools.window.location.assign(jumpUrl);
+            } else {
+              window.location.href = jumpUrl;
+            }
           };
           const updateLatestPushRecords = () => {
             const allLogs = logRecorder.getLogs(1, logRecorder.getLogCount());
@@ -419,34 +426,38 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             platform.selfDefPushCountLimit = val;
           };
           const mockPush = ref(false);
-          const startPush = async () => {
+          const startPush = async (opts = { silent: false }) => {
             if (!loginInterceptor()) {
-              return;
+              return false;
             }
             if (userStore.preferenceLoadStatus !== "success") {
               userRemoteLoad();
-              ElMessage({
-                message: userStore.preferenceLoadStatus === "failed" ? "偏好加载失败，正在重试加载，请稍后再启动" : "偏好设置加载中，请稍后再启动",
-                type: "warning",
-                duration: 2500
-              });
-              return;
+              if (!opts.silent) {
+                ElMessage({
+                  message: userStore.preferenceLoadStatus === "failed" ? "偏好加载失败，正在重试加载，请稍后再启动" : "偏好设置加载中，请稍后再启动",
+                  type: "warning",
+                  duration: 2500
+                });
+              }
+              return false;
             }
             if (shouldEnableRecommendLoop()) {
               const aligned = await alignOtherJobsShenzhen();
               if (!aligned) {
-                ElMessage({
-                  message: "未定位到“其他职位(深圳)”入口，正在重新进入目标页",
-                  type: "warning",
-                  duration: 2500
-                });
+                if (!opts.silent) {
+                  ElMessage({
+                    message: "未定位到“其他职位(深圳)”入口，正在重新进入目标页",
+                    type: "warning",
+                    duration: 2500
+                  });
+                }
                 const targetUrl = getRecommendLoopTargetUrl();
                 if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.assign === "function") {
                   Tools.window.location.assign(targetUrl);
                 } else {
                   window.location.href = targetUrl;
                 }
-                return;
+                return false;
               }
             }
             platform.collectMode = collectMode.value;
@@ -488,6 +499,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                 stopRecordsUpdate();
               }, 200);
             });
+            return true;
           };
           const pausePush = () => {
             platform.pausePush();
