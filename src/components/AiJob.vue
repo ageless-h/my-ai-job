@@ -234,35 +234,43 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             return null;
           };
           const isOtherJobsShenzhenLikelyActive = () => {
-            const entry = getOtherJobsShenzhenEntry();
-            if (!entry)
-              return false;
-            const selfCls = `${entry.className || ""}`.toLowerCase();
-            const parentCls = `${entry.parentElement ? entry.parentElement.className || "" : ""}`.toLowerCase();
-            if (/(active|cur|selected|current|on)/.test(selfCls) || /(active|cur|selected|current|on|no-part)/.test(parentCls)) {
+            const activeEntries = Array.from(
+              document.querySelectorAll(".expect-item.active, .expect-item.cur, .expect-item.selected, .expect-item.current, .expect-item.on")
+            );
+            if (activeEntries.some((entry) => isOtherJobsShenzhenText(entry.textContent || entry.innerText || ""))) {
               return true;
             }
-            const activeEntry = document.querySelector(".expect-item.active, .expect-item.cur, .expect-item.selected, .expect-list.active .expect-item");
-            if (activeEntry && isOtherJobsShenzhenText(activeEntry.textContent || activeEntry.innerText || "")) {
-              return true;
+            const activeTextEntries = Array.from(
+              document.querySelectorAll(".expect-item .text-content.active, .expect-item .text-content.cur, .expect-item .text-content.selected")
+            );
+            return activeTextEntries.some((entry) => isOtherJobsShenzhenText(entry.textContent || entry.innerText || ""));
+          };
+          const triggerElementClick = (el) => {
+            if (!el)
+              return;
+            if (typeof el.click === "function") {
+              el.click();
             }
-            return false;
+            el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true }));
           };
           const alignOtherJobsShenzhen = async () => {
             if (!isRecommendSalaryLoopPage()) {
               return false;
             }
-            const entry = getOtherJobsShenzhenEntry();
-            if (!entry) {
-              return false;
-            }
-            if (!isOtherJobsShenzhenLikelyActive()) {
-              if (typeof entry.click === "function") {
-                entry.click();
+            const maxAttempts = 10;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              if (isOtherJobsShenzhenLikelyActive()) {
+                return true;
               }
-              await Tools.sleep(1200);
+              const entry = getOtherJobsShenzhenEntry();
+              if (!entry) {
+                await Tools.sleep(600);
+                continue;
+              }
+              triggerElementClick(entry);
+              await Tools.sleep(900);
             }
-            return true;
+            return isOtherJobsShenzhenLikelyActive();
           };
           const shouldEnableRecommendLoop = () => {
             return !!(userStore == null ? void 0 : userStore.user) && !!userStore.user.preference.imE && !collectMode.value && isRecommendSalaryLoopPage();
