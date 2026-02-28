@@ -2,7 +2,7 @@
 // DirectAiClient: 通过 GM_xmlhttpRequest 直接调用用户的 AI API
 // 支持 OpenAI Chat Completions 和 Responses API 两种格式
 
-import { Tools } from '@/utils/tools';
+import { Tools } from '@/shared/utils/tools';
 
 declare const GM_xmlhttpRequest:
   | ((options: Record<string, unknown>) => unknown)

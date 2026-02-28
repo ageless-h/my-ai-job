@@ -2,7 +2,7 @@
 // RequestThrottle: 请求限流队列，防止高频 API 调用触发风控
 // 所有 BOSS 直聘 API 调用应通过此服务排队执行
 
-import { Tools } from '@/utils/tools';
+import { Tools } from '@/shared/utils/tools';
 
 export interface ThrottleOptions {
   /** 最小间隔（毫秒），默认 2000 */

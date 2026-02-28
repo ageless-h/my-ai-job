@@ -1,8 +1,8 @@
 // -*- coding: utf-8 -*-
-import { request } from "@/services/request";
-import { getActiveDirectConfig, directAsk, directAiCall, wrapAsBackendResponse } from "@/services/direct-ai-client";
-import type { DirectAiMessage } from "@/services/direct-ai-client";
-import { Tools } from "@/utils/tools";
+import { request } from "@/core/http/request";
+import { getActiveDirectConfig, directAsk, directAiCall, wrapAsBackendResponse } from "@/core/ai/direct-ai-client";
+import type { DirectAiMessage } from "@/core/ai/direct-ai-client";
+import { Tools } from "@/shared/utils/tools";
 
 export class AiPower {
   static async ask(question: string, jobKey: string, bossUserInfo: { jobTitle: string }): Promise<any> {

@@ -1,9 +1,9 @@
 // -*- coding: utf-8 -*-
-import { pushResultCount } from "@/stores/push-result";
-import { UserStore } from "@/stores/user";
-import { Logger, LogLevel } from "@/utils/logger";
-import { TampermonkeyApi } from "@/utils/tampermonkey";
-import { Tools } from "@/utils/tools";
+import { pushResultCount } from "@/state/push-result";
+import { UserStore } from "@/state/user";
+import { Logger, LogLevel } from "@/shared/utils/logger";
+import { TampermonkeyApi } from "@/shared/utils/tampermonkey";
+import { Tools } from "@/shared/utils/tools";
 import {
   NotMatchException,
   PushReqException,
@@ -11,7 +11,7 @@ import {
   FetchJobBossFailExp,
   PublishStopExp,
   PublishLimitExp
-} from "@/errors";
+} from "@/shared/errors";
 
 const logger$1 = Logger.rootLogger;
 
@@ -233,7 +233,7 @@ export abstract class AbsPlatform {
                   const delayMs = Math.pow(2, attempt) * 1000;
                   this.logRecorder.warn(`网络异常，${delayMs / 1000}s 后第 ${attempt}/${maxRetries} 次重试... 原因：${error?.message || error}`);
                   await Tools.sleep(delayMs);
-                  if (this.pushStatus === PushStatus.PAUSE) {
+                  if (Number(this.pushStatus) === PushStatus.PAUSE) {
                     this.logRecorder.info(`重试期间手动暂停`);
                     return;
                   }

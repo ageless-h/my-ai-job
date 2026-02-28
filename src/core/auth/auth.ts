@@ -1,18 +1,31 @@
 // -*- coding: utf-8 -*-
 import axios from "axios";
-import { LoginStore } from "@/stores/login";
-import { UserStore } from "@/stores/user";
-import { LogRecorder } from "@/services/push-engine";
-import { ElMessage, request } from "@/services/request";
-import { Tools } from "@/utils/tools";
-import { Logger } from "@/utils/logger";
-import { fetchWithGM_request } from "@/utils/fetch";
-export { fetchWithGM_request } from "@/utils/fetch";
+import { LoginStore } from "@/state/login";
+import { UserStore } from "@/state/user";
+import { LogRecorder } from "@/core/engine/push-engine";
+import { ElMessage, request } from "@/core/http/request";
+import { Tools } from "@/shared/utils/tools";
+import { Logger } from "@/shared/utils/logger";
+import { fetchWithGM_request } from "@/shared/utils/fetch";
+export { fetchWithGM_request } from "@/shared/utils/fetch";
 
 const logger$1 = Logger.rootLogger;
 
 const logRecorder$2 = new LogRecorder();
 let loginIng = false;
+
+type PageContext = {
+  token?: string;
+  uid?: string | number;
+};
+
+const getPageContext = (): PageContext => {
+  const page = (Tools.window as { _PAGE?: unknown })._PAGE;
+  if (!page || typeof page !== "object") {
+    return {};
+  }
+  return page as PageContext;
+};
 
 const isNetworkLikeError = (error: any): boolean => {
   const code = error?.code || "";
@@ -50,11 +63,11 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
   loginIng = true;
   const loginStore = LoginStore() as any;
 
-  let token = Tools.window?._PAGE?.token;
+  let token = getPageContext().token;
   let count = 0;
   while (!token && count < 3) {
     await Tools.sleep(300);
-    token = Tools.window?._PAGE?.token;
+    token = getPageContext().token;
     count++;
   }
 
@@ -64,7 +77,8 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
   }
 
   if (!bossUserId) {
-    bossUserId = Tools.window?._PAGE?.uid;
+    const uid = getPageContext().uid;
+    bossUserId = uid === undefined ? undefined : String(uid);
   }
 
   if (loginStore.login) {
@@ -100,7 +114,7 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
 };
 
 export const loginInterceptor = (): boolean => {
-  const token = Tools.window?._PAGE?.token;
+  const token = getPageContext().token;
   if (!token) {
     ElMessage({
       message: "请先登录Boss",
@@ -118,8 +132,17 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
     return;
   }
 
-  const token = Tools.window?._PAGE?.token;
-  const bossUserId = Tools.window?._PAGE?.uid;
+  const token = getPageContext().token;
+  const uid = getPageContext().uid;
+  const bossUserId = uid === undefined ? undefined : String(uid);
+  if (!token) {
+    ElMessage({
+      message: "未获取到Boss token 请刷新页面重试",
+      type: "error",
+      duration: 3000
+    });
+    return;
+  }
   if (!bossUserId) {
     ElMessage({
       message: "未获取到Boss userId 请刷新页面重试",

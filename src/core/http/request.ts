@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 import axios, { type AxiosInstance, type AxiosResponse } from "axios";
 import { ElMessage as ElMessage$1 } from "element-plus";
-import { Logger } from "@/utils/logger";
+import { Logger } from "@/shared/utils/logger";
 declare const __API_BASE_URL__: string;
 
 const logger$1 = Logger.rootLogger;
@@ -72,7 +72,7 @@ request.interceptors.response.use(
           type: "error",
           message: "登录过期，请刷新页面重试"
         });
-        return;
+        return Promise.reject(new Error("登录过期，请刷新页面重试"));
       }
 
       return Promise.reject(result.message);
