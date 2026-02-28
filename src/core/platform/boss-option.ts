@@ -2,14 +2,14 @@
 // @ts-nocheck
 import axios from "axios";
 import { ElNotification } from "element-plus";
-import { AiPower } from "@/services/ai-power";
-import { BizCodeEnum, ElMessage } from "@/services/request";
-import { Message, MessageRead } from "@/protocol/message";
-import { LogRecorder } from "@/services/push-engine";
-import { UserStore } from "@/stores/user";
-import { MessageCache } from "@/utils/message-cache";
-import { Tools } from "@/utils/tools";
-import { Logger } from "@/utils/logger";
+import { AiPower } from "@/core/ai/ai-power";
+import { BizCodeEnum, ElMessage } from "@/core/http/request";
+import { Message, MessageRead } from "@/core/protocol/message";
+import { LogRecorder } from "@/core/engine/push-engine";
+import { UserStore } from "@/state/user";
+import { MessageCache } from "@/shared/utils/message-cache";
+import { Tools } from "@/shared/utils/tools";
+import { Logger } from "@/shared/utils/logger";
 
 const logger$1 = Logger.rootLogger;
 

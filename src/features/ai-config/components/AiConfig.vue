@@ -2,8 +2,8 @@
 // @ts-nocheck
 import { computed, onMounted, provide, ref, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
-import { request, ElMessage } from '@/services/request';
-import { Tools } from '@/utils/tools';
+import { request, ElMessage } from '@/core/http/request';
+import { Tools } from '@/shared/utils/tools';
 import ApiKeyManager from './ApiKeyManager.vue';
 import PromptPresetManager from './PromptPresetManager.vue';
 import DebugConsole from './DebugConsole.vue';

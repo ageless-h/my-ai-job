@@ -61,10 +61,10 @@ import { ref, computed } from 'vue';
 import {
   scanConversations,
   batchDelete,
-} from '@/services/conversation-cleaner';
-import type { CleanCandidate, ScanProgress } from '@/services/conversation-cleaner';
+} from '@/features/conversation-cleaner/services/conversation-cleaner';
+import type { CleanCandidate, ScanProgress } from '@/features/conversation-cleaner/services/conversation-cleaner';
 
-import { ElMessage } from '@/services/request';
+import { ElMessage } from '@/core/http/request';
 import { ElMessageBox } from 'element-plus';
 const candidates = ref<CleanCandidate[]>([]);
 const scanning = ref(false);

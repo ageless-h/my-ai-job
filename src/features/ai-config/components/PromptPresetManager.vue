@@ -97,7 +97,7 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { computed, inject, ref } from 'vue';
-import { PROMPT_VARIABLE_DEFS } from '@/utils/tools';
+import { PROMPT_VARIABLE_DEFS } from '@/shared/utils/tools';
 
 const state = inject('aiConfigState');
 if (!state) {

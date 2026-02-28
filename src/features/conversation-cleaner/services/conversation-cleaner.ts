@@ -3,10 +3,10 @@
 // API 端点均通过浏览器抓包验证
 
 import axios from 'axios';
-import { Tools } from '@/utils/tools';
-import { directAiCall, getActiveDirectConfig } from '@/services/direct-ai-client';
-import type { DirectAiMessage } from '@/services/direct-ai-client';
-import { bossThrottle } from '@/services/request-throttle';
+import { Tools } from '@/shared/utils/tools';
+import { directAiCall, getActiveDirectConfig } from '@/core/ai/direct-ai-client';
+import type { DirectAiMessage } from '@/core/ai/direct-ai-client';
+import { bossThrottle } from '@/core/http/request-throttle';
 
 // ============ 类型定义 ============
 

@@ -1,10 +1,10 @@
 // -*- coding: utf-8 -*-
 import axios from "axios";
-import { AiPower } from "@/services/ai-power";
-import { AbsPlatform, PushResultStatus, PushStatus, pushResultCounter, userStore$2 } from "@/services/push-engine";
-import { Logger } from "@/utils/logger";
-import { Tools, resolvePromptVariables, buildPromptVarsFromJob } from "@/utils/tools";
-import { TampermonkeyApi } from "@/utils/tampermonkey";
+import { AiPower } from "@/core/ai/ai-power";
+import { AbsPlatform, PushResultStatus, PushStatus, pushResultCounter, userStore$2 } from "@/core/engine/push-engine";
+import { Logger } from "@/shared/utils/logger";
+import { Tools, resolvePromptVariables, buildPromptVarsFromJob } from "@/shared/utils/tools";
+import { TampermonkeyApi } from "@/shared/utils/tampermonkey";
 import {
   NotMatchException,
   PushReqException,
@@ -12,9 +12,9 @@ import {
   FetchJobBossFailExp,
   PublishLimitExp,
   PublishStopExp
-} from "@/errors";
-import { Message } from "@/protocol/message";
-import { simulateScrollToEnd } from "@/utils/scroll";
+} from "@/shared/errors";
+import { Message } from "@/core/protocol/message";
+import { simulateScrollToEnd } from "@/shared/utils/scroll";
 
 const logger$1 = Logger.rootLogger;
 
@@ -99,18 +99,6 @@ export class BossPlatform extends AbsPlatform {
         count++;
       }, 300);
     });
-  }
-
-  async getRenderComponent(): Promise<any> {
-    if (this.curUrl.includes("www.zhipin.com/web/geek/chat")) {
-      const mod = await import("@/components/BossMessage.vue");
-      return mod.default;
-    }
-
-    if (this.curUrl.includes("www.zhipin.com/web/geek/job") || this.curUrl.includes("overseas")) {
-      const mod = await import("@/components/Panel.vue");
-      return mod.default;
-    }
   }
 
   startPreHandler(): void {
@@ -829,6 +817,18 @@ export class BossPlatform extends AbsPlatform {
     return `image(${state.imageExists ? "Y" : "N"}/${state.imageConnected ? "on" : "off"}),text(${state.textExists ? "Y" : "N"}/${state.textConnected ? "on" : "off"}),geek(${state.geekExists ? "Y" : "N"})`;
   }
 
+  private getPageUidString(): string {
+    const page = (Tools.window as { _PAGE?: unknown })._PAGE;
+    if (!page || typeof page !== "object" || !("uid" in page)) {
+      throw new Error("页面上下文缺少 uid");
+    }
+    const uidValue = (page as { uid?: string | number }).uid;
+    if (uidValue === undefined || uidValue === null) {
+      throw new Error("页面上下文 uid 为空");
+    }
+    return String(uidValue);
+  }
+
   async ensureSendChannelReady(waitMs = 4500): Promise<boolean> {
     if (!Tools.window.ChatWebsocketImage && typeof setChatWebsocket === "function") {
       await setChatWebsocket();
@@ -862,7 +862,11 @@ export class BossPlatform extends AbsPlatform {
       }
 
       if (Date.now() - reconnectTs > 1000) {
-        [Tools.window.ChatWebsocketImage, Tools.window.ChatWebsocket].forEach((channel) => {
+        const reconnectChannels: Array<{ reConnection?: () => void } | undefined> = [
+          Tools.window.ChatWebsocketImage as { reConnection?: () => void } | undefined,
+          Tools.window.ChatWebsocket as { reConnection?: () => void } | undefined
+        ];
+        reconnectChannels.forEach((channel) => {
           if (!channel || typeof channel.reConnection !== "function") {
             return;
           }
@@ -923,7 +927,7 @@ export class BossPlatform extends AbsPlatform {
     const bossData = await this.requestBossDataByCache(jobDetail);
     const customGreeting = userStore$2.user.preference.cg;
     const message = new Message({
-      form_uid: Tools.window._PAGE.uid.toString(),
+      form_uid: this.getPageUidString(),
       to_uid: bossData.data.bossId.toString(),
       to_name: jobDetail.encryptBossId,
       content: customGreeting,
@@ -964,7 +968,7 @@ export class BossPlatform extends AbsPlatform {
 
     const bossData = await this.requestBossDataByCache(jobDetail);
     const message = new Message({
-      form_uid: Tools.window._PAGE.uid.toString(),
+      form_uid: this.getPageUidString(),
       to_uid: bossData.data.bossId.toString(),
       to_name: jobDetail.encryptBossId,
       content: "",

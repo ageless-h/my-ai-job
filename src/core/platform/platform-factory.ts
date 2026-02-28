@@ -1,10 +1,10 @@
 // -*- coding: utf-8 -*-
-import { PlatformError } from "@/errors";
-import { userRemoteLoad } from "@/services/auth";
-import { BossPlatform } from "@/services/boss-platform";
-import { bindPlatformRuntime } from "@/services/push-engine";
-import { pushResultCount } from "@/stores/push-result";
-import { UserStore } from "@/stores/user";
+import { PlatformError } from "@/shared/errors";
+import { userRemoteLoad } from "@/core/auth/auth";
+import { BossPlatform } from "@/core/platform/boss-platform";
+import { bindPlatformRuntime } from "@/core/engine/push-engine";
+import { pushResultCount } from "@/state/push-result";
+import { UserStore } from "@/state/user";
 
 const platformList = [BossPlatform];
 

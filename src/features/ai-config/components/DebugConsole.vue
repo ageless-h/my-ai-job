@@ -49,9 +49,9 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { computed, inject, ref, watch } from 'vue';
-import { request } from '@/services/request';
-import { Tools, resolvePromptVariables, PROMPT_VARIABLE_DEFS } from '@/utils/tools';
-import { getActiveDirectConfig, directAiCall } from '@/services/direct-ai-client';
+import { request } from '@/core/http/request';
+import { Tools, resolvePromptVariables, PROMPT_VARIABLE_DEFS } from '@/shared/utils/tools';
+import { getActiveDirectConfig, directAiCall } from '@/core/ai/direct-ai-client';
 
 const state = inject('aiConfigState');
 if (!state) {

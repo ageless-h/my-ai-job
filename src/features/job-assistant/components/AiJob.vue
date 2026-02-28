@@ -3,17 +3,17 @@
 import * as Vue from "vue";
 import * as ElementPlus from "element-plus";
 import * as Icons from "@element-plus/icons-vue";
-import { request, ElMessage, isProdEnv } from "@/services/request";
-import { Tools } from "@/utils/tools";
-import { UserStore } from "@/stores/user";
-import { LoginStore } from "@/stores/login";
-import { pushResultCount } from "@/stores/push-result";
-import { ProductStore } from "@/stores/product";
-import { LogRecorder, PushStatus } from "@/services/push-engine";
-import { loginInterceptor, silentlyLogin, userRemoteLoad } from "@/services/auth";
-import { AiPower } from "@/services/ai-power";
-import { Message } from "@/protocol/message";
-import ConversationCleaner from './ConversationCleaner.vue';
+import { request, ElMessage, isProdEnv } from "@/core/http/request";
+import { Tools } from "@/shared/utils/tools";
+import { UserStore } from "@/state/user";
+import { LoginStore } from "@/state/login";
+import { pushResultCount } from "@/state/push-result";
+import { ProductStore } from "@/state/product";
+import { LogRecorder, PushStatus } from "@/core/engine/push-engine";
+import { loginInterceptor, silentlyLogin, userRemoteLoad } from "@/core/auth/auth";
+import { AiPower } from "@/core/ai/ai-power";
+import { Message } from "@/core/protocol/message";
+import ConversationCleaner from '@/features/conversation-cleaner/components/ConversationCleaner.vue';
 
 const VueAny = Vue as any;
 const ElementAny = ElementPlus as any;

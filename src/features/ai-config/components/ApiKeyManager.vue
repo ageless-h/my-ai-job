@@ -85,8 +85,8 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { computed, inject, onMounted, ref } from 'vue';
-import { request } from '@/services/request';
-import { directTest } from '@/services/direct-ai-client';
+import { request } from '@/core/http/request';
+import { directTest } from '@/core/ai/direct-ai-client';
 
 const state = inject('aiConfigState');
 if (!state) {
