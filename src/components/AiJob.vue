@@ -206,6 +206,62 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               return href.includes("/web/geek/jobs") && href.includes("salary=406");
             }
           };
+          const normalizeText = (text) => `${text || ""}`.replace(/\s+/g, "");
+          const isOtherJobsShenzhenText = (text) => {
+            const normalized = normalizeText(text);
+            return normalized.includes("其他职位(深圳)") || normalized.includes("其他职位（深圳）") || normalized.includes("其他职位") && normalized.includes("深圳");
+          };
+          const getOtherJobsShenzhenEntry = () => {
+            const selectors = [
+              "a.expect-item.has-tooltip",
+              "a.expect-item",
+              ".expect-list a"
+            ];
+            for (const selector of selectors) {
+              const nodes = Array.from(document.querySelectorAll(selector));
+              const hit = nodes.find((node) => isOtherJobsShenzhenText(node.textContent || node.innerText || ""));
+              if (hit) {
+                return hit;
+              }
+            }
+            const textNodes = Array.from(document.querySelectorAll(".text-content"));
+            const textHit = textNodes.find((node) => isOtherJobsShenzhenText(node.textContent || node.innerText || ""));
+            if (textHit) {
+              return textHit.closest("a.expect-item") || textHit;
+            }
+            return null;
+          };
+          const isOtherJobsShenzhenLikelyActive = () => {
+            const entry = getOtherJobsShenzhenEntry();
+            if (!entry)
+              return false;
+            const selfCls = `${entry.className || ""}`.toLowerCase();
+            const parentCls = `${entry.parentElement ? entry.parentElement.className || "" : ""}`.toLowerCase();
+            if (/(active|cur|selected|current|on)/.test(selfCls) || /(active|cur|selected|current|on|no-part)/.test(parentCls)) {
+              return true;
+            }
+            const activeEntry = document.querySelector(".expect-item.active, .expect-item.cur, .expect-item.selected, .expect-list.active .expect-item");
+            if (activeEntry && isOtherJobsShenzhenText(activeEntry.textContent || activeEntry.innerText || "")) {
+              return true;
+            }
+            return false;
+          };
+          const alignOtherJobsShenzhen = async () => {
+            if (!isRecommendSalaryLoopPage()) {
+              return false;
+            }
+            const entry = getOtherJobsShenzhenEntry();
+            if (!entry) {
+              return false;
+            }
+            if (!isOtherJobsShenzhenLikelyActive()) {
+              if (typeof entry.click === "function") {
+                entry.click();
+              }
+              await Tools.sleep(1200);
+            }
+            return true;
+          };
           const shouldEnableRecommendLoop = () => {
             return !!(userStore == null ? void 0 : userStore.user) && !!userStore.user.preference.imE && !collectMode.value && isRecommendSalaryLoopPage();
           };
@@ -213,55 +269,71 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             const href = String((Tools.window == null ? void 0 : Tools.window.location) ? Tools.window.location.href : location.href || "");
             try {
               const url = new URL(href);
-              url.pathname = "/web/geek/jobs";
-              url.searchParams.set("salary", "406");
-              url.searchParams.set("city", "101280600");
-              return url.toString();
+              return `${url.origin}/web/geek/jobs?salary=406`;
             } catch (_e) {
-              return "https://www.zhipin.com/web/geek/jobs?salary=406&city=101280600";
+              return "https://www.zhipin.com/web/geek/jobs?salary=406";
             }
           };
           const markRecommendLoopReload = () => {
             const payload = {
               ts: Date.now(),
               mode: collectMode.value ? "collect" : "push",
-              targetUrl: getRecommendLoopTargetUrl()
+              targetUrl: getRecommendLoopTargetUrl(),
+              preferOtherShenzhen: true
             };
             localStorage.setItem(RECOMMEND_LOOP_RELOAD_KEY, JSON.stringify(payload));
           };
-          const consumeRecommendLoopReload = () => {
+          const readRecommendLoopReload = () => {
             const raw = localStorage.getItem(RECOMMEND_LOOP_RELOAD_KEY);
             if (!raw)
               return null;
-            localStorage.removeItem(RECOMMEND_LOOP_RELOAD_KEY);
             try {
               const payload = JSON.parse(raw);
               if (!payload || !payload.ts || Date.now() - Number(payload.ts) > RECOMMEND_LOOP_TTL_MS) {
+                localStorage.removeItem(RECOMMEND_LOOP_RELOAD_KEY);
                 return null;
               }
               return payload;
             } catch (_e) {
+              localStorage.removeItem(RECOMMEND_LOOP_RELOAD_KEY);
               return null;
             }
           };
-          const tryAutoResumeRecommendLoop = () => {
-            const payload = consumeRecommendLoopReload();
+          const clearRecommendLoopReload = () => {
+            localStorage.removeItem(RECOMMEND_LOOP_RELOAD_KEY);
+          };
+          const tryAutoResumeRecommendLoop = async () => {
+            const payload = readRecommendLoopReload();
             if (!payload) {
               return;
             }
-            const currentHref = String((Tools.window == null ? void 0 : Tools.window.location) ? Tools.window.location.href : location.href || "");
-            if (payload.targetUrl && currentHref !== payload.targetUrl) {
+            if (!isRecommendSalaryLoopPage()) {
+              const jumpUrl = payload.targetUrl || getRecommendLoopTargetUrl();
               if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.assign === "function") {
-                Tools.window.location.assign(payload.targetUrl);
+                Tools.window.location.assign(jumpUrl);
               } else {
-                window.location.href = payload.targetUrl;
+                window.location.href = jumpUrl;
               }
               return;
             }
-            if (!isRecommendSalaryLoopPage()) {
+            collectMode.value = payload.mode === "collect";
+            if (!shouldEnableRecommendLoop()) {
+              clearRecommendLoopReload();
               return;
             }
-            collectMode.value = payload.mode === "collect";
+            if (payload.preferOtherShenzhen) {
+              const aligned = await alignOtherJobsShenzhen();
+              if (!aligned) {
+                const jumpUrl = payload.targetUrl || getRecommendLoopTargetUrl();
+                if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.assign === "function") {
+                  Tools.window.location.assign(jumpUrl);
+                } else {
+                  window.location.href = jumpUrl;
+                }
+                return;
+              }
+            }
+            clearRecommendLoopReload();
             ElMessage({
               message: "推荐页无限循环：页面已刷新，自动继续运行",
               type: "info",
@@ -347,7 +419,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             platform.selfDefPushCountLimit = val;
           };
           const mockPush = ref(false);
-          const startPush = () => {
+          const startPush = async () => {
             if (!loginInterceptor()) {
               return;
             }
@@ -359,6 +431,23 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                 duration: 2500
               });
               return;
+            }
+            if (shouldEnableRecommendLoop()) {
+              const aligned = await alignOtherJobsShenzhen();
+              if (!aligned) {
+                ElMessage({
+                  message: "未定位到“其他职位(深圳)”入口，正在重新进入目标页",
+                  type: "warning",
+                  duration: 2500
+                });
+                const targetUrl = getRecommendLoopTargetUrl();
+                if ((Tools.window == null ? void 0 : Tools.window.location) && typeof Tools.window.location.assign === "function") {
+                  Tools.window.location.assign(targetUrl);
+                } else {
+                  window.location.href = targetUrl;
+                }
+                return;
+              }
             }
             platform.collectMode = collectMode.value;
             platform.pushMock = mockPush.value;
@@ -525,7 +614,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             });
           }
           setTimeout(() => {
-            tryAutoResumeRecommendLoop();
+            void tryAutoResumeRecommendLoop();
           }, 1500);
           watch(collectMode, () => {
             if (pushStatus.value !== PushStatus.PUSHING) {
