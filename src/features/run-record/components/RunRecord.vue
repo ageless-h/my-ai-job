@@ -9,7 +9,6 @@ import { Tools } from "@/shared/utils/tools";
 import { UserStore } from "@/state/user";
 import { LoginStore } from "@/state/login";
 import { pushResultCount } from "@/state/push-result";
-import { ProductStore } from "@/state/product";
 import { LogRecorder, PushStatus } from "@/core/engine/push-engine";
 import { loginInterceptor, silentlyLogin, fetchWithGM_request } from "@/core/auth/auth";
 import { AiPower } from "@/core/ai/ai-power";
@@ -142,6 +141,9 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
           const currentPage = ref(1);
           const pageSize = ref(10);
           const totalLogs = ref(0);
+          const runRecordRoot = ref(null);
+          const isCompactPagination = ref(false);
+          let paginationResizeObserver = null;
           const filter = ref({
             timeRange: [],
             // 时间范围，数组：[开始时间, 结束时间]
@@ -172,7 +174,53 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             }
             totalLogs.value = allLogs.length;
             const startIndex = (currentPage.value - 1) * pageSize.value;
-            logs.value = allLogs.slice(startIndex, startIndex + pageSize.value);
+            logs.value = allLogs.slice(startIndex, startIndex + pageSize.value).map((log) => {
+              const aiInfo = parseAiJudgeInfo(log.message);
+              return {
+                ...log,
+                aiDecision: aiInfo.decision,
+                aiReason: aiInfo.reason
+              };
+            });
+          };
+          const parseAiJudgeInfo = (message) => {
+            const text = `${message || ""}`;
+            const normalizedText = text.replace(/\s+/g, " ").trim();
+            if (!normalizedText) {
+              return { decision: "", reason: "" };
+            }
+
+            let decision = "";
+            if (normalizedText.includes("AI投递判断通过")) {
+              decision = "通过";
+            } else if (normalizedText.includes("AI投递判断不通过")) {
+              decision = "不通过";
+            } else if (normalizedText.includes("AI判定结果不可解析")) {
+              decision = "不可解析";
+            } else if (normalizedText.includes("AI投递判断失败")) {
+              decision = "失败";
+            } else if (normalizedText.includes("投递成功") && normalizedText.includes("AI理由")) {
+              decision = "已投递";
+            }
+
+            let reason = "";
+            const reasonWithLabel = normalizedText.match(/AI理由[:：]\s*(.+)$/);
+            if (reasonWithLabel && reasonWithLabel[1]) {
+              reason = reasonWithLabel[1].trim();
+            }
+
+            if (!reason) {
+              const reasonWithKey = normalizedText.match(/\breason=\s*(.+)$/i);
+              if (reasonWithKey && reasonWithKey[1]) {
+                reason = reasonWithKey[1].trim();
+              }
+            }
+
+            if (reason.length > 180) {
+              reason = `${reason.slice(0, 180)}...`;
+            }
+
+            return { decision, reason };
           };
           const handlePageChange = (page) => {
             currentPage.value = page;
@@ -186,8 +234,29 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             logRecorder.clearLogs();
             fetchLogs();
           };
+          const updatePaginationMode = () => {
+            const width = runRecordRoot.value?.clientWidth || 0;
+            isCompactPagination.value = width > 0 && width < 440;
+          };
           onMounted(() => {
             fetchLogs();
+            nextTick(() => {
+              updatePaginationMode();
+              if (typeof ResizeObserver === "undefined" || !runRecordRoot.value) {
+                return;
+              }
+              paginationResizeObserver = new ResizeObserver(() => {
+                updatePaginationMode();
+              });
+              paginationResizeObserver.observe(runRecordRoot.value);
+            });
+          });
+          onBeforeUnmount(() => {
+            if (!paginationResizeObserver) {
+              return;
+            }
+            paginationResizeObserver.disconnect();
+            paginationResizeObserver = null;
           });
           return (_ctx, _cache) => {
             const _component_el_button = ElButton;
@@ -201,7 +270,11 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             const _component_el_empty = ElEmpty;
             const _component_el_table = ElTable;
             const _component_el_pagination = ElPagination;
-            return openBlock(), createElementBlock("div", null, [
+            return openBlock(), createElementBlock("div", {
+              ref_key: "runRecordRoot",
+              ref: runRecordRoot,
+              class: "run-record-root"
+            }, [
               createVNode(_component_el_row, {
                 gutter: 20,
                 class: "filter-bar"
@@ -301,12 +374,23 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
                   createVNode(_component_el_table_column, {
                     prop: "timestamp",
                     label: "时间",
-                    width: "120"
+                    width: "140"
                   }),
                   createVNode(_component_el_table_column, {
                     prop: "level",
                     label: "级别",
                     width: "100"
+                  }),
+                  createVNode(_component_el_table_column, {
+                    prop: "aiDecision",
+                    label: "AI判定",
+                    width: "110"
+                  }),
+                  createVNode(_component_el_table_column, {
+                    prop: "aiReason",
+                    label: "AI理由",
+                    width: "220",
+                    "show-overflow-tooltip": ""
                   }),
                   createVNode(_component_el_table_column, {
                     prop: "message",
@@ -320,10 +404,13 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
                 "current-page": currentPage.value,
                 "page-size": pageSize.value,
                 total: totalLogs.value,
+                class: normalizeClass(["run-record-pagination", { "is-compact": isCompactPagination.value }]),
+                small: "",
+                "pager-count": 5,
                 background: "",
-                layout: "prev, pager, next"
-              }, null, 8, ["current-page", "page-size", "total"])
-            ]);
+                layout: isCompactPagination.value ? "prev, next" : "prev, pager, next"
+              }, null, 8, ["current-page", "page-size", "total", "class", "layout"])
+            ], 512);
           };
         }
       });
@@ -336,5 +423,40 @@ const RenderComponent = _sfc_main$6;
 </template>
 
 <style scoped>
+.run-record-root{
+  width:100%;
+  min-width:0;
+}
 :deep(.filter-bar){margin-bottom:20px}
+:deep(.run-record-pagination){
+  display:flex !important;
+  width:100%;
+  box-sizing:border-box;
+  padding:0 4px;
+  justify-content:center;
+  align-items:center;
+  flex-wrap:wrap;
+  column-gap:6px;
+  row-gap:8px;
+  margin-top:12px;
+  white-space:normal;
+  height:auto;
+}
+:deep(.run-record-pagination .el-pager){
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:4px;
+  margin:0;
+  max-width:100%;
+}
+:deep(.run-record-pagination .btn-prev),
+:deep(.run-record-pagination .btn-next),
+:deep(.run-record-pagination .el-pager li){
+  min-width:24px;
+  margin:0 !important;
+}
+:deep(.run-record-pagination.is-compact){
+  justify-content:space-between;
+}
 </style>

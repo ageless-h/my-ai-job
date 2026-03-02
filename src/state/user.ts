@@ -1,6 +1,7 @@
 // -*- coding: utf-8 -*-
 import { defineStore } from "pinia";
 import { reactive, ref } from "vue";
+import { Tools } from "@/shared/utils/tools";
 import { Logger } from '@/shared/utils/logger';
 
 const logger = Logger.rootLogger;
@@ -17,14 +18,20 @@ export interface AiUser {
 }
 
 export function getLocalUser(): AiUser {
-  let jsonData = localStorage.getItem("ai-job-user");
-  if (jsonData === null) {
-    jsonData = '{"phone":"","email":"","preference":{},"preferenceMap":{}}';
-  }
+  const fallbackJson = '{"phone":"","email":"","preference":{},"preferenceMap":{}}';
+  const raw = Tools.getStoredUserProfileRaw() || fallbackJson;
 
-  const user = JSON.parse(jsonData) as AiUser;
-  logger.debug('获取本地用户配置', user);
-  return user;
+  try {
+    const user = JSON.parse(raw) as AiUser;
+    logger.debug('获取本地用户配置', {
+      hasPhone: !!user?.phone,
+      hasEmail: !!user?.email,
+      preferenceKeys: Object.keys(user?.preference || {}).length,
+    });
+    return user;
+  } catch (_e) {
+    return JSON.parse(fallbackJson) as AiUser;
+  }
 }
 
 export const UserStore = defineStore("ai-user", () => {

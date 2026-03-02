@@ -32,6 +32,78 @@ export interface DirectAiResult {
   operationTypeList: number[];
 }
 
+const DIRECT_TEST_MAX_RETRY = 1;
+const DIRECT_TEST_RETRY_DELAY_MS = 1200;
+
+function isRetryableDirectNetworkError(message: string): boolean {
+  const text = `${message || ''}`.toLowerCase();
+  if (
+    text.includes('跨域')
+    || text.includes('白名单')
+    || text.includes('鉴权失败')
+    || text.includes('接口不存在(404)')
+    || text.includes('请求过于频繁(429)')
+    || text.includes('请求失败(')
+  ) {
+    return false;
+  }
+
+  return text.includes('请求超时')
+    || text.includes('network error')
+    || text.includes('timed out')
+    || text.includes('econnreset')
+    || text.includes('eai_again')
+    || text.includes('dns')
+    || text.includes('failed to fetch');
+}
+
+function normalizeGmNetworkError(
+  url: string,
+  err: any,
+  context?: { timeoutMs?: number; elapsedMs?: number },
+): string {
+  const reasonCandidate = err?.error || err?.message || err?.statusText || '';
+  const reason = typeof reasonCandidate === 'string' ? reasonCandidate.trim() : '';
+  const reasonLower = reason.toLowerCase();
+  const connectListHints = ['@connect', 'not a part of the @connect list'];
+  const blockedByConnectList = connectListHints.some((hint) => reasonLower.includes(hint));
+  const deniedHints = [
+    'access denied',
+    'forbidden',
+    'blocked',
+    'denied',
+    'not whitelisted',
+    'cross-origin',
+    'cors',
+    'access-control',
+    '跨域',
+  ];
+  const isDenied = deniedHints.some((hint) => reasonLower.includes(hint));
+  const timeoutHints = ['timeout', 'timed out', '请求超时'];
+  const looksLikeTimeout = timeoutHints.some((hint) => reasonLower.includes(hint));
+  const elapsedMs = Number(context?.elapsedMs || 0);
+  const timeoutMs = Number(context?.timeoutMs || 0);
+  const nearTimeout = timeoutMs > 0 && elapsedMs >= Math.max(timeoutMs - 1000, timeoutMs * 0.9);
+
+  if (looksLikeTimeout || nearTimeout) {
+    return `请求超时: 请检查网络连接或增大超时时间 (${url})`;
+  }
+
+  if (blockedByConnectList) {
+    return `跨域请求被脚本白名单拦截: 域名未在 @connect 中放行，请更新到最新脚本后重试 (${url})`;
+  }
+
+  if (isDenied) {
+    return `跨域请求可能被拦截: 请刷新页面并在油猴弹窗中允许跨域请求 (${url})`;
+  }
+
+  if (reason) {
+    return `网络错误: ${reason} (${url})`;
+  }
+
+  return `网络错误: 请检查 URL 是否正确，或刷新页面后在油猴弹窗中允许跨域请求 (${url})`;
+}
+
 /**
  * 获取当前激活的自有 API 配置
  * 如果没有激活的自有 API 配置，返回 null
@@ -98,7 +170,7 @@ function callCompletionsApi(
   messages: DirectAiMessage[],
   timeoutMs: number,
 ): Promise<string> {
-  const url = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
+  const url = buildApiEndpointUrl(baseUrl, 'completions');
   const body = JSON.stringify({
     model: modelName,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
@@ -121,7 +193,7 @@ function callResponsesApi(
   messages: DirectAiMessage[],
   timeoutMs: number,
 ): Promise<string> {
-  const url = `${baseUrl.replace(/\/+$/, '')}/v1/responses`;
+  const url = buildApiEndpointUrl(baseUrl, 'responses');
 
   // 将 messages 转换为 Responses API 的 input 格式
   const input = messages.map((m) => ({
@@ -150,6 +222,29 @@ function callResponsesApi(
   });
 }
 
+function buildApiEndpointUrl(baseUrl: string, apiFormat: ApiFormat): string {
+  const normalizedBase = `${baseUrl || ''}`.trim().replace(/\/+$/, '');
+  const lowerBase = normalizedBase.toLowerCase();
+
+  if (apiFormat === 'responses') {
+    if (lowerBase.endsWith('/v1/responses') || lowerBase.endsWith('/responses')) {
+      return normalizedBase;
+    }
+    if (lowerBase.endsWith('/v1')) {
+      return `${normalizedBase}/responses`;
+    }
+    return `${normalizedBase}/v1/responses`;
+  }
+
+  if (lowerBase.endsWith('/v1/chat/completions') || lowerBase.endsWith('/chat/completions')) {
+    return normalizedBase;
+  }
+  if (lowerBase.endsWith('/v1')) {
+    return `${normalizedBase}/chat/completions`;
+  }
+  return `${normalizedBase}/v1/chat/completions`;
+}
+
 /**
  * GM_xmlhttpRequest 封装
  */
@@ -159,6 +254,29 @@ function gmRequest(url: string, apiKey: string, body: string, timeoutMs: number)
       reject(new Error('GM_xmlhttpRequest 不可用'));
       return;
     }
+    try {
+      Tools.ensureAllowedNetworkUrl(url, 'AI直连请求');
+    } catch (error: any) {
+      reject(error);
+      return;
+    }
+    const startedAt = Date.now();
+    let settled = false;
+    const resolveOnce = (value: any) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(value);
+    };
+    const rejectOnce = (error: Error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(error);
+    };
+
     _GM_xmlhttpRequest({
       method: 'POST',
       url,
@@ -171,22 +289,53 @@ function gmRequest(url: string, apiKey: string, body: string, timeoutMs: number)
       timeout: timeoutMs,
       onload: (response: any) => {
         if (response.status >= 200 && response.status < 300) {
-          const data = typeof response.response === 'string'
-            ? JSON.parse(response.response)
-            : response.response;
-          resolve(data);
+          try {
+            const data = typeof response.response === 'string'
+              ? JSON.parse(response.response)
+              : response.response;
+            resolveOnce(data);
+          } catch (parseError: any) {
+            rejectOnce(new Error(`AI响应解析失败: ${parseError?.message || parseError}`));
+          }
         } else {
+          const status = Number(response?.status || 0);
           const errMsg = typeof response.response === 'object'
             ? (response.response?.error?.message || JSON.stringify(response.response))
             : (response.responseText || `HTTP ${response.status}`);
-          reject(new Error(errMsg));
+          if (status === 401 || status === 403) {
+            rejectOnce(new Error(`鉴权失败(${status}): 请检查 API Key 是否正确`));
+            return;
+          }
+          if (status === 404) {
+            rejectOnce(new Error(`接口不存在(404): 请检查 Base URL 与 API 格式是否匹配`));
+            return;
+          }
+          if (status === 429) {
+            rejectOnce(new Error('请求过于频繁(429): 请稍后重试'));
+            return;
+          }
+          if (status >= 500 && status < 600) {
+            rejectOnce(new Error(`服务暂时不可用(${status}): ${errMsg}`));
+            return;
+          }
+          if (status === 0) {
+            rejectOnce(new Error(normalizeGmNetworkError(url, response, {
+              timeoutMs,
+              elapsedMs: Date.now() - startedAt,
+            })));
+            return;
+          }
+          rejectOnce(new Error(`请求失败(${status || 'unknown'}): ${errMsg}`));
         }
       },
       onerror: (err: any) => {
-        reject(new Error(`网络错误: 请检查 URL 是否正确，或刷新页面后在油猴弹窗中允许跨域请求 (${url})`));
+        rejectOnce(new Error(normalizeGmNetworkError(url, err, {
+          timeoutMs,
+          elapsedMs: Date.now() - startedAt,
+        })));
       },
       ontimeout: () => {
-        reject(new Error('请求超时'));
+        rejectOnce(new Error(`请求超时: 请检查网络连接或增大超时时间 (${url})`));
       },
     });
   });
@@ -247,5 +396,18 @@ export async function directTest(config: DirectAiConfig): Promise<string> {
   const messages: DirectAiMessage[] = [
     { role: 'user', content: '你好，请简短回复确认连接正常。' },
   ];
-  return directAiCall(config, messages);
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= DIRECT_TEST_MAX_RETRY; attempt += 1) {
+    try {
+      return await directAiCall(config, messages);
+    } catch (error: any) {
+      lastError = error;
+      if (attempt >= DIRECT_TEST_MAX_RETRY || !isRetryableDirectNetworkError(error?.message || '')) {
+        throw error;
+      }
+      await Tools.sleep(DIRECT_TEST_RETRY_DELAY_MS);
+    }
+  }
+
+  throw (lastError || new Error('测试失败: 未知错误'));
 }

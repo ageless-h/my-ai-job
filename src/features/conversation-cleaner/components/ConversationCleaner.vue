@@ -66,6 +66,7 @@ import type { CleanCandidate, ScanProgress } from '@/features/conversation-clean
 
 import { ElMessage } from '@/core/http/request';
 import { ElMessageBox } from 'element-plus';
+import { UserStore } from '@/state/user';
 const candidates = ref<CleanCandidate[]>([]);
 const scanning = ref(false);
 const scanned = ref(false);
@@ -73,6 +74,7 @@ const deleting = ref(false);
 const deleteResult = ref('');
 const progress = ref<ScanProgress>({ phase: 'idle', current: 0, total: 0, message: '' });
 const progressMsg = computed(() => progress.value.message || '扫描中...');
+const userStore = UserStore();
 
 const selectedCount = computed(() => candidates.value.filter((c) => c.selected).length);
 const selectAll = computed({
@@ -113,6 +115,14 @@ function formatTime(ts: number): string {
   return diffDays > 0 ? `${dateStr} (${diffDays}天前)` : dateStr;
 }
 
+function getManualConfirmThreshold(): number {
+  const configured = Number(userStore.user.preference.cleanerManualConfirmThreshold);
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.min(100, Math.max(5, Math.floor(configured)));
+  }
+  return 20;
+}
+
 async function startScan() {
   scanning.value = true;
   scanned.value = false;
@@ -146,6 +156,29 @@ async function confirmDelete() {
     return;
   }
 
+  const manualThreshold = getManualConfirmThreshold();
+  if (count >= manualThreshold) {
+    const confirmWord = '确认删除';
+    try {
+      const { value } = await ElMessageBox.prompt(
+        `本次将删除 ${count} 个会话，属于高风险批量操作。请输入“${confirmWord}”继续。`,
+        '高风险二次确认',
+        {
+          confirmButtonText: '继续删除',
+          cancelButtonText: '取消',
+          inputPlaceholder: `请输入${confirmWord}`,
+          inputErrorMessage: '确认词不匹配',
+        },
+      );
+      if ((value || '').trim() !== confirmWord) {
+        ElMessage({ type: 'warning', message: '确认词不匹配，已取消删除' });
+        return;
+      }
+    } catch {
+      return;
+    }
+  }
+
   deleting.value = true;
   deleteResult.value = '';
 
@@ -161,6 +194,7 @@ async function confirmDelete() {
           ? `删除中 ${cur}/${total}: ${name} — 失败: ${failReason}`
           : `删除中 ${cur}/${total}: ${name}`;
       },
+      { manualConfirmed: true },
     );
     const successSet = new Set(successSecurityIds);
     const failReasonText = topFailReason || lastError;

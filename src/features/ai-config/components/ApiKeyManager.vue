@@ -3,7 +3,10 @@
     <div class="api-view-panels">
       <div class="api-view-list api-config-list">
         <div class="api-list-header">
-          <span class="api-list-tip">管理多个 API Key，按需启用</span>
+          <div class="api-list-tip-group">
+            <span class="api-list-tip">管理多个 API Key，按需启用</span>
+            <span class="api-list-note">自有 API 配置仅本地保存，不会上传到远端</span>
+          </div>
           <el-button type="primary" @click="startNewConfig">新增配置</el-button>
         </div>
         <template v-if="apiConfigList.length">
@@ -73,9 +76,10 @@
 
           <el-form-item>
             <el-button type="info" @click="handleTempSave">暂存</el-button>
-            <el-button type="success" :loading="isTestLoading" @click="handleTest">测试</el-button>
+            <el-button type="success" :loading="isTestLoading" @click="handleTest">直连测试</el-button>
             <el-button type="primary" @click="saveApiConfig">保存配置</el-button>
           </el-form-item>
+          <div class="api-test-note">网络超时会自动重试 1 次，鉴权/跨域/404 不重试</div>
         </el-form>
       </div>
     </div>
@@ -85,7 +89,6 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { computed, inject, onMounted, ref } from 'vue';
-import { request } from '@/core/http/request';
 import { directTest } from '@/core/ai/direct-ai-client';
 
 const state = inject('aiConfigState');
@@ -193,11 +196,37 @@ const persistApiConfigList = (nextList, nextActiveId = void 0) => {
   apiConfigList.value = ext.apiConfigs.map((item) => ({ ...item }));
 };
 
+const syncActiveConfigToParent = (list, activeId) => {
+  if (!activeId) {
+    return;
+  }
+  const activeItem = (list || []).find((item) => item.id === activeId);
+  if (!activeItem) {
+    return;
+  }
+  syncEditFormToParent({ ...activeItem, status: 1 });
+};
+
 const loadApiConfigs = () => {
   const ext = state.ensureAiConfigExtSchema();
-  let list = Array.isArray(ext.apiConfigs) ? ext.apiConfigs.map((item) => normalizeApiConfigItem(item)) : [];
+  const rawList = Array.isArray(ext.apiConfigs) ? ext.apiConfigs : [];
+  let list = rawList.map((item) => normalizeApiConfigItem(item));
   let activeId = typeof ext.activeApiConfigId === 'string' ? ext.activeApiConfigId : '';
-  let changed = false;
+  let changed = rawList.some((item, index) => {
+    const current = item || {};
+    const normalized = list[index] || {};
+    return (
+      `${current.id || ''}` !== `${normalized.id || ''}` ||
+      `${current.modelName || ''}` !== `${normalized.modelName || ''}` ||
+      `${current.apiKey || ''}` !== `${normalized.apiKey || ''}` ||
+      `${current.baseUrl || ''}` !== `${normalized.baseUrl || ''}` ||
+      Number(current.timeout || 60) !== Number(normalized.timeout || 60) ||
+      `${current.completionsPath || ''}` !== `${normalized.completionsPath || ''}` ||
+      `${current.apiFormat || 'completions'}` !== `${normalized.apiFormat || 'completions'}` ||
+      Number(current.status || 0) !== Number(normalized.status || 0) ||
+      Number(current.testPassed || 0) !== Number(normalized.testPassed || 0)
+    );
+  });
 
   if (!list.length && (state.form.value.apiKey || state.form.value.modelName || state.form.value.baseUrl)) {
     const defaultConfig = normalizeApiConfigItem({ ...state.form.value, id: createApiConfigId() });
@@ -234,10 +263,12 @@ const loadApiConfigs = () => {
 
   if (changed) {
     persistApiConfigList(list, activeId);
+    syncActiveConfigToParent(list, activeId);
     return;
   }
 
   apiConfigList.value = list;
+  syncActiveConfigToParent(list, activeId);
 };
 
 const backToList = () => {
@@ -354,7 +385,7 @@ const activateApiConfig = async (id) => {
   }));
   persistApiConfigList(nextList, id);
   syncEditFormToParent({ ...selected, status: 1 });
-  await state.handleSave?.();
+  state.ElMessage({ type: 'success', message: '配置已启用' });
   backToList();
 };
 
@@ -368,21 +399,32 @@ const handleTempSave = async () => {
       return;
     }
 
-    try {
-      const payload = {
-        ...state.form.value,
-        ...editForm.value,
-      };
-      const response = await request.post('/api/user/ai/config/temp/save', payload);
-      if (response.data.code === 200) {
-        state.ElMessage({ type: 'success', message: '保存成功' });
-        syncEditFormToParent(editForm.value);
-        await state.fetchConfig?.();
-      }
-    } catch (error) {
-      const msg = error?.response?.data?.message || error?.message || '未知错误';
-      state.ElMessage({ type: 'error', message: `保存失败: ${msg}` });
+    const id = editingConfigId.value || createApiConfigId();
+    const nextItem = normalizeApiConfigItem({ ...editForm.value, id });
+    const nextList = apiConfigList.value.map((item) => ({ ...item }));
+    const existsIndex = nextList.findIndex((item) => item.id === id);
+    if (existsIndex >= 0) {
+      nextList[existsIndex] = nextItem;
+    } else {
+      nextList.unshift(nextItem);
     }
+
+    const ext = state.ensureAiConfigExtSchema();
+    let activeId = ext.activeApiConfigId || '';
+    if (nextItem.status === 1) {
+      activeId = id;
+    }
+
+    const normalizedStatusList = nextList.map((item) => ({
+      ...item,
+      status: activeId && item.id === activeId ? 1 : activeId ? 0 : item.status,
+    }));
+
+    persistApiConfigList(normalizedStatusList, activeId);
+    editingConfigId.value = id;
+    applyApiConfigToForm(nextItem);
+    syncEditFormToParent(nextItem);
+    state.ElMessage({ type: 'success', message: '暂存成功' });
   });
 };
 
@@ -406,10 +448,15 @@ const handleTest = async () => {
         apiFormat: editForm.value.apiFormat || 'completions',
         timeout: Number(editForm.value.timeout || 60),
       });
-      state.ElMessage({ type: 'success', message: `测试通过: ${(answer || '').slice(0, 100)}` });
+      state.ElMessage({ type: 'success', message: `直连测试通过: ${(answer || '').slice(0, 100)}` });
       editForm.value.testPassed = 1;
     } catch (e) {
-      state.ElMessage({ type: 'error', message: `测试失败: ${e?.message || e || ''}` });
+      state.ElMessage({
+        type: 'error',
+        message: `直连测试失败: ${e?.message || e || ''}`,
+        showClose: true,
+        duration: 6000,
+      });
     } finally {
       isTestLoading.value = false;
     }
@@ -431,7 +478,9 @@ onMounted(() => {
 .api-view-wrapper.is-edit .api-view-list{visibility:hidden;max-height:0;overflow:hidden}
 .api-config-list{padding-right:2px}
 .api-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.api-list-tip-group{display:flex;flex-direction:column;gap:2px}
 .api-list-tip{font-size:12px;color:#909399}
+.api-list-note{font-size:11px;color:#67c23a}
 .api-config-card{border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}
 .api-config-card__meta{display:flex;flex-direction:column;gap:6px}
 .api-config-card__line{display:flex;justify-content:space-between;gap:8px;font-size:12px}
@@ -443,4 +492,5 @@ onMounted(() => {
 .api-edit-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .api-edit-title{font-size:13px;font-weight:600;color:#303133}
 .api-config-form{padding-right:2px}
+.api-test-note{margin-top:-4px;margin-bottom:6px;font-size:12px;color:#909399}
 </style>

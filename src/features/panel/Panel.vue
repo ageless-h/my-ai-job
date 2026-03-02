@@ -9,7 +9,7 @@ import { Tools } from "@/shared/utils/tools";
 import { UserStore } from "@/state/user";
 import { LoginStore } from "@/state/login";
 import { pushResultCount } from "@/state/push-result";
-import { ProductStore } from "@/state/product";
+
 import { LogRecorder, PushStatus } from "@/core/engine/push-engine";
 import { loginInterceptor, silentlyLogin, fetchWithGM_request } from "@/core/auth/auth";
 import { AiPower } from "@/core/ai/ai-power";
@@ -18,6 +18,9 @@ import AiJob from "@/features/job-assistant/components/AiJob.vue";
 import Preference from "@/features/preference/components/Preference.vue";
 import RunRecord from "@/features/run-record/components/RunRecord.vue";
 import AiConfig from "@/features/ai-config/components/AiConfig.vue";
+import AiDeliveryJudge from "@/features/ai-delivery-judge/components/AiDeliveryJudge.vue";
+import MemorySession from "@/features/memory-session/components/MemorySession.vue";
+import Account from "@/features/account/components/Account.vue";
 
 const VueAny = Vue as any;
 const ElementAny = ElementPlus as any;
@@ -66,6 +69,9 @@ const SVG_TAB_AI = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="1
 const SVG_TAB_PREF = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.72V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.17a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
 const SVG_TAB_RECORD = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>';
 const SVG_TAB_CONFIG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
+const SVG_TAB_JUDGE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>';
+const SVG_TAB_MEMORY = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+const SVG_TAB_ACCOUNT = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
 
 const _sfc_main$1 = /* @__PURE__ */ defineComponent({
   __name: "Panel",
@@ -94,10 +100,13 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
     };
 
     const componentMap = /* @__PURE__ */ new Map();
-    componentMap.set("1", { component: AiJob, name: "AI 助手", icon: SVG_TAB_AI });
-    componentMap.set("2", { component: Preference, name: "偏好设置", icon: SVG_TAB_PREF });
-    componentMap.set("3", { component: RunRecord, name: "运行记录", icon: SVG_TAB_RECORD });
-    componentMap.set("4", { component: AiConfig, name: "AI 配置", icon: SVG_TAB_CONFIG });
+    componentMap.set("1", { component: AiJob, name: "工作台", icon: SVG_TAB_AI });
+    componentMap.set("2", { component: AiConfig, name: "AI中心", icon: SVG_TAB_CONFIG });
+    componentMap.set("3", { component: AiDeliveryJudge, name: "AI投递策略", icon: SVG_TAB_JUDGE });
+    componentMap.set("4", { component: Preference, name: "传统投递", icon: SVG_TAB_PREF });
+    componentMap.set("5", { component: MemorySession, name: "记忆与会话", icon: SVG_TAB_MEMORY });
+    componentMap.set("6", { component: RunRecord, name: "运行记录", icon: SVG_TAB_RECORD });
+    componentMap.set("7", { component: Account, name: "账户", icon: SVG_TAB_ACCOUNT });
 
     const cleanupPreference = () => {
       nextTick(() => {
@@ -330,17 +339,21 @@ const RenderComponent = _sfc_main$1;
 /* Navigation Tabs */
 :deep(.ai-sidebar-nav) {
   display: flex;
+  align-items: stretch;
   height: 48px;
   border-bottom: 1px solid var(--ai-border);
   flex-shrink: 0;
   background: transparent;
+  overflow: hidden;
 }
 
 :deep(.ai-nav-tab) {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  flex: 0 0 42px;
+  min-width: 42px;
+  max-width: 42px;
   height: 48px;
   font-size: 14px;
   font-weight: 500;
@@ -349,12 +362,29 @@ const RenderComponent = _sfc_main$1;
   position: relative;
   transition: all 0.3s;
   user-select: none;
-  gap: 6px;
+  gap: 0;
+  overflow: hidden;
+  padding: 0 8px;
 }
 
 :deep(.ai-nav-tab span) {
+  display: none;
   position: relative;
   z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.ai-nav-tab.is-active) {
+  flex: 1 1 auto;
+  max-width: none;
+  gap: 6px;
+}
+
+:deep(.ai-nav-tab.is-active span) {
+  display: block;
 }
 
 :deep(.ai-nav-tab:hover) {
@@ -386,6 +416,7 @@ const RenderComponent = _sfc_main$1;
 
 :deep(.ai-nav-tab svg) {
   flex-shrink: 0;
+  margin-right: 0 !important;
 }
 
 /* Content Body */
@@ -768,9 +799,20 @@ const RenderComponent = _sfc_main$1;
 }
 /* Pagination */
 :deep(.el-pagination) {
+  display: flex;
   justify-content: center;
   margin-top: 12px;
   flex-wrap: wrap;
+  row-gap: 8px;
+  white-space: normal;
+  height: auto;
+}
+
+:deep(.el-pagination .el-pager) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
 }
 
 /* ===== AI配置 Tab: Collapse ===== */

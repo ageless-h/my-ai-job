@@ -43,6 +43,7 @@ export class TampermonkeyApi {
   static ACTIVE_ENABLE = "activeEnable";
   static PUSH_LIMIT = "push_limit" + Tools.getCurDay();
   static PUSH_LOCK = "push_lock";
+  static SAFETY_COOLDOWN_UNTIL = "safety_cooldown_until";
   static cnInKey = "companyNameInclude";
   static cnExKey = "companyNameExclude";
   static jnInKey = "jobNameInclude";
@@ -67,6 +68,11 @@ export class TampermonkeyApi {
   static GMXmlHttpRequest(options: Record<string, unknown>): unknown {
     if (!_GM_xmlhttpRequest) {
       throw new Error("GM_xmlhttpRequest is not available");
+    }
+
+    const url = `${options?.url || ""}`;
+    if (url) {
+      Tools.ensureAllowedNetworkUrl(url, "Tampermonkey请求");
     }
     return _GM_xmlhttpRequest(options);
   }

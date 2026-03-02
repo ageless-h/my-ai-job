@@ -30,12 +30,94 @@ export interface AiConfigExt {
   [key: string]: unknown;
 }
 
+export interface AiDeliveryJudgeConfig {
+  enabled: boolean;
+  prompt: string;
+  extraPrompt: string;
+  includeUserProfile: boolean;
+  includeTraditionalSnapshot: boolean;
+  onAiError: "reject" | "fallback-traditional";
+  onInvalidResult: "reject" | "fallback-traditional";
+}
+
+export const DEFAULT_AI_DELIVERY_JUDGE_PROMPT =
+  "你是求职投递决策助手。请先检查硬性约束（排除关键词/排除公司/薪资明显不符/信息不足），任一命中则返回 match=false；再基于候选人匹配卡与岗位匹配卡评估职能、行业、技能、经验、学历、城市匹配度。仅输出一行JSON：{\"match\":true|false,\"reason\":\"[CODE] 原因\"}，其中 CODE 建议使用 MATCH、DOMAIN_MISMATCH、SKILL_MISMATCH、LEVEL_MISMATCH、SALARY_MISMATCH、PREF_CONFLICT、INFO_MISSING。";
+
+const DEFAULT_AI_DELIVERY_JUDGE_CONFIG: AiDeliveryJudgeConfig = {
+  enabled: true,
+  prompt: DEFAULT_AI_DELIVERY_JUDGE_PROMPT,
+  extraPrompt: "",
+  includeUserProfile: true,
+  includeTraditionalSnapshot: false,
+  onAiError: "reject",
+  onInvalidResult: "reject"
+};
+
 const logger = Logger.rootLogger;
 const AI_CONFIG_EXT_STORAGE_KEY = "ai-job-ai-config-ext";
+const USER_PROFILE_STORAGE_KEY = "ai-job-user";
+const AI_CONFIG_API_KEY_STORAGE_PREFIX = "ai-job-ai-config-key:";
 const _GM_getValue = typeof GM_getValue !== "undefined" ? GM_getValue : undefined;
 const _GM_setValue = typeof GM_setValue !== "undefined" ? GM_setValue : undefined;
 const _unsafeWindow =
   (typeof unsafeWindow !== "undefined" ? unsafeWindow : window) as unknown as Window & Record<string, unknown>;
+const OUTBOUND_HOST_ALLOWLIST_DEFAULT = [
+  "zhipin.com",
+  "43.138.246.37",
+  "api.openai.com",
+  "openrouter.ai",
+  "api.deepseek.com",
+  "api.siliconflow.cn",
+  "api.moonshot.cn",
+  "ark.cn-beijing.volces.com"
+];
+const MANUAL_VERIFY_KEYWORDS = [
+  "验证码",
+  "滑块",
+  "人机",
+  "安全验证",
+  "请完成验证",
+  "行为验证",
+  "点选验证",
+  "拖动",
+  "captcha",
+  "challenge",
+  "verify",
+  "geetest",
+  "yidun"
+];
+const MAX_MIGRATION_JSON_SIZE = 512 * 1024;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeStoredJsonString(raw: unknown): string {
+  if (typeof raw === "string") {
+    return raw;
+  }
+  if (isPlainObject(raw) || Array.isArray(raw)) {
+    try {
+      return JSON.stringify(raw);
+    } catch (_e) {
+      return "";
+    }
+  }
+  return "";
+}
+
+function hasGmStorageRuntime(): boolean {
+  return typeof _GM_getValue === "function" && typeof _GM_setValue === "function";
+}
+
+function isSafeDomainText(value: unknown): boolean {
+  const host = `${value || ""}`.trim().toLowerCase();
+  if (!host || host.length > 120) {
+    return false;
+  }
+
+  return /^[a-z0-9.-]+$/.test(host) && !host.startsWith(".") && !host.endsWith(".");
+}
 
 export class Tools {
   static window: Window & Record<string, unknown> = _unsafeWindow;
@@ -177,22 +259,75 @@ export class Tools {
       }
     };
     try {
-      let raw = _GM_getValue?.(AI_CONFIG_EXT_STORAGE_KEY, "") ?? "";
-      if (!raw) {
-        const legacyRaw = localStorage.getItem(AI_CONFIG_EXT_STORAGE_KEY);
-        if (legacyRaw) {
-          _GM_setValue?.(AI_CONFIG_EXT_STORAGE_KEY, legacyRaw);
-          localStorage.removeItem(AI_CONFIG_EXT_STORAGE_KEY);
-          raw = legacyRaw;
+      let parsed: Partial<AiConfigExt> | null = null;
+      const gmRaw = _GM_getValue?.(AI_CONFIG_EXT_STORAGE_KEY, "") ?? "";
+      const normalizedGMRaw = normalizeStoredJsonString(gmRaw);
+      if (normalizedGMRaw) {
+        if (normalizedGMRaw.length > MAX_MIGRATION_JSON_SIZE) {
+          parsed = null;
+        } else {
+          try {
+            const candidate = JSON.parse(normalizedGMRaw) as Partial<AiConfigExt>;
+            if (isPlainObject(candidate)) {
+              parsed = candidate;
+              if (typeof gmRaw !== "string") {
+                _GM_setValue?.(AI_CONFIG_EXT_STORAGE_KEY, normalizedGMRaw);
+              }
+            } else {
+              parsed = null;
+            }
+          } catch (_e) {
+            parsed = null;
+          }
         }
       }
-      if (!raw) {
+
+      if (!parsed) {
+        const legacyRaw = localStorage.getItem(AI_CONFIG_EXT_STORAGE_KEY);
+        if (legacyRaw && legacyRaw.length <= MAX_MIGRATION_JSON_SIZE) {
+          try {
+            const candidate = JSON.parse(legacyRaw) as Partial<AiConfigExt>;
+            if (isPlainObject(candidate)) {
+              parsed = candidate;
+              _GM_setValue?.(AI_CONFIG_EXT_STORAGE_KEY, legacyRaw);
+              localStorage.removeItem(AI_CONFIG_EXT_STORAGE_KEY);
+            } else {
+              parsed = null;
+            }
+          } catch (_e) {
+            parsed = null;
+          }
+        }
+      }
+
+      if (!parsed) {
         return defaultExt;
       }
-      const parsed = JSON.parse(raw) as Partial<AiConfigExt>;
+
+      const parsedApiConfigs = Array.isArray((parsed as Record<string, unknown>).apiConfigs)
+        ? ((parsed as Record<string, unknown>).apiConfigs as Array<Record<string, unknown>>).map((item) => {
+            const id = `${item?.id || ""}`;
+            const persistedApiKey = id
+              ? `${_GM_getValue?.(`${AI_CONFIG_API_KEY_STORAGE_PREFIX}${id}`, "") || ""}`
+              : "";
+            const fallbackApiKey = `${item?.apiKey || ""}`;
+            return {
+              ...item,
+              apiKey: persistedApiKey || fallbackApiKey
+            };
+          })
+        : [];
+      const parsedTrustedApiHosts = Array.isArray((parsed as Record<string, unknown>).trustedApiHosts)
+        ? ((parsed as Record<string, unknown>).trustedApiHosts as unknown[])
+            .filter(isSafeDomainText)
+            .map((item) => `${item}`.toLowerCase())
+        : [];
+
       return {
         ...defaultExt,
         ...parsed,
+        ...(parsedApiConfigs.length ? { apiConfigs: parsedApiConfigs } : {}),
+        ...(parsedTrustedApiHosts.length ? { trustedApiHosts: parsedTrustedApiHosts } : {}),
         currentConfig: {
           ...defaultExt.currentConfig,
           ...(parsed?.currentConfig || {})
@@ -221,8 +356,37 @@ export class Tools {
       ...Tools.getAiConfigExt(),
       ...(ext || {})
     } as AiConfigExt;
-    _GM_setValue?.(AI_CONFIG_EXT_STORAGE_KEY, JSON.stringify(data));
-    localStorage.removeItem(AI_CONFIG_EXT_STORAGE_KEY);
+    const gmAvailable = hasGmStorageRuntime();
+
+    if (!gmAvailable) {
+      localStorage.setItem(AI_CONFIG_EXT_STORAGE_KEY, JSON.stringify(data));
+      return data;
+    }
+
+    try {
+      const persistedData = { ...data } as Record<string, unknown>;
+      if (Array.isArray((persistedData as Record<string, unknown>).apiConfigs)) {
+        const sanitizedApiConfigs = ((persistedData as Record<string, unknown>).apiConfigs as Array<Record<string, unknown>>).map((item) => {
+          const next = { ...item };
+          const id = `${next?.id || ""}`;
+          const apiKey = `${next?.apiKey || ""}`;
+          if (id && apiKey) {
+            _GM_setValue?.(`${AI_CONFIG_API_KEY_STORAGE_PREFIX}${id}`, apiKey);
+          }
+          if (id) {
+            next.apiKey = "";
+          }
+          return next;
+        });
+        persistedData.apiConfigs = sanitizedApiConfigs;
+      }
+      _GM_setValue?.(AI_CONFIG_EXT_STORAGE_KEY, JSON.stringify(persistedData));
+      localStorage.removeItem(AI_CONFIG_EXT_STORAGE_KEY);
+    } catch (error) {
+      logger.warn("写入AI扩展配置到GM存储失败，回退到localStorage", (error as Error | undefined)?.message);
+      localStorage.setItem(AI_CONFIG_EXT_STORAGE_KEY, JSON.stringify(data));
+    }
+
     return data;
   }
 
@@ -273,6 +437,375 @@ export class Tools {
     const month = String(currentDate.getMonth() + 1).padStart(2, "0");
     const day = String(currentDate.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  }
+
+  static getStoredUserProfileRaw(): string | null {
+    const gmRaw = _GM_getValue?.(USER_PROFILE_STORAGE_KEY, "") ?? "";
+    const rawFromGM = normalizeStoredJsonString(gmRaw);
+    if (rawFromGM) {
+      if (rawFromGM.length > MAX_MIGRATION_JSON_SIZE) {
+      } else {
+        try {
+          const parsed = JSON.parse(rawFromGM);
+          if (isPlainObject(parsed) && isPlainObject((parsed as Record<string, unknown>).preference || {})) {
+            if (typeof gmRaw !== "string") {
+              _GM_setValue?.(USER_PROFILE_STORAGE_KEY, rawFromGM);
+            }
+            return rawFromGM;
+          }
+        } catch (_e) {
+        }
+      }
+    }
+
+    const legacyRaw = localStorage.getItem(USER_PROFILE_STORAGE_KEY);
+    if (legacyRaw) {
+      if (legacyRaw.length <= MAX_MIGRATION_JSON_SIZE) {
+        try {
+          const parsed = JSON.parse(legacyRaw);
+          if (isPlainObject(parsed) && isPlainObject((parsed as Record<string, unknown>).preference || {})) {
+            _GM_setValue?.(USER_PROFILE_STORAGE_KEY, legacyRaw);
+            localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
+            return legacyRaw;
+          }
+        } catch (_e) {
+          // ignore invalid legacy payload
+        }
+      }
+      return null;
+    }
+
+    return null;
+  }
+
+  static saveStoredUserProfile(profile: unknown): void {
+    const serialized = JSON.stringify(profile ?? {});
+    if (hasGmStorageRuntime()) {
+      try {
+        _GM_setValue?.(USER_PROFILE_STORAGE_KEY, serialized);
+        localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
+        return;
+      } catch (error) {
+        logger.warn("写入用户资料到GM存储失败，回退到localStorage", (error as Error | undefined)?.message);
+      }
+    }
+    localStorage.setItem(USER_PROFILE_STORAGE_KEY, serialized);
+  }
+
+  static getAiDeliveryJudgeConfig(preference?: Record<string, unknown>): AiDeliveryJudgeConfig {
+    const ext = Tools.getAiConfigExt() as Record<string, unknown>;
+    const extCfg = isPlainObject(ext.aiDeliveryJudge) ? (ext.aiDeliveryJudge as Record<string, unknown>) : {};
+    const pref = isPlainObject(preference) ? preference : {};
+
+    const normalizeFallbackPolicy = (value: unknown, fallback: "reject" | "fallback-traditional"): "reject" | "fallback-traditional" => {
+      return value === "fallback-traditional" || value === "reject" ? value : fallback;
+    };
+
+    const enabled =
+      typeof extCfg.enabled === "boolean"
+        ? extCfg.enabled
+        : typeof pref.aiDeliverJudgeE === "boolean"
+          ? (pref.aiDeliverJudgeE as boolean)
+          : DEFAULT_AI_DELIVERY_JUDGE_CONFIG.enabled;
+
+    const prompt = `${extCfg.prompt || pref.aiDeliverJudgePrompt || ""}`.trim() || DEFAULT_AI_DELIVERY_JUDGE_CONFIG.prompt;
+    const extraPrompt = `${extCfg.extraPrompt || pref.aiDeliverJudgeExtraPrompt || ""}`.trim();
+    const includeUserProfile =
+      typeof extCfg.includeUserProfile === "boolean"
+        ? extCfg.includeUserProfile
+        : typeof pref.aiDeliverJudgeIncludeUserProfile === "boolean"
+          ? (pref.aiDeliverJudgeIncludeUserProfile as boolean)
+          : DEFAULT_AI_DELIVERY_JUDGE_CONFIG.includeUserProfile;
+    const includeTraditionalSnapshot =
+      typeof extCfg.includeTraditionalSnapshot === "boolean"
+        ? extCfg.includeTraditionalSnapshot
+        : typeof pref.aiDeliverJudgeIncludeTraditionalSnapshot === "boolean"
+          ? (pref.aiDeliverJudgeIncludeTraditionalSnapshot as boolean)
+          : DEFAULT_AI_DELIVERY_JUDGE_CONFIG.includeTraditionalSnapshot;
+    const onAiError = normalizeFallbackPolicy(
+      extCfg.onAiError || pref.aiDeliverJudgeOnAiError,
+      DEFAULT_AI_DELIVERY_JUDGE_CONFIG.onAiError
+    );
+    const onInvalidResult = normalizeFallbackPolicy(
+      extCfg.onInvalidResult || pref.aiDeliverJudgeOnInvalidResult,
+      DEFAULT_AI_DELIVERY_JUDGE_CONFIG.onInvalidResult
+    );
+
+    return {
+      enabled,
+      prompt,
+      extraPrompt,
+      includeUserProfile,
+      includeTraditionalSnapshot,
+      onAiError,
+      onInvalidResult
+    };
+  }
+
+  static saveAiDeliveryJudgeConfig(config: Partial<AiDeliveryJudgeConfig>): AiDeliveryJudgeConfig {
+    const current = Tools.getAiDeliveryJudgeConfig();
+    const normalizeFallbackPolicy = (value: unknown, fallback: "reject" | "fallback-traditional"): "reject" | "fallback-traditional" => {
+      return value === "fallback-traditional" || value === "reject" ? value : fallback;
+    };
+    const next: AiDeliveryJudgeConfig = {
+      enabled: typeof config.enabled === "boolean" ? config.enabled : current.enabled,
+      prompt: `${config.prompt || current.prompt || ""}`.trim() || DEFAULT_AI_DELIVERY_JUDGE_PROMPT,
+      extraPrompt: `${config.extraPrompt || current.extraPrompt || ""}`.trim(),
+      includeUserProfile: typeof config.includeUserProfile === "boolean" ? config.includeUserProfile : current.includeUserProfile,
+      includeTraditionalSnapshot:
+        typeof config.includeTraditionalSnapshot === "boolean"
+          ? config.includeTraditionalSnapshot
+          : current.includeTraditionalSnapshot,
+      onAiError: normalizeFallbackPolicy(config.onAiError, current.onAiError),
+      onInvalidResult: normalizeFallbackPolicy(config.onInvalidResult, current.onInvalidResult)
+    };
+
+    const ext = Tools.getAiConfigExt() as Record<string, unknown>;
+    ext.aiDeliveryJudge = {
+      enabled: next.enabled,
+      prompt: next.prompt,
+      extraPrompt: next.extraPrompt,
+      includeUserProfile: next.includeUserProfile,
+      includeTraditionalSnapshot: next.includeTraditionalSnapshot,
+      onAiError: next.onAiError,
+      onInvalidResult: next.onInvalidResult
+    };
+    Tools.saveAiConfigExt(ext);
+    return next;
+  }
+
+  static migrateAiDeliveryJudgeConfigFromPreference(preference?: Record<string, unknown>): AiDeliveryJudgeConfig {
+    const ext = Tools.getAiConfigExt() as Record<string, unknown>;
+    const hasExtConfig = isPlainObject(ext.aiDeliveryJudge);
+    if (hasExtConfig) {
+      return Tools.getAiDeliveryJudgeConfig(preference);
+    }
+
+    const next = Tools.getAiDeliveryJudgeConfig(preference);
+    ext.aiDeliveryJudge = {
+      enabled: next.enabled,
+      prompt: next.prompt,
+      extraPrompt: next.extraPrompt,
+      includeUserProfile: next.includeUserProfile,
+      includeTraditionalSnapshot: next.includeTraditionalSnapshot,
+      onAiError: next.onAiError,
+      onInvalidResult: next.onInvalidResult
+    };
+    Tools.saveAiConfigExt(ext);
+    return next;
+  }
+
+  static getCurrentHostname(): string {
+    const hostFromUnsafe = `${Tools.window?.location?.hostname || ""}`.trim();
+    if (hostFromUnsafe) {
+      return hostFromUnsafe.toLowerCase();
+    }
+    return `${window.location.hostname || ""}`.trim().toLowerCase();
+  }
+
+  static normalizeHostname(hostname: string | null | undefined): string {
+    return `${hostname || ""}`.trim().toLowerCase();
+  }
+
+  static isPrivateOrLocalHost(hostname: string | null | undefined): boolean {
+    const host = Tools.normalizeHostname(hostname);
+    if (!host) {
+      return true;
+    }
+
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+      return true;
+    }
+
+    if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^0\.0\.0\.0$/.test(host)) {
+      return true;
+    }
+
+    const match172 = host.match(/^172\.(\d{1,3})\./);
+    if (match172) {
+      const second = Number(match172[1]);
+      if (second >= 16 && second <= 31) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  static getTrustedOutboundHosts(extraHosts: string[] = []): string[] {
+    const ext = Tools.getAiConfigExt() as Record<string, unknown>;
+    const apiConfigHosts = Array.isArray(ext.apiConfigs)
+      ? (ext.apiConfigs as Array<Record<string, unknown>>)
+          .map((config) => {
+            const baseUrl = `${config?.baseUrl || ""}`.trim();
+            if (!baseUrl) {
+              return "";
+            }
+            try {
+              const parsed = /^https?:\/\//i.test(baseUrl)
+                ? new URL(baseUrl)
+                : new URL(`https://${baseUrl}`);
+              return Tools.normalizeHostname(parsed.hostname);
+            } catch (_e) {
+              return "";
+            }
+          })
+          .filter((host) => !!host && !Tools.isPrivateOrLocalHost(host))
+      : [];
+    const customHosts = Array.isArray(ext.trustedApiHosts)
+      ? ext.trustedApiHosts.map((host) => Tools.normalizeHostname(`${host || ""}`)).filter(Boolean)
+      : [];
+
+    const merged = [...OUTBOUND_HOST_ALLOWLIST_DEFAULT, ...apiConfigHosts, ...customHosts, ...extraHosts]
+      .map((host) => Tools.normalizeHostname(host))
+      .filter(Boolean);
+
+    return [...new Set(merged)];
+  }
+
+  static isAllowedNetworkUrl(url: string, extraHosts: string[] = []): boolean {
+    try {
+      const parsed = /^https?:\/\//i.test(url) ? new URL(url) : new URL(url, window.location.origin);
+      if (parsed.protocol !== "https:") {
+        return false;
+      }
+
+      const host = Tools.normalizeHostname(parsed.hostname);
+      if (Tools.isPrivateOrLocalHost(host)) {
+        return false;
+      }
+
+      const trustedHosts = Tools.getTrustedOutboundHosts(extraHosts);
+      return trustedHosts.some((trustedHost) => host === trustedHost || host.endsWith(`.${trustedHost}`));
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  static ensureAllowedNetworkUrl(url: string, action: string, extraHosts: string[] = []): void {
+    if (!Tools.isAllowedNetworkUrl(url, extraHosts)) {
+      throw new Error(`${action}目标地址不在受信任白名单中: ${url}`);
+    }
+  }
+
+  static isManualVerificationText(text: string | null | undefined): boolean {
+    const value = `${text || ""}`.trim().toLowerCase();
+    if (!value) {
+      return false;
+    }
+
+    return MANUAL_VERIFY_KEYWORDS.some((keyword) => value.includes(keyword));
+  }
+
+  static getManualVerificationReason(): string | null {
+    if (!Tools.isBossDomainHost(Tools.getCurrentHostname())) {
+      return null;
+    }
+
+    const overlaySelectors = [
+      ".geetest_panel",
+      ".geetest_widget",
+      ".yidun_tips",
+      ".yidun_modal",
+      "[class*='captcha']",
+      "[class*='verify']",
+      "[class*='risk']",
+      "[id*='captcha']",
+      "[id*='verify']"
+    ];
+
+    for (const selector of overlaySelectors) {
+      const element = document.querySelector(selector) as HTMLElement | null;
+      if (!element) {
+        continue;
+      }
+
+      const style = window.getComputedStyle(element);
+      if (style.display === "none" || style.visibility === "hidden") {
+        continue;
+      }
+
+      const text = `${element.textContent || ""}`.trim();
+      if (Tools.isManualVerificationText(text) || !!element.querySelector("iframe")) {
+        return `检测到验证弹窗(${selector})`;
+      }
+    }
+
+    const iframes = Array.from(document.querySelectorAll("iframe"));
+    for (const frame of iframes) {
+      const src = `${frame.getAttribute("src") || ""}`;
+      if (Tools.isManualVerificationText(src)) {
+        return "检测到验证 iframe";
+      }
+    }
+
+    return null;
+  }
+
+  static ensureNoManualVerificationOrThrow(action: string): void {
+    const reason = Tools.getManualVerificationReason();
+    if (reason) {
+      throw new Error(`${action}前检测到人工验证: ${reason}`);
+    }
+  }
+
+  static isBossDomainHost(hostname: string | null | undefined): boolean {
+    const host = Tools.normalizeHostname(hostname);
+    return host === "www.zhipin.com" || host === "zhipin.com";
+  }
+
+  static isTrustedBossStaticHost(hostname: string | null | undefined): boolean {
+    const host = Tools.normalizeHostname(hostname);
+    return host === "static.zhipin.com" || Tools.isBossDomainHost(host);
+  }
+
+  static isBossDomainUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return Tools.isBossDomainHost(parsed.hostname);
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  static isTrustedBossStaticUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return Tools.isTrustedBossStaticHost(parsed.hostname);
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  static ensureBossDomainOrThrow(action: string): void {
+    const host = Tools.getCurrentHostname();
+    if (!Tools.isBossDomainHost(host)) {
+      throw new Error(`${action}仅允许在BOSS官方域名执行，当前域名: ${host || "unknown"}`);
+    }
+  }
+
+  static getSafePageContext(): { token?: string; uid?: string | number } {
+    const page = (Tools.window as { _PAGE?: unknown })._PAGE;
+    if (!page || typeof page !== "object") {
+      return {};
+    }
+
+    const raw = page as Record<string, unknown>;
+    const token = typeof raw.token === "string" ? raw.token : undefined;
+    const uid = typeof raw.uid === "string" || typeof raw.uid === "number" ? raw.uid : undefined;
+    return {
+      token,
+      uid
+    };
+  }
+
+  static getPageUidString(): string {
+    const uid = Tools.getSafePageContext().uid;
+    return uid === undefined ? "" : String(uid);
+  }
+
+  static getPageToken(): string {
+    return `${Tools.getSafePageContext().token || ""}`;
   }
 
   static sleep(ms: number): Promise<void> {

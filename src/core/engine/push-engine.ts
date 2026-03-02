@@ -34,6 +34,15 @@ function runtimeUserStore(): any {
   return userStore$2 as any;
 }
 
+function formatLogTimestamp(date: Date): string {
+  const pad = (value: number, size = 2): string => `${value}`.padStart(size, "0");
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  const milliseconds = pad(date.getMilliseconds(), 3);
+  return `${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+
 export enum PushStatus {
   NOT_START = 0,
   PUSHING = 1,
@@ -89,7 +98,7 @@ export class LogRecorder extends Logger {
   }
 
   addLog(level: string, message: string): void {
-    const timestamp = new Date().toLocaleTimeString();
+    const timestamp = formatLogTimestamp(new Date());
     LogRecorder.logs.push({ level, message, timestamp });
     if (LogRecorder.logs.length > this.maxLogs) {
       LogRecorder.logs.shift();
@@ -142,11 +151,123 @@ export abstract class AbsPlatform {
   protected _pushMock = false;
   protected _selfDefPushCountLimit = -1;
   protected _collectMode = false;
+  protected _lastStopReason = "";
+
+  get lastStopReason(): string {
+    return this._lastStopReason;
+  }
+
+  protected setLastStopReason(reason: string): void {
+    this._lastStopReason = `${reason || ""}`.trim();
+  }
+
+  protected clearLastStopReason(): void {
+    this._lastStopReason = "";
+  }
+
+  private getSafetyConfig(): {
+    minActionIntervalSec: number;
+    maxSessionActions: number;
+    maxDailyActions: number;
+    maxActionsPerMinute: number;
+    maxConsecutiveFailures: number;
+    cooldownMinutesOnLimit: number;
+    timeWindowEnabled: boolean;
+    allowedStartHour: number;
+    allowedEndHour: number;
+  } {
+    const preference = runtimeUserStore()?.user?.preference || {};
+    const toNumberOr = (value: unknown, fallback: number): number => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    };
+
+    const minActionIntervalSec = Math.max(8, toNumberOr(preference.pi, 8));
+    const maxSessionActions = Math.max(1, toNumberOr(preference.maxSessionActions, 60));
+    const maxDailyActions = Math.max(1, toNumberOr(preference.maxDailyActions, 120));
+    const maxActionsPerMinute = Math.max(1, toNumberOr(preference.maxActionsPerMinute, 9));
+    const maxConsecutiveFailures = Math.max(1, toNumberOr(preference.maxConsecutiveFailures, 10));
+    const cooldownMinutesOnLimit = Math.max(1, toNumberOr(preference.cooldownMinutesOnLimit, 25));
+    const timeWindowEnabled = false;
+    const allowedStartHour = Math.min(23, Math.max(0, toNumberOr(preference.safetyStartHour, 8)));
+    const allowedEndHour = Math.min(23, Math.max(0, toNumberOr(preference.safetyEndHour, 22)));
+
+    return {
+      minActionIntervalSec,
+      maxSessionActions,
+      maxDailyActions,
+      maxActionsPerMinute,
+      maxConsecutiveFailures,
+      cooldownMinutesOnLimit,
+      timeWindowEnabled,
+      allowedStartHour,
+      allowedEndHour
+    };
+  }
+
+  private isInSafetyTimeWindow(startHour: number, endHour: number): boolean {
+    const hour = new Date().getHours();
+    if (startHour === endHour) {
+      return true;
+    }
+
+    if (startHour < endHour) {
+      return hour >= startHour && hour < endHour;
+    }
+
+    return hour >= startHour || hour < endHour;
+  }
+
+  private enforceSafetyWindowOrStop(actionName: string, safety = this.getSafetyConfig()): boolean {
+    if (!safety.timeWindowEnabled) {
+      return true;
+    }
+
+    if (this.isInSafetyTimeWindow(safety.allowedStartHour, safety.allowedEndHour)) {
+      return true;
+    }
+
+    this.pushStatus = PushStatus.LIMIT;
+    const reason = `当前不在安全时段(${safety.allowedStartHour}:00-${safety.allowedEndHour}:00)，暂停${actionName}`;
+    this.setLastStopReason(reason);
+    this.logRecorder.warn(reason);
+    return false;
+  }
+
+  private ensureNoManualVerification(actionName: string): boolean {
+    const reason = this.getManualVerificationReason();
+    if (!reason) {
+      return true;
+    }
+
+    this.pushStatus = PushStatus.PAUSE;
+    const stopReason = `检测到人工验证，已暂停${actionName}：${reason}`;
+    this.setLastStopReason(stopReason);
+    this.logRecorder.warn(stopReason);
+    return false;
+  }
+
+  private getSafetyCooldownUntil(): number {
+    return Number(TampermonkeyApi.GmGetValue(TampermonkeyApi.SAFETY_COOLDOWN_UNTIL, 0)) || 0;
+  }
+
+  private setSafetyCooldown(minutes: number): void {
+    const untilTs = Date.now() + minutes * 60 * 1000;
+    TampermonkeyApi.GmSetValue(TampermonkeyApi.SAFETY_COOLDOWN_UNTIL, untilTs);
+  }
 
   next = async (): Promise<boolean> => {
     const next = this.hasNext();
     if (!next) {
       this.logRecorder.info("无下一页数据");
+      return false;
+    }
+
+    const actionName = this._collectMode ? "收藏" : "投递";
+    if (!this.ensureNoManualVerification(actionName)) {
+      return false;
+    }
+    if (!this.enforceSafetyWindowOrStop(actionName)) {
       return false;
     }
 
@@ -177,15 +298,72 @@ export abstract class AbsPlatform {
   }
 
   async startPush(): Promise<void> {
+    this.clearLastStopReason();
     const actionName = this._collectMode ? "收藏" : "投递";
+    const safety = this.getSafetyConfig();
+    const currentHost = Tools.getCurrentHostname();
+    if (!Tools.isBossDomainHost(currentHost)) {
+      this.pushStatus = PushStatus.LIMIT;
+      const reason = `当前域名(${currentHost || "unknown"})不受信任，已阻止自动${actionName}`;
+      this.setLastStopReason(reason);
+      this.logRecorder.warn(reason);
+      return;
+    }
+
+    const cooldownUntil = this.getSafetyCooldownUntil();
+    if (cooldownUntil > Date.now()) {
+      const waitMinutes = Math.ceil((cooldownUntil - Date.now()) / 60000);
+      this.pushStatus = PushStatus.LIMIT;
+      const reason = `处于安全冷却期，${waitMinutes} 分钟后可继续${actionName}`;
+      this.setLastStopReason(reason);
+      this.logRecorder.warn(reason);
+      return;
+    }
+
+    if (!this.enforceSafetyWindowOrStop(actionName, safety)) {
+      return;
+    }
+    if (!this.ensureNoManualVerification(actionName)) {
+      return;
+    }
+
     this.logRecorder.info(`开始${actionName}`);
     runtimeCounter().clearOnceSuccessCount();
     this.pushStatus = PushStatus.PUSHING;
     this.startPreHandler();
+    let sessionActionAttempts = 0;
+    const recentActionTs: number[] = [];
+    let consecutiveFailures = 0;
 
     do {
       const jobList = this.getJobList();
       for (const jobDetail of jobList) {
+        if (!this.enforceSafetyWindowOrStop(actionName, safety)) {
+          return;
+        }
+        if (!this.ensureNoManualVerification(actionName)) {
+          return;
+        }
+
+        if (sessionActionAttempts >= safety.maxSessionActions) {
+          throw new PublishLimitExp(`触发安全阈值：单轮最多${safety.maxSessionActions}次${actionName}`);
+        }
+
+        const dailySuccess = Number(runtimeCounter().successCount || 0);
+        if (dailySuccess >= safety.maxDailyActions) {
+          throw new PublishLimitExp(`触发安全阈值：今日最多${safety.maxDailyActions}次成功${actionName}`);
+        }
+
+        const now = Date.now();
+        while (recentActionTs.length > 0 && now - recentActionTs[0] > 60_000) {
+          recentActionTs.shift();
+        }
+        if (recentActionTs.length >= safety.maxActionsPerMinute) {
+          throw new PublishLimitExp(`触发安全阈值：每分钟最多${safety.maxActionsPerMinute}次${actionName}`);
+        }
+
+        recentActionTs.push(now);
+        sessionActionAttempts++;
         try {
           this.preMatchJob();
           await this.matchJob(jobDetail);
@@ -194,12 +372,14 @@ export abstract class AbsPlatform {
             this.collectPreHandler(jobDetail);
             const collectResult = await this.collect(jobDetail);
             await this.collectAfterHandler(collectResult, jobDetail);
+            consecutiveFailures = 0;
             continue;
           }
 
           this.pushPreHandler(jobDetail);
           const pushResult = await this.push(jobDetail);
           await this.pushAfterHandler(pushResult, jobDetail);
+          consecutiveFailures = 0;
         } catch (error: any) {
           switch (true) {
             case error instanceof NotMatchException:
@@ -209,19 +389,33 @@ export abstract class AbsPlatform {
                 this.logRecorder.info(`工作【${error.jobTitle}】被过滤 原因：${error.message}`);
               }
               runtimeCounter().notMatchIncr();
+              consecutiveFailures = 0;
               break;
             case error instanceof PushReqException:
             case error instanceof CollectReqException:
               this.logRecorder.warn(`工作【${error.jobTitle}】${actionName}失败 原因：${error.message}`);
               runtimeCounter().failIncr();
+              consecutiveFailures++;
+              if (consecutiveFailures >= safety.maxConsecutiveFailures) {
+                this.pushStatus = PushStatus.LIMIT;
+                this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
+                const reason = `连续失败达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
+                this.setLastStopReason(reason);
+                this.logRecorder.error(reason);
+                return;
+              }
               break;
             case error instanceof FetchJobBossFailExp:
               this.logRecorder.warn(`工作【${error.jobTitle}】发送自定义招呼语失败 原因：${error.message}`);
               break;
             case error instanceof PublishStopExp:
+              this.setLastStopReason(`手动暂停${actionName} ${error.message}`);
               this.logRecorder.info(`手动暂停${actionName} ${error.message}`);
               return;
             case error instanceof PublishLimitExp:
+              this.pushStatus = PushStatus.LIMIT;
+              this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
+              this.setLastStopReason(`停止${actionName} ${error.message}`);
               this.logRecorder.info(`停止${actionName} ${error.message}`);
               return;
             default: {
@@ -237,6 +431,9 @@ export abstract class AbsPlatform {
                     this.logRecorder.info(`重试期间手动暂停`);
                     return;
                   }
+                  if (!this.ensureNoManualVerification(actionName)) {
+                    return;
+                  }
                   try {
                     this.preMatchJob();
                     await this.matchJob(jobDetail);
@@ -250,6 +447,7 @@ export abstract class AbsPlatform {
                       await this.pushAfterHandler(pushResult, jobDetail);
                     }
                     retried = true;
+                    consecutiveFailures = 0;
                     break;
                   } catch (retryError: any) {
                     if (!this.isNetworkError(retryError)) {
@@ -257,18 +455,42 @@ export abstract class AbsPlatform {
                       break;
                     }
                     if (attempt === maxRetries) {
-                      this.logRecorder.error(`网络异常重试 ${maxRetries} 次后仍失败，暂停${actionName}`);
+                      const reason = `网络异常重试 ${maxRetries} 次后仍失败，暂停${actionName}`;
+                      this.setLastStopReason(reason);
+                      this.logRecorder.error(reason);
                       this.pushStatus = PushStatus.PAUSE;
                       return;
                     }
                   }
                 }
+                if (!retried) {
+                  consecutiveFailures++;
+                  if (consecutiveFailures >= safety.maxConsecutiveFailures) {
+                    this.pushStatus = PushStatus.LIMIT;
+                    this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
+                    const reason = `连续网络失败达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
+                    this.setLastStopReason(reason);
+                    this.logRecorder.error(reason);
+                    return;
+                  }
+                }
               } else {
                 logger$1.error("未捕获异常--->", error);
+                consecutiveFailures++;
+                if (consecutiveFailures >= safety.maxConsecutiveFailures) {
+                  this.pushStatus = PushStatus.LIMIT;
+                  this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
+                  const reason = `连续异常达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
+                  this.setLastStopReason(reason);
+                  this.logRecorder.error(reason);
+                  return;
+                }
               }
             }
           }
         }
+
+        await Tools.sleep(safety.minActionIntervalSec * 1000 + Tools.getRandomNumber(400, 1600));
       }
     } while (await this.next());
 
@@ -371,6 +593,10 @@ export abstract class AbsPlatform {
       limit: false,
       msg: this.getJobKey(jobDetail)
     };
+  }
+
+  protected getManualVerificationReason(): string | null {
+    return null;
   }
 
   getFistJobDetail(): any {

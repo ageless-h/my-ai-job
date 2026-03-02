@@ -1,5 +1,7 @@
 // -*- coding: utf-8 -*-
 
+import { Tools } from "@/shared/utils/tools";
+
 declare const GM_xmlhttpRequest:
   | ((options: Record<string, unknown>) => unknown)
   | undefined;
@@ -27,6 +29,12 @@ export async function fetchWithGM_request<T = unknown>(
   return new Promise((resolve, reject) => {
     if (!_GM_xmlhttpRequest) {
       reject(new Error("GM_xmlhttpRequest is not available"));
+      return;
+    }
+    try {
+      Tools.ensureAllowedNetworkUrl(url, "GM请求");
+    } catch (error: any) {
+      reject(error);
       return;
     }
     _GM_xmlhttpRequest({

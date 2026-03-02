@@ -36,7 +36,6 @@
                   size="small"
                   type="danger"
                   plain
-                  :disabled="preset.scope === 'global'"
                   @click="deletePresetById(preset.id)"
                 >
                   删除
@@ -85,7 +84,7 @@
           </div>
         </div>
 
-        <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <div class="preset-edit-actions">
           <el-button @click="backToPresetList">取消</el-button>
           <el-button type="primary" @click="savePreset">保存预设</el-button>
         </div>
@@ -210,10 +209,6 @@ const deletePresetById = async (id) => {
   if (!preset) {
     return;
   }
-  if (preset.scope === 'global') {
-    state.ElMessage({ type: 'warning', message: '全局预设不可删除' });
-    return;
-  }
 
   const confirmed = await state.ElMessageBox
     .confirm(`确认删除预设【${preset.name}】？`, '删除确认', {
@@ -233,8 +228,20 @@ const deletePresetById = async (id) => {
     list.splice(idx, 1);
     state.persistAiConfigExt();
     state.ElMessage({ type: 'success', message: '预设已删除' });
-
+    return;
   }
+
+  const ext = state.ensureAiConfigExtSchema();
+  const globalList = ext.promptPresetStore.global || [];
+  const globalIdx = globalList.findIndex((item) => item.id === id);
+  if (globalIdx >= 0) {
+    globalList.splice(globalIdx, 1);
+    state.persistAiConfigExt();
+    state.ElMessage({ type: 'success', message: '预设已删除' });
+    return;
+  }
+
+  state.ElMessage({ type: 'warning', message: '预设不存在或已删除' });
 };
 </script>
 
@@ -246,20 +253,21 @@ const deletePresetById = async (id) => {
 .preset-view-edit{visibility:hidden;max-height:0;overflow:hidden}
 .preset-view-wrapper.is-edit .preset-view-edit{visibility:visible;max-height:none;overflow:visible}
 .preset-view-wrapper.is-edit .preset-view-list{visibility:hidden;max-height:0;overflow:hidden}
-.preset-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.preset-list-tip{font-size:12px;color:#909399}
-.preset-card{border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}
+.preset-list-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.preset-list-tip{font-size:12px;line-height:1.6;color:#606266}
+.preset-card{border:1px solid #e4e7ed;border-radius:8px;padding:10px 12px;margin-bottom:10px;background:#fff}
 .preset-card__header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .preset-card__name{font-size:13px;font-weight:600;color:#303133}
 .preset-card__content{font-size:12px;color:#606266;line-height:1.5;margin-bottom:8px;word-break:break-all}
-.preset-card__actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.preset-card__actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .preset-card__buttons{display:flex;align-items:center;gap:8px}
 .preset-view-edit{padding-left:4px}
-.preset-edit-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.preset-edit-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .preset-edit-title{font-size:13px;font-weight:600;color:#303133}
-.variable-hint{margin-top:4px;padding:8px 10px;background:#fafafa;border:1px dashed #dcdfe6;border-radius:4px}
-.variable-hint__title{font-size:12px;color:#909399;margin-bottom:6px}
+.variable-hint{margin-top:4px;padding:10px;background:#fff;border:1px solid #e4e7ed;border-radius:8px}
+.variable-hint__title{font-size:12px;line-height:1.6;color:#606266;margin-bottom:6px}
 .variable-hint__tags{display:flex;flex-wrap:wrap;gap:6px}
 .variable-tag{cursor:pointer}
 .variable-tag:hover{color:var(--ai-primary,#409eff);border-color:var(--ai-primary,#409eff)}
+.preset-edit-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 </style>

@@ -4,6 +4,7 @@
 
 import axios from 'axios';
 import { Tools } from '@/shared/utils/tools';
+import { getLocalUser } from '@/state/user';
 import { directAiCall, getActiveDirectConfig } from '@/core/ai/direct-ai-client';
 import type { DirectAiMessage } from '@/core/ai/direct-ai-client';
 import { bossThrottle } from '@/core/http/request-throttle';
@@ -70,6 +71,31 @@ const STALE_DAYS = 14;
 const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1000;
 const HISTORY_MSG_COUNT = 10;
 const HISTORY_MAX_PAGES = 3;
+const CLEANER_SCAN_MAX_DEFAULT = 120;
+const CLEANER_DELETE_MAX_DEFAULT = 40;
+const CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT = 20;
+
+function getCleanerSafetyConfig(): { maxScanCount: number; maxDeleteCount: number; manualConfirmThreshold: number } {
+  let preference: Record<string, unknown> = {};
+  try {
+    const user = getLocalUser();
+    preference = (user?.preference || {}) as Record<string, unknown>;
+  } catch (_e) {
+    preference = {};
+  }
+
+  const toSafeInt = (value: unknown, fallback: number, min: number, max: number): number => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, Math.floor(n)));
+  };
+
+  return {
+    maxScanCount: toSafeInt(preference.cleanerMaxScanCount, CLEANER_SCAN_MAX_DEFAULT, 20, 300),
+    maxDeleteCount: toSafeInt(preference.cleanerMaxDeleteCount, CLEANER_DELETE_MAX_DEFAULT, 5, 100),
+    manualConfirmThreshold: toSafeInt(preference.cleanerManualConfirmThreshold, CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT, 5, 100),
+  };
+}
 
 // ============ API 调用 ============
 
@@ -299,7 +325,10 @@ ${textMessages}
 export async function scanConversations(
   onProgress: (progress: ScanProgress) => void,
 ): Promise<CleanCandidate[]> {
+  Tools.ensureBossDomainOrThrow('会话扫描');
+  Tools.ensureNoManualVerificationOrThrow('会话扫描');
   const candidates: CleanCandidate[] = [];
+  const safety = getCleanerSafetyConfig();
   const now = Date.now();
   const myUid = (Tools.window as any)?._PAGE?.uid || 0;
 
@@ -320,13 +349,13 @@ export async function scanConversations(
 
   // Phase 2: 全量扫描队列（日期只做最后兜底判断）
   const staleCount = friendList.filter((f) => now - f.updateTime > STALE_MS).length;
-  const analysisList = friendList;
+  const analysisList = friendList.slice(0, safety.maxScanCount);
 
   onProgress({
     phase: 'fetching',
     current: 0,
     total: analysisList.length,
-    message: `共 ${friendList.length} 个会话，其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始全量关键词+AI扫描，日期作为最后兜底判断`,
+    message: `共 ${friendList.length} 个会话（本轮最多扫描 ${safety.maxScanCount} 个），其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始关键词+AI扫描，日期作为最后兜底判断`,
   });
 
   // Phase 3: 批量获取详情
@@ -442,13 +471,20 @@ export async function scanConversations(
 export async function batchDelete(
   items: CleanCandidate[],
   onProgress: (current: number, total: number, name: string, failReason?: string) => void,
+  options: { manualConfirmed?: boolean } = {},
 ): Promise<{ success: number; failed: number; lastError: string; topFailReason: string; successSecurityIds: string[] }> {
+  Tools.ensureBossDomainOrThrow('会话删除');
+  Tools.ensureNoManualVerificationOrThrow('会话删除');
   let success = 0;
   let failed = 0;
   let lastError = '';
   const failReasonCounter: Record<string, number> = {};
   const successSecurityIds: string[] = [];
-  const selected = items.filter((i) => i.selected);
+  const safety = getCleanerSafetyConfig();
+  const selected = items.filter((i) => i.selected).slice(0, safety.maxDeleteCount);
+  if (selected.length >= safety.manualConfirmThreshold && !options.manualConfirmed) {
+    throw new Error(`批量删除达到高风险阈值(${safety.manualConfirmThreshold})，缺少人工二次确认`);
+  }
 
   const isRetryableDeleteError = (msg: string, status?: number): boolean => {
     if (status === 429 || (typeof status === 'number' && status >= 500)) return true;
@@ -490,6 +526,7 @@ export async function batchDelete(
 
   for (let i = 0; i < selected.length; i++) {
     const item = selected[i];
+    await Tools.sleep(Tools.getRandomNumber(500, 1200));
     onProgress(i + 1, selected.length, item.name);
     try {
       const result = await deleteWithRetry(item.securityId);

@@ -33,6 +33,37 @@ const isChannelConnected = (channel?: ChatChannel): boolean => {
   return true;
 };
 
+const trySendByGeekChatCore = (message: Message, runtimeWindow: ChatRuntimeWindow): boolean => {
+  if (!runtimeWindow.GeekChatCore) {
+    return false;
+  }
+
+  try {
+    const client = runtimeWindow.GeekChatCore.getInstance?.().getClient?.().client;
+    if (!client || typeof client.send !== "function") {
+      return false;
+    }
+
+    const payloads: unknown[] = [message, message.toArrayBuffer(), message.msg, message.hex];
+    let lastError: unknown = null;
+    for (const payload of payloads) {
+      try {
+        client.send(payload);
+        return true;
+      } catch (sendError) {
+        lastError = sendError;
+      }
+    }
+    if (lastError) {
+      logger.debug("GeekChatCore payload 发送失败，已尝试多种载荷", lastError);
+    }
+  } catch (e) {
+    logger.warn("GeekChatCore 发送消息失败", e);
+  }
+
+  return false;
+};
+
 export class Message {
   msg: Uint8Array;
   msgObj: TechwolfMessage;
@@ -113,13 +144,8 @@ export class Message {
       }
     }
 
-    if (runtimeWindow.GeekChatCore) {
-      try {
-        runtimeWindow.GeekChatCore.getInstance().getClient().client.send(this);
-        return true;
-      } catch (e) {
-        logger.warn("发送自定义消息失败; boss可能更新了1，请反馈", e);
-      }
+    if (trySendByGeekChatCore(this, runtimeWindow)) {
+      return true;
     }
 
     logger.warn("发送自定义消息失败; boss可能更新了，请反馈");

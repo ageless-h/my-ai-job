@@ -9,7 +9,6 @@ import { Tools } from "@/shared/utils/tools";
 import { UserStore } from "@/state/user";
 import { LoginStore } from "@/state/login";
 import { pushResultCount } from "@/state/push-result";
-import { ProductStore } from "@/state/product";
 import { LogRecorder, PushStatus } from "@/core/engine/push-engine";
 import { loginInterceptor, silentlyLogin, fetchWithGM_request } from "@/core/auth/auth";
 import { AiPower } from "@/core/ai/ai-power";

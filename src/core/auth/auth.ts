@@ -4,8 +4,10 @@ import { LoginStore } from "@/state/login";
 import { UserStore } from "@/state/user";
 import { LogRecorder } from "@/core/engine/push-engine";
 import { ElMessage, request } from "@/core/http/request";
+import { setAuthorizationToken } from "@/core/auth/auth-session";
 import { Tools } from "@/shared/utils/tools";
 import { Logger } from "@/shared/utils/logger";
+import { normalizePreferenceBoolean } from "@/shared/utils/preference";
 import { fetchWithGM_request } from "@/shared/utils/fetch";
 export { fetchWithGM_request } from "@/shared/utils/fetch";
 
@@ -20,11 +22,7 @@ type PageContext = {
 };
 
 const getPageContext = (): PageContext => {
-  const page = (Tools.window as { _PAGE?: unknown })._PAGE;
-  if (!page || typeof page !== "object") {
-    return {};
-  }
-  return page as PageContext;
+  return Tools.getSafePageContext();
 };
 
 const isNetworkLikeError = (error: any): boolean => {
@@ -73,6 +71,7 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
 
   if (!token) {
     logRecorder$2.info("未登录Boss，静默登录结束");
+    loginIng = false;
     return Promise.reject(new Error("未登录Boss，静默登录失败"));
   }
 
@@ -88,7 +87,11 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
   }
 
   return await request
-    .post(`/api/user/silently/login?uniqueId=${bossUserId}`)
+    .post(`/api/user/silently/login?uniqueId=${bossUserId}`, {}, {
+      silentErrorToast: true,
+      silentTimeoutToast: true,
+      silentNetworkToast: true,
+    })
     .then(async (resp: any) => {
       if (resp.data.code === 2000) {
         logRecorder$2.info("开始自动注册");
@@ -97,7 +100,7 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
         return;
       }
 
-      localStorage.setItem("Authorization", resp.data.data);
+      setAuthorizationToken(resp.data.data);
       loginStore.loginSuccess();
       logRecorder$2.info("静默登录成功");
     })
@@ -195,7 +198,7 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
   }
 
   const loginResp = await request.post(`/api/user/silently/login?uniqueId=${bossUserId}`);
-  localStorage.setItem("Authorization", (loginResp as any).data.data);
+  setAuthorizationToken((loginResp as any).data.data);
 
   if (!(importResp as any).data.data.email) {
     importResumeLoading.value = false;
@@ -226,7 +229,12 @@ export function userRemoteLoad(): void {
   runWithRetry(() => silentlyLogin(""), 3)
     .then(() => {
       logger$1.debug("调用接口加载用户偏好配置");
-      return runWithRetry(() => request.post("/api/user/userinfo", {}, { timeout: 20_000 }), 3);
+      return runWithRetry(() => request.post("/api/user/userinfo", {}, {
+        timeout: 20_000,
+        silentErrorToast: true,
+        silentTimeoutToast: true,
+        silentNetworkToast: true,
+      }), 3);
     })
     .then((resp: any) => {
       userStore2.user = resp?.data?.data;
@@ -234,12 +242,49 @@ export function userRemoteLoad(): void {
         userStore2.user = {};
         throw new Error("用户偏好配置为空");
       }
+      if (!userStore2.user.preference) {
+        userStore2.user.preference = {};
+      }
+
+      const upgradePrefNumber = (value: unknown, oldDefault: number, nextDefault: number): number => {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n <= 0 || n === oldDefault) {
+          return nextDefault;
+        }
+        return n;
+      };
 
       userStore2.user.preference.pi = userStore2.user.preference.pi || 3;
       userStore2.user.preference.npi = userStore2.user.preference.npi || 6;
+      userStore2.user.preference.maxSessionActions = upgradePrefNumber(userStore2.user.preference.maxSessionActions, 35, 60);
+      userStore2.user.preference.maxDailyActions = upgradePrefNumber(userStore2.user.preference.maxDailyActions, 80, 120);
+      userStore2.user.preference.maxActionsPerMinute = upgradePrefNumber(userStore2.user.preference.maxActionsPerMinute, 6, 9);
+      userStore2.user.preference.maxConsecutiveFailures = upgradePrefNumber(userStore2.user.preference.maxConsecutiveFailures, 8, 10);
+      userStore2.user.preference.cooldownMinutesOnLimit = upgradePrefNumber(userStore2.user.preference.cooldownMinutesOnLimit, 30, 25);
+      if (typeof userStore2.user.preference.safetyTimeWindowE !== "boolean") {
+        userStore2.user.preference.safetyTimeWindowE = false;
+      }
+      userStore2.user.preference.safetyStartHour = userStore2.user.preference.safetyStartHour ?? 8;
+      userStore2.user.preference.safetyEndHour = userStore2.user.preference.safetyEndHour ?? 22;
+      userStore2.user.preference.imMaxReloadPerDay = upgradePrefNumber(userStore2.user.preference.imMaxReloadPerDay, 10, 15);
+      userStore2.user.preference.cleanerMaxScanCount = userStore2.user.preference.cleanerMaxScanCount || 120;
+      userStore2.user.preference.cleanerMaxDeleteCount = userStore2.user.preference.cleanerMaxDeleteCount || 40;
+      userStore2.user.preference.cleanerManualConfirmThreshold = userStore2.user.preference.cleanerManualConfirmThreshold || 20;
+      userStore2.user.preference.autoContactMinIntervalSec = upgradePrefNumber(userStore2.user.preference.autoContactMinIntervalSec, 12, 10);
+      userStore2.user.preference.maxAutoMessagePerSession = upgradePrefNumber(userStore2.user.preference.maxAutoMessagePerSession, 20, 30);
+      userStore2.user.preference.maxAutoResumePerSession = upgradePrefNumber(userStore2.user.preference.maxAutoResumePerSession, 12, 18);
+      userStore2.user.preference.chatMinReplyIntervalSec = upgradePrefNumber(userStore2.user.preference.chatMinReplyIntervalSec, 15, 12);
+      userStore2.user.preference.chatMaxPerMinute = upgradePrefNumber(userStore2.user.preference.chatMaxPerMinute, 4, 6);
+      userStore2.user.preference.chatMaxSessionReplies = upgradePrefNumber(userStore2.user.preference.chatMaxSessionReplies, 50, 75);
+      userStore2.user.preference.autoResumeMaxPerSession = upgradePrefNumber(userStore2.user.preference.autoResumeMaxPerSession, 8, 12);
+      userStore2.user.preference.acE = normalizePreferenceBoolean(userStore2.user.preference.acE, false);
+      userStore2.user.preference.acW = normalizePreferenceBoolean(userStore2.user.preference.acW, true);
+      userStore2.user.preference.acM = normalizePreferenceBoolean(userStore2.user.preference.acM, true);
+      userStore2.user.preference.acY = normalizePreferenceBoolean(userStore2.user.preference.acY, true);
+      Tools.migrateAiDeliveryJudgeConfigFromPreference(userStore2.user.preference);
       userStore2.preferenceLoadStatus = "success";
       userStore2.preferenceLoadError = "";
-      localStorage.setItem("ai-job-user", JSON.stringify(userStore2.user));
+      Tools.saveStoredUserProfile(userStore2.user);
       logRecorder$1.info("加载用户偏好配置成功");
     })
     .catch((error: any) => {

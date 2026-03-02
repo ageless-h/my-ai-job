@@ -8,11 +8,11 @@ import { Tools } from "@/shared/utils/tools";
 import { UserStore } from "@/state/user";
 import { LoginStore } from "@/state/login";
 import { pushResultCount } from "@/state/push-result";
-import { ProductStore } from "@/state/product";
 import { LogRecorder, PushStatus } from "@/core/engine/push-engine";
 import { loginInterceptor, silentlyLogin, userRemoteLoad } from "@/core/auth/auth";
 import { AiPower } from "@/core/ai/ai-power";
 import { Message } from "@/core/protocol/message";
+import { normalizePreferenceBoolean } from "@/shared/utils/preference";
 import ConversationCleaner from '@/features/conversation-cleaner/components/ConversationCleaner.vue';
 
 const VueAny = Vue as any;
@@ -81,17 +81,10 @@ const {
   ElText,
   ElIcon,
   ElButton,
-  ElTableColumn,
-  ElTag,
-  ElTable,
-  ElInput,
   ElLink,
-  ElImage,
-  ElDialog,
   ElInputNumber,
   ElSwitch,
   ElTooltip,
-  ElEmpty,
   ElForm,
   ElFormItem,
   ElCheckbox,
@@ -105,32 +98,17 @@ const {
   ElCollapse,
   ElCollapseItem,
   ElMessageBox,
-  ElNotification,
-  vLoading
+  ElNotification
 } = ElementAny;
 
 const {
   CircleCloseFilled,
   Promotion,
-  Collection,
-  Service,
-  Shop,
-  Wallet,
-  PriceTag
+  Collection
 } = IconsAny;
 
 const GlobalAny = globalThis as any;
 const logger$1 = GlobalAny.logger$1 || console;
-const SSEClient =
-  GlobalAny.SSEClient ||
-  class {
-    constructor(..._args: any[]) {}
-    addOnMsgCallback(..._args: any[]) {}
-    addEventListener(..._args: any[]) {}
-    start(..._args: any[]) {}
-    close(..._args: any[]) {}
-    eventSource: any;
-  };
 const BossOption = GlobalAny.BossOption || { buildJobKey: (_data: any) => "" };
 
 const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScopeId(), n);
@@ -138,8 +116,6 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
       const _hoisted_2$5 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("br", null, null, -1));
       const _hoisted_3$3 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("br", null, null, -1));
       const _hoisted_5$3 = { style: { "font-size": "15px" } };
-      const _hoisted_6$3 = { style: { "font-size": "15px" } };
-      const _hoisted_7$3 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("span", null, "AI代聊 ", -1));
       const _hoisted_8$3 = { class: "fixed-stop-button" };
       const _hoisted_9$3 = { class: "push-records-container" };
       const _hoisted_10$3 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("div", { class: "push-records-header" }, [
@@ -151,38 +127,16 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
         key: 0,
         class: "no-records"
       };
-      const _hoisted_14$1 = { class: "my-header" };
-      const _hoisted_15$1 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("br", null, null, -1));
-      const _hoisted_16$1 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("h3", null, "我的产品列表", -1));
-      const _hoisted_17 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("br", null, null, -1));
-      const _hoisted_18 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("br", null, null, -1));
-      const _hoisted_19 = {
-        type: "info",
-        style: { "margin-top": "10px" }
-      };
-      const _hoisted_20 = { key: 0 };
-      const _hoisted_21 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("br", null, null, -1));
-      const _hoisted_22 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("br", null, null, -1));
-      const _hoisted_23 = { style: { "padding-top": "10px", "min-width": "8%" } };
-      const _hoisted_24 = { class: "demonstration" };
-      const _hoisted_25$1 = { class: "demonstration" };
-      const _hoisted_26 = { class: "demonstration" };
-      const _hoisted_27 = /* @__PURE__ */ _withScopeId$3(() => /* @__PURE__ */ createElementVNode("div", { class: "image-slot" }, "加载订单二维码失败；请稍后刷新重试", -1));
-      const _hoisted_28 = { style: { "width": "80%" } };
-      const _hoisted_29 = { class: "demonstration" };
       const _sfc_main$8 = /* @__PURE__ */ defineComponent({
         __name: "AiJob",
         setup(__props) {
           const platform = inject("$platform");
-          const axios$1 = inject("$axios");
           const pushStatus = ref(PushStatus.NOT_START);
           const collectMode = ref(false);
           const actionLabel = computed(() => collectMode.value ? "收藏" : "投递");
           const getStartButtonText = () => collectMode.value ? "开始收藏" : "开始投递";
           const pushBtnType = ref("primary");
           const pushBtnText = ref(getStartButtonText());
-          const aiSeatBuyVisible = ref(false);
-          const productListLoading = ref(false);
           const logRecorder = new LogRecorder();
           const latestPushRecords = ref([]);
           const RECOMMEND_LOOP_RELOAD_KEY = "ai-job-recommend-loop-reload";
@@ -190,12 +144,6 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
           const RECOMMEND_LOOP_RESUME_MAX_ATTEMPTS = 15;
           const RECOMMEND_LOOP_RESUME_INTERVAL_MS = 1200;
           let recordsUpdateTimer = null;
-          const buyProductList = ref([]);
-          const showOtherProduct = ref(true);
-          const orderGroup = ref([]);
-          const payStatus = ref(false);
-          const promotionCode = ref("");
-          const lastPromotionCode = ref("");
           let loginStore = LoginStore();
           let pushResultCounter = pushResultCount();
           const userStore = UserStore();
@@ -396,16 +344,6 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               recordsUpdateTimer = null;
             }
           };
-          const isExpired = (row) => {
-            const currentTime = /* @__PURE__ */ new Date();
-            const endTime = new Date(row.periodOfValidityEndTime);
-            return currentTime > endTime;
-          };
-          const randomStyle = () => {
-            const tagStyleArr = ["primary", "warning", "success", "danger"];
-            let number4 = Math.floor(Math.random() * 4);
-            return tagStyleArr[number4];
-          };
           const scrollToTop = () => {
             window.scrollTo({
               top: 0,
@@ -434,19 +372,54 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             platform.selfDefPushCountLimit = val;
           };
           const mockPush = ref(false);
-          const startPush = async (opts = { silent: false }) => {
-            if (!loginInterceptor()) {
-              return false;
+          const getDeliveryModeFlags = () => {
+            const preference = (userStore == null ? void 0 : userStore.user) && userStore.user.preference ? userStore.user.preference : {};
+            return {
+              aiDeliveryJudgeEnabled: Tools.getAiDeliveryJudgeConfig(preference).enabled,
+              traditionalDeliveryEnabled: normalizePreferenceBoolean(preference.traditionalDeliveryE, true)
+            };
+          };
+          const ensurePreferenceLoadedForStart = (opts = { silent: false }) => {
+            if (userStore.preferenceLoadStatus === "success") {
+              return true;
             }
-            if (userStore.preferenceLoadStatus !== "success") {
-              userRemoteLoad();
+            const { aiDeliveryJudgeEnabled, traditionalDeliveryEnabled } = getDeliveryModeFlags();
+            const aiOnlyMode = aiDeliveryJudgeEnabled && !traditionalDeliveryEnabled;
+            if (userStore.preferenceLoadStatus === "loading") {
               if (!opts.silent) {
                 ElMessage({
-                  message: userStore.preferenceLoadStatus === "failed" ? "偏好加载失败，正在重试加载，请稍后再启动" : "偏好设置加载中，请稍后再启动",
+                  message: "偏好设置加载中，请稍后再启动",
                   type: "warning",
                   duration: 2500
                 });
               }
+              return false;
+            }
+            userRemoteLoad();
+            if (aiOnlyMode) {
+              if (!opts.silent) {
+                ElMessage({
+                  message: "已按AI投递模式启动，偏好配置将在后台同步",
+                  type: "info",
+                  duration: 2500
+                });
+              }
+              return true;
+            }
+            if (!opts.silent) {
+              ElMessage({
+                message: userStore.preferenceLoadStatus === "failed" ? "偏好加载失败，正在重试加载，请稍后再启动" : "偏好设置加载中，请稍后再启动",
+                type: "warning",
+                duration: 2500
+              });
+            }
+            return false;
+          };
+          const startPush = async (opts = { silent: false }) => {
+            if (!loginInterceptor()) {
+              return false;
+            }
+            if (!ensurePreferenceLoadedForStart(opts)) {
               return false;
             }
             if (shouldEnableRecommendLoop()) {
@@ -530,104 +503,6 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               duration: 2e3
             });
           };
-          const handlerAISeatClick = async () => {
-            ElMessage({
-              message: "AI代聊付费设置已取消，无需购买产品",
-              type: "success",
-              duration: 2500
-            });
-          };
-          const queryBuyProductList = async () => {
-            let productResp = await axios$1.post("/api/product/user/product/list");
-            buyProductList.value = productResp.data.data;
-          };
-          const showOrderGroup = async () => {
-            if (!loginInterceptor()) {
-              return;
-            }
-            productListLoading.value = true;
-            let promotionCodeVar = promotionCode.value.trim();
-            promotionCode.value = "";
-            setTimeout(() => {
-              showOtherProduct.value = true;
-            }, 100);
-            if (orderGroup.value.length < 1 || promotionCodeVar !== lastPromotionCode.value) {
-              let orderGroupResp = await axios$1.post("/api/pay/generate/order/group", { promotionCode: promotionCodeVar });
-              if (orderGroupResp.data.code != 200) {
-                ElMessage({
-                  message: orderGroupResp.data.message,
-                  type: "warning",
-                  duration: 3e3
-                });
-                setTimeout(() => {
-                  showOtherProduct.value = false;
-                }, 100);
-                productListLoading.value = false;
-                return;
-              }
-              orderGroup.value = orderGroupResp.data.data;
-              lastPromotionCode.value = promotionCodeVar;
-              productListLoading.value = false;
-            }
-            productListLoading.value = false;
-            waitUsePay();
-          };
-          const waitUsePay = () => {
-            const sseClient = new SSEClient(axios$1.defaults.baseURL + "api/sse/connect");
-            sseClient.addOnMsgCallback((event) => {
-              let data = event.data;
-              if (data === "支付成功") {
-                payStatus.value = true;
-                orderGroup.value = [];
-                queryBuyProductList();
-                showOtherProduct.value = false;
-                firstAiSeatStatus.value = 0;
-              }
-            });
-            sseClient.start();
-            let count = 0;
-            let interval = setInterval(() => {
-              if (payStatus.value) {
-                clearInterval(interval);
-              }
-              orderGroup.value.forEach((orderItem) => {
-                axios$1.get("/api/pay/searchOrder?outTradeNo=" + orderItem.orderId).then((resp) => {
-                  if (resp.data.data === "TRADE_SUCCESS") {
-                    payStatus.value = true;
-                    orderGroup.value = [];
-                    clearInterval(interval);
-                  }
-                  if (resp.data.data === "WAIT_BUYER_PAY") {
-                    logger$1.debug("等待支付");
-                  }
-                  count++;
-                  if (count >= 10) {
-                    logger$1.warn("订单超时未支付");
-                    clearInterval(interval);
-                  }
-                });
-              });
-            }, 3e4);
-          };
-          const firstAiSeatStatus = ref(userStore.user.aiSeatStatus);
-          setTimeout(() => {
-            firstAiSeatStatus.value = userStore.user.aiSeatStatus;
-            logger$1.info("firstAiSeatStatus", firstAiSeatStatus.value);
-          }, 1500);
-          const handlerAISeatStatusChange = async (val) => {
-            if (firstAiSeatStatus.value == null) {
-              return;
-            }
-            if (!loginInterceptor()) {
-              return;
-            }
-            firstAiSeatStatus.value = val ? 1 : 0;
-            return axios$1.post("/api/user/save/preference", {
-              aiSeatStatus: val ? 1 : 0
-            }).catch((error) => {
-              logger$1.warn("保存AI代聊开关状态失败", (error == null ? void 0 : error.message) || error);
-            });
-          };
           if (!loginStore.login && !loginStore.loginFailStatus) {
             logger$1.info("页面静默登录");
             silentlyLogin("").catch((_) => {
@@ -652,14 +527,6 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             const _component_el_tooltip = ElTooltip;
             const _component_el_link = ElLink;
             const _component_el_icon = ElIcon;
-            const _component_el_table_column = ElTableColumn;
-            const _component_el_tag = ElTag;
-            const _component_el_table = ElTable;
-            const _component_el_input = ElInput;
-            const _component_el_empty = ElEmpty;
-            const _component_el_image = ElImage;
-            const _component_el_dialog = ElDialog;
-            const _directive_loading = vLoading;
             return openBlock(), createElementBlock(Fragment, null, [
               createElementVNode("div", { class: "aj-section" }, [
                 createElementVNode("div", { class: "aj-section__title" }, "投递统计"),
@@ -728,6 +595,17 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                       "inline-prompt": "",
                       style: { "--el-switch-on-color": "#67c23a", "--el-switch-off-color": "#dcdfe6" }
                     }, null, 8, ["modelValue"])
+                  ]),
+                  createElementVNode("span", { class: "aj-setting-item" }, [
+                    createTextVNode("推荐页无限循环 "),
+                    createVNode(_component_el_switch, {
+                      modelValue: userStore.user.preference.imE,
+                      "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => userStore.user.preference.imE = $event),
+                      "active-text": "开",
+                      "inactive-text": "关",
+                      "inline-prompt": "",
+                      style: { "--el-switch-on-color": "#409eff", "--el-switch-off-color": "#dcdfe6" }
+                    }, null, 8, ["modelValue"])
                   ])
                 ])
               ]),
@@ -754,37 +632,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                     ]),
                     _: 1
                   }),
-                  createVNode(_component_el_tooltip, {
-                    effect: "dark",
-                    "raw-content": "",
-                    content: "\r\n    AI代聊：自动响应hr的消息,根据您的简历信息进行定制化回答。<br/>\r\n    - 高意向职位邮件通知，快速筛选出最合适的职位。<br/>\r\n    - 快捷发送简历，交换 wx、联系方式。<br/>\r\n    - hr拒绝挝留，不放过每一个机会。<br/>\r\n    ",
-                    placement: "bottom"
-                  }, {
-                    default: withCtx(() => [
-                      createVNode(_component_el_button, {
-                        icon: unref(Service),
-                        type: "primary",
-                        plain: ""
-                      }, {
-                        default: withCtx(() => [
-                          createElementVNode("p", _hoisted_6$3, [
-                            _hoisted_7$3,
-                            createVNode(_component_el_switch, {
-                              "active-text": "开",
-                              "inactive-text": "关",
-                              "inline-prompt": "",
-                              style: { "--el-switch-on-color": "#409eff", "--el-switch-off-color": "#dcdfe6" },
-                              modelValue: unref(userStore).user.aiSeatStatus,
-                              "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => unref(userStore).user.aiSeatStatus = $event),
-                              onChange: handlerAISeatStatusChange
-                            }, null, 8, ["modelValue"])
-                          ])
-                        ]),
-                        _: 1
-                      }, 8, ["icon"])
-                    ]),
-                    _: 1
-                  })
+                  createCommentVNode("", true)
                 ])
               ]),
               withDirectives(createElementVNode("div", _hoisted_8$3, [
@@ -824,249 +672,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               ], 512), [
                 [vShow, pushStatus.value === unref(PushStatus).PUSHING]
               ]),
-              createVNode(_component_el_dialog, {
-                modelValue: aiSeatBuyVisible.value,
-                "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => aiSeatBuyVisible.value = $event),
-                "show-close": false,
-                width: "800"
-              }, {
-                header: withCtx(({ close, titleId, titleClass }) => {
-                  var _a;
-                  return [
-                    createElementVNode("div", _hoisted_14$1, [
-                      createVNode(_component_el_text, {
-                        size: "large",
-                        style: { "font-size": "20px" },
-                        type: "info"
-                      }, {
-                        default: withCtx(() => [
-                          createTextVNode("产品列表")
-                        ]),
-                        _: 1
-                      }),
-                      createVNode(_component_el_button, {
-                        type: "warning",
-                        onClick: close
-                      }, {
-                        default: withCtx(() => [
-                          createVNode(_component_el_icon, { class: "el-icon--left" }, {
-                            default: withCtx(() => [
-                              createVNode(unref(CircleCloseFilled))
-                            ]),
-                            _: 1
-                          }),
-                          createTextVNode(" 关闭 ")
-                        ]),
-                        _: 2
-                      }, 1032, ["onClick"])
-                    ]),
-                    withDirectives(createElementVNode("div", null, [
-                      _hoisted_15$1,
-                      _hoisted_16$1,
-                      _hoisted_17,
-                      withDirectives(createVNode(_component_el_table, {
-                        data: buyProductList.value,
-                        stripe: "",
-                        style: { "width": "100%" }
-                      }, {
-                        default: withCtx(() => [
-                          createVNode(_component_el_table_column, {
-                            prop: "productName",
-                            label: "产品",
-                            width: "180"
-                          }, {
-                            default: withCtx(({ row }) => [
-                              createElementVNode("span", {
-                                style: normalizeStyle({ textDecoration: isExpired(row) ? "line-through" : "none" })
-                              }, toDisplayString(row.productName), 5)
-                            ]),
-                            _: 1
-                          }),
-                          createVNode(_component_el_table_column, {
-                            label: "状态",
-                            width: "100"
-                          }, {
-                            default: withCtx(({ row }) => [
-                              createElementVNode("span", {
-                                style: normalizeStyle({ color: isExpired(row) ? "red" : "green" })
-                              }, toDisplayString(isExpired(row) ? "过期" : "正常"), 5)
-                            ]),
-                            _: 1
-                          }),
-                          createVNode(_component_el_table_column, {
-                            prop: "powerList",
-                            label: "能力",
-                            width: "180"
-                          }, {
-                            default: withCtx(({ row }) => [
-                              (openBlock(true), createElementBlock(Fragment, null, renderList(row.powerList, (power) => {
-                                return openBlock(), createElementBlock("div", { key: power }, [
-                                  createVNode(_component_el_tag, {
-                                    effect: "dark",
-                                    type: randomStyle(),
-                                    size: "small"
-                                  }, {
-                                    default: withCtx(() => [
-                                      createTextVNode(toDisplayString(power), 1)
-                                    ]),
-                                    _: 2
-                                  }, 1032, ["type"])
-                                ]);
-                              }), 128))
-                            ]),
-                            _: 1
-                          }),
-                          createVNode(_component_el_table_column, {
-                            prop: "periodOfValidityStartTime",
-                            label: "有效期开始时间"
-                          }),
-                          createVNode(_component_el_table_column, {
-                            prop: "periodOfValidityEndTime",
-                            label: "有效期结束时间"
-                          })
-                        ]),
-                        _: 1
-                      }, 8, ["data"]), [
-                        [vShow, buyProductList.value.length > 0]
-                      ]),
-                      _hoisted_18
-                    ], 512), [
-                      [vShow, buyProductList.value.length > 0]
-                    ]),
-                    createElementVNode("div", _hoisted_19, [
-                      createVNode(_component_el_button, {
-                        type: "danger",
-                        icon: unref(Shop),
-                        onClick: showOrderGroup
-                      }, {
-                        default: withCtx(() => [
-                          createTextVNode(" 更多产品 ")
-                        ]),
-                        _: 1
-                      }, 8, ["icon"]),
-                      createVNode(_component_el_input, {
-                        "suffix-icon": unref(Wallet),
-                        modelValue: promotionCode.value,
-                        "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => promotionCode.value = $event),
-                        style: { "margin-left": "10px", "width": "240px" },
-                        placeholder: "请输入您的优惠码"
-                      }, null, 8, ["suffix-icon", "modelValue"]),
-                      createVNode(_component_el_link, {
-                        icon: unref(PriceTag),
-                        type: "primary",
-                        style: { "margin-left": "30px" },
-                        target: "_blank",
-                        href: "https://www.bilibili.com/video/BV1HKAyebESp"
-                      }, {
-                        default: withCtx(() => [
-                          createTextVNode("点击获取优惠码(评论区)")
-                        ]),
-                        _: 1
-                      }, 8, ["icon"])
-                    ]),
-                    withDirectives(createVNode(_component_el_empty, {
-                      "image-size": 50,
-                      description: "购买产品为空，请点击更多产品查看"
-                    }, null, 512), [
-                      [vShow, !((_a = buyProductList.value) == null ? void 0 : _a.length) && !showOtherProduct.value]
-                    ]),
-                    showOtherProduct.value ? withDirectives((openBlock(), createElementBlock("div", _hoisted_20, [
-                      _hoisted_21,
-                      createElementVNode("p", null, [
-                        createVNode(_component_el_text, {
-                          class: "mx-1",
-                          type: "danger"
-                        }, {
-                          default: withCtx(() => [
-                            createTextVNode("定价说明：")
-                          ]),
-                          _: 1
-                        }),
-                        createTextVNode(" 使用R1深度思考大模型时：首先，R1的价格更贵，深度思考的内容也会被记录token消耗。token消耗量巨大。同时由于boss的会话聊天机制，需要携带消息上下文调用。这也就意味着对话轮数越多，token消耗越多。按乘方的趋势增长。 ")
-                      ]),
-                      _hoisted_22,
-                      (openBlock(true), createElementBlock(Fragment, null, renderList(orderGroup.value, (order) => {
-                        return openBlock(), createElementBlock("div", {
-                          key: order,
-                          style: normalizeStyle([{ "display": "flex" }, "width: " + 1 / orderGroup.value.length]),
-                          class: "block"
-                        }, [
-                          createElementVNode("div", _hoisted_23, [
-                            createElementVNode("p", _hoisted_24, [
-                              createVNode(_component_el_text, {
-                                size: "large",
-                                type: "primary"
-                              }, {
-                                default: withCtx(() => [
-                                  createTextVNode(toDisplayString(order.title), 1)
-                                ]),
-                                _: 2
-                              }, 1024)
-                            ]),
-                            createElementVNode("p", _hoisted_25$1, [
-                              createVNode(_component_el_text, {
-                                size: "large",
-                                type: "success"
-                              }, {
-                                default: withCtx(() => [
-                                  createTextVNode(toDisplayString(order.validDays) + "天", 1)
-                                ]),
-                                _: 2
-                              }, 1024)
-                            ]),
-                            createElementVNode("p", _hoisted_26, [
-                              createVNode(_component_el_text, {
-                                size: "large",
-                                type: "danger"
-                              }, {
-                                default: withCtx(() => [
-                                  createTextVNode("￥ " + toDisplayString(order.totalAmount), 1)
-                                ]),
-                                _: 2
-                              }, 1024)
-                            ])
-                          ]),
-                          createVNode(_component_el_image, {
-                            style: { "width": "100px", "height": "100px" },
-                            src: "data:image/png;base64," + order.qrCodeBase64,
-                            fit: "fill"
-                          }, {
-                            error: withCtx(() => [
-                              _hoisted_27
-                            ]),
-                            _: 2
-                          }, 1032, ["src"]),
-                          createElementVNode("div", _hoisted_28, [
-                            createElementVNode("div", null, [
-                              createTextVNode(" 提供能力: "),
-                              (openBlock(true), createElementBlock(Fragment, null, renderList(order.tags, (tag) => {
-                                return openBlock(), createBlock(_component_el_tag, {
-                                  style: { "margin": "10px" },
-                                  key: tag,
-                                  type: randomStyle(),
-                                  size: "large",
-                                  effect: "light"
-                                }, {
-                                  default: withCtx(() => [
-                                    createTextVNode(toDisplayString(tag), 1)
-                                  ]),
-                                  _: 2
-                                }, 1032, ["type"]);
-                              }), 128))
-                            ]),
-                            createElementVNode("div", null, [
-                              createElementVNode("span", _hoisted_29, toDisplayString(order.desc), 1)
-                            ])
-                          ])
-                        ], 4);
-                      }), 128))
-                    ])), [
-                      [_directive_loading, productListLoading.value]
-                    ]) : createCommentVNode("", true)
-                  ];
-                }),
-                _: 1
-              }, 8, ["modelValue"])
+              createCommentVNode("", true)
             ], 64);
           };
         }
@@ -1086,7 +692,6 @@ const RenderComponent = _sfc_main$8;
 </template>
 
 <style scoped>
-:deep(.my-header){display:flex;flex-direction:row;justify-content:space-between;gap:16px}
 :deep(.fixed-stop-button){position:fixed;right:80px;bottom:80px;z-index:9999;background:#fffffff2;padding:8px;border-radius:8px;box-shadow:0 4px 12px #0003;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.3)}
 :deep(.fixed-stop-button:hover){background:#fff;box-shadow:0 6px 16px #0000004d}
 :deep(.push-records-container){margin-bottom:12px;background:#ffffffe6;border-radius:6px;border:1px solid rgba(0,0,0,.1);overflow:hidden;max-width:400px}
