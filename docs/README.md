@@ -6,6 +6,11 @@ Documentation for this repository lives under `docs/`.
 
 - `plans/` - design and implementation plans
 
+## Architecture Notes
+
+- Current source layout follows layered modules: `app / features / core / state / shared`.
+- Large refactors should preserve dependency direction and avoid re-introducing flat `components/services/stores` coupling.
+
 ## Conventions
 
 - Keep root `README.md` focused on project overview and quick start.

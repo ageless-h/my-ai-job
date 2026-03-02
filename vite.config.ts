@@ -1,7 +1,59 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import monkey, { cdn, util } from 'vite-plugin-monkey'
+import monkey from 'vite-plugin-monkey'
 import path from 'node:path'
+
+const DEFAULT_API_BASE_URL = 'https://43.138.246.37/'
+
+const normalizeApiBaseUrl = (rawUrl: string | undefined): string => {
+  const candidate = `${rawUrl || ''}`.trim()
+  if (!candidate) {
+    return DEFAULT_API_BASE_URL
+  }
+
+  if (/^https?:\/\//i.test(candidate)) {
+    return candidate
+  }
+
+  return `https://${candidate}`
+}
+
+const apiBaseUrl = normalizeApiBaseUrl(process.env.API_BASE_URL || process.env.VITE_API_BASE_URL)
+const userscriptName = process.env.USERSCRIPT_NAME || 'AI求职助手（个人版）'
+const userscriptNamespace = process.env.USERSCRIPT_NAMESPACE || 'https://ai-job-hunting.personal'
+const userscriptAuthor = process.env.USERSCRIPT_AUTHOR || 'personal'
+const userscriptDescription = process.env.USERSCRIPT_DESCRIPTION
+  || '个人版 AI 求职助手：AI对话、批量投递、自动发送简历、偏好筛选与运行记录。'
+const userscriptIcon = process.env.USERSCRIPT_ICON || ''
+
+const resolveHostByUrl = (url: string): string => {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return ''
+  }
+}
+
+const extraConnectHosts = `${process.env.USERSCRIPT_CONNECT_HOSTS || ''}`
+  .split(',')
+  .map((host) => host.trim())
+  .filter(Boolean)
+
+const allowAllConnect = `${process.env.USERSCRIPT_CONNECT_ALLOW_ALL || '1'}` === '1'
+
+const connectHosts = Array.from(new Set([
+  ...(allowAllConnect ? ['*'] : []),
+  'www.zhipin.com',
+  'docdownload.zhipin.com',
+  'api.openai.com',
+  'openrouter.ai',
+  'api.deepseek.com',
+  'api.siliconflow.cn',
+  'api.moonshot.cn',
+  'ark.cn-beijing.volces.com',
+  resolveHostByUrl(apiBaseUrl),
+  ...extraConnectHosts,
+].filter(Boolean)))
 
 export default defineConfig(async () => ({
   resolve: {
@@ -10,23 +62,22 @@ export default defineConfig(async () => ({
     }
   },
   define: {
-    __API_BASE_URL__: JSON.stringify(process.env.API_BASE_URL || 'https://43.138.246.37/')
+    __API_BASE_URL__: JSON.stringify(apiBaseUrl)
   },
   plugins: [
     vue(),
     monkey({
-      entry: 'src/main.ts',
+      entry: 'src/app/main.ts',
       userscript: {
-        name: 'AI工作猎手-让ai帮您找工作！',
-        namespace: 'https://github.com/yangfeng20',
-        version: '0.0.23-beta',
-        author: 'maple.',
-        description:
-          '找工作，用AI工作猎手！让AI帮您找工作！ai坐席：【DeepSeek+ChatGpt】赋能，ai助理作为您的求职者分身24小时 * 7在线找工作，并结合您的简历信息定制化回复。批量投递，自动发送简历，交换联系方式。hr拒绝挽留。高意向邮件通知，让您不错过每一份工作机会。BOSS直聘',
+        name: userscriptName,
+        namespace: userscriptNamespace,
+        version: process.env.npm_package_version || '0.0.0',
+        author: userscriptAuthor,
+        description: userscriptDescription,
         license: 'Apache License 2.0',
-        icon: 'https://gitee.com/yangfeng20/ai-job/raw/master/file/icon.png',
+        ...(userscriptIcon ? { icon: userscriptIcon } : {}),
         match: ['https://www.zhipin.com/web/geek/*', 'https://www.zhipin.com/overseas/*'],
-        connect: ['docdownload.zhipin.com', '*'],
+        connect: connectHosts,
         grant: [
           'GM_addStyle',
           'GM_addValueChangeListener',
@@ -39,27 +90,7 @@ export default defineConfig(async () => ({
         ],
       },
       build: {
-        externalGlobals: [
-          [
-            'vue',
-            cdn
-              .jsdelivr('Vue', 'dist/vue.global.prod.js')
-              .concat('https://unpkg.com/vue-demi@latest/lib/index.iife.js')
-              .concat(
-                await util.fn2dataUrl(() => {
-                  // @ts-ignore
-                  window.Vue = Vue;
-                }),
-              ),
-          ],
-          ['pinia', cdn.jsdelivr('Pinia', 'dist/pinia.iife.prod.js')],
-          ['element-plus', cdn.jsdelivr('ElementPlus', 'dist/index.full.min.js')],
-          ['protobufjs', cdn.jsdelivr('protobuf', 'dist/protobuf.min.js')],
-          ['event-source-polyfill', cdn.jsdelivr('EventSourcePolyfill', 'src/eventsource.min.js')],
-        ],
-        externalResource: {
-          'element-plus/dist/index.css': cdn.jsdelivr(),
-        },
+        externalGlobals: [],
       }
     })
   ]
