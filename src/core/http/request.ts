@@ -5,7 +5,7 @@ import { Logger } from "@/shared/utils/logger";
 import { clearAuthorizationToken, getAuthorizationToken } from "@/core/auth/auth-session";
 declare const __API_BASE_URL__: string;
 
-const logger$1 = Logger.rootLogger;
+const logger = Logger.rootLogger;
 
 type MessageOptions = {
   type?: "success" | "warning" | "info" | "error";
@@ -99,7 +99,7 @@ request.interceptors.response.use(
       const authorization = getAuthorizationToken();
       if (authorization) {
         clearAuthorizationToken();
-        ElMessage({
+        showAppMessage({
           type: "error",
           message: "登录过期，请刷新页面重试"
         });
@@ -110,7 +110,7 @@ request.interceptors.response.use(
     }
 
     if (!toastConfig.silentErrorToast && !aiConfigRequest && (!result.code || result.code === 500 || result.code >= 5000)) {
-      ElMessage({
+      showAppMessage({
         type: "error",
         message: result.message ? result.message : "系统异常"
       });
@@ -127,10 +127,10 @@ request.interceptors.response.use(
 
     if (error?.code === "ECONNABORTED") {
       if (toastConfig.silentTimeoutToast || toastConfig.silentErrorToast || aiConfigRequest) {
-        logger$1.warn("请求超时（已静默）", { method: requestMethod, url: requestUrl });
+        logger.warn("请求超时（已静默）", { method: requestMethod, url: requestUrl });
         return Promise.reject(error);
       }
-      ElMessage({
+      showAppMessage({
         message: "网络超时",
         type: "error",
         grouping: true,
@@ -141,10 +141,10 @@ request.interceptors.response.use(
 
     if (error?.code === "ERR_NETWORK") {
       if (toastConfig.silentNetworkToast || toastConfig.silentErrorToast || aiConfigRequest) {
-        logger$1.warn("网络错误（已静默）", { method: requestMethod, url: requestUrl });
+        logger.warn("网络错误（已静默）", { method: requestMethod, url: requestUrl });
         return Promise.reject(error);
       }
-      ElMessage({
+      showAppMessage({
         message: "系统异常,请稍后重试",
         type: "error",
         grouping: true,
@@ -162,7 +162,7 @@ request.interceptors.response.use(
     }
 
     if (!toastConfig.silentErrorToast && !aiConfigRequest) {
-      ElMessage({
+      showAppMessage({
         message: error?.message,
         type: "error",
         grouping: true,
@@ -178,10 +178,12 @@ export const isProdEnv = (): boolean => {
   return true;
 };
 
-export const ElMessage = (options: MessageOptions): void => {
+export const showAppMessage = (options: MessageOptions): void => {
   if (options && options.message) {
     options.message = `[AI助理] ${options.message}`;
   }
 
   ElMessage$1(options as any);
 };
+
+export const ElMessage = showAppMessage;

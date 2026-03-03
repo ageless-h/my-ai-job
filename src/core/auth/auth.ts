@@ -1,19 +1,19 @@
 // -*- coding: utf-8 -*-
 import axios from "axios";
-import { LoginStore } from "@/state/login";
-import { UserStore } from "@/state/user";
+import { useLoginStore } from "@/state/login";
+import { useUserStore } from "@/state/user";
 import { LogRecorder } from "@/core/engine/push-engine";
-import { ElMessage, request } from "@/core/http/request";
+import { showAppMessage, request } from "@/core/http/request";
 import { setAuthorizationToken } from "@/core/auth/auth-session";
 import { Tools } from "@/shared/utils/tools";
 import { Logger } from "@/shared/utils/logger";
-import { normalizePreferenceBoolean } from "@/shared/utils/preference";
+import { getPreferenceValue, migratePreferenceKeys, normalizePreferenceBoolean } from "@/shared/utils/preference";
 import { fetchWithGM_request } from "@/shared/utils/fetch";
 export { fetchWithGM_request } from "@/shared/utils/fetch";
 
-const logger$1 = Logger.rootLogger;
+const logger = Logger.rootLogger;
 
-const logRecorder$2 = new LogRecorder();
+const loginLogRecorder = new LogRecorder();
 let loginIng = false;
 
 type PageContext = {
@@ -53,13 +53,13 @@ const runWithRetry = async <T>(fn: () => Promise<T>, maxRetries = 3): Promise<T>
 export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
   let loginCount = 0;
   while (loginIng && loginCount < 6) {
-    logger$1.info("login... ", loginCount);
+    logger.info("login... ", loginCount);
     await Tools.sleep(500);
     loginCount++;
   }
 
   loginIng = true;
-  const loginStore = LoginStore() as any;
+  const loginStore = useLoginStore() as any;
 
   let token = getPageContext().token;
   let count = 0;
@@ -70,7 +70,7 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
   }
 
   if (!token) {
-    logRecorder$2.info("未登录Boss，静默登录结束");
+    loginLogRecorder.info("未登录Boss，静默登录结束");
     loginIng = false;
     return Promise.reject(new Error("未登录Boss，静默登录失败"));
   }
@@ -81,7 +81,7 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
   }
 
   if (loginStore.login) {
-    logger$1.info("已经登录，静默登录结束");
+    logger.info("已经登录，静默登录结束");
     loginIng = false;
     return Promise.resolve();
   }
@@ -94,7 +94,7 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
     })
     .then(async (resp: any) => {
       if (resp.data.code === 2000) {
-        logRecorder$2.info("开始自动注册");
+        loginLogRecorder.info("开始自动注册");
         await handlerImport({ value: false });
         loginStore.loginSuccess();
         return;
@@ -102,10 +102,10 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
 
       setAuthorizationToken(resp.data.data);
       loginStore.loginSuccess();
-      logRecorder$2.info("静默登录成功");
+      loginLogRecorder.info("静默登录成功");
     })
     .catch((e: unknown) => {
-      logRecorder$2.error("静默登录失败", e);
+      loginLogRecorder.error("静默登录失败", e);
       if (!isNetworkLikeError(e)) {
         loginStore.loginFail();
       }
@@ -119,7 +119,7 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
 export const loginInterceptor = (): boolean => {
   const token = getPageContext().token;
   if (!token) {
-    ElMessage({
+    showAppMessage({
       message: "请先登录Boss",
       type: "error",
       duration: 3000
@@ -139,7 +139,7 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
   const uid = getPageContext().uid;
   const bossUserId = uid === undefined ? undefined : String(uid);
   if (!token) {
-    ElMessage({
+    showAppMessage({
       message: "未获取到Boss token 请刷新页面重试",
       type: "error",
       duration: 3000
@@ -147,7 +147,7 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
     return;
   }
   if (!bossUserId) {
-    ElMessage({
+    showAppMessage({
       message: "未获取到Boss userId 请刷新页面重试",
       type: "error",
       duration: 3000
@@ -163,7 +163,7 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
   const zpData = (resumeInfoResp as any).data.zpData;
   if (!zpData.attachmentList || zpData.attachmentList.length === 0) {
     importResumeLoading.value = false;
-    ElMessage({
+    showAppMessage({
       message: "请先在BOSS个人中心上传附件简历；作为AI代聊定制化回复的基础",
       type: "error",
       duration: 3000
@@ -188,7 +188,7 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
   });
 
   if ((importResp as any).data.code !== 200) {
-    ElMessage({
+    showAppMessage({
       message: `导入简历失败${(importResp as any).data.data.msg}`,
       type: "error",
       duration: 3000
@@ -205,7 +205,7 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
     return;
   }
 
-  ElMessage({
+  showAppMessage({
     message: "导入简历成功",
     type: "success",
     duration: 3000
@@ -213,14 +213,14 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
   importResumeLoading.value = false;
 };
 
-const logRecorder$1 = new LogRecorder();
+const preferenceLogRecorder = new LogRecorder();
 
 export function userRemoteLoad(): void {
-  logRecorder$1.info("加载用户偏好配置");
-  const userStore2 = UserStore() as any;
-  const loginStore = LoginStore() as any;
-  userStore2.preferenceLoadStatus = "loading";
-  userStore2.preferenceLoadError = "";
+  preferenceLogRecorder.info("加载用户投递设置");
+  const runtimeUserStore2 = useUserStore() as any;
+  const loginStore = useLoginStore() as any;
+  runtimeUserStore2.preferenceLoadStatus = "loading";
+  runtimeUserStore2.preferenceLoadError = "";
 
   if (loginStore.loginFailStatus) {
     return;
@@ -228,7 +228,7 @@ export function userRemoteLoad(): void {
 
   runWithRetry(() => silentlyLogin(""), 3)
     .then(() => {
-      logger$1.debug("调用接口加载用户偏好配置");
+      logger.debug("调用接口加载用户投递设置");
       return runWithRetry(() => request.post("/api/user/userinfo", {}, {
         timeout: 20_000,
         silentErrorToast: true,
@@ -237,14 +237,15 @@ export function userRemoteLoad(): void {
       }), 3);
     })
     .then((resp: any) => {
-      userStore2.user = resp?.data?.data;
-      if (!userStore2?.user) {
-        userStore2.user = {};
-        throw new Error("用户偏好配置为空");
+      runtimeUserStore2.user = resp?.data?.data;
+      if (!runtimeUserStore2?.user) {
+        runtimeUserStore2.user = {};
+        throw new Error("用户投递设置为空");
       }
-      if (!userStore2.user.preference) {
-        userStore2.user.preference = {};
+      if (!runtimeUserStore2.user.preference) {
+        runtimeUserStore2.user.preference = {};
       }
+      migratePreferenceKeys(runtimeUserStore2.user.preference);
 
       const upgradePrefNumber = (value: unknown, oldDefault: number, nextDefault: number): number => {
         const n = Number(value);
@@ -254,51 +255,52 @@ export function userRemoteLoad(): void {
         return n;
       };
 
-      userStore2.user.preference.pi = userStore2.user.preference.pi || 3;
-      userStore2.user.preference.npi = userStore2.user.preference.npi || 6;
-      userStore2.user.preference.maxSessionActions = upgradePrefNumber(userStore2.user.preference.maxSessionActions, 35, 60);
-      userStore2.user.preference.maxDailyActions = upgradePrefNumber(userStore2.user.preference.maxDailyActions, 80, 120);
-      userStore2.user.preference.maxActionsPerMinute = upgradePrefNumber(userStore2.user.preference.maxActionsPerMinute, 6, 9);
-      userStore2.user.preference.maxConsecutiveFailures = upgradePrefNumber(userStore2.user.preference.maxConsecutiveFailures, 8, 10);
-      userStore2.user.preference.cooldownMinutesOnLimit = upgradePrefNumber(userStore2.user.preference.cooldownMinutesOnLimit, 30, 25);
-      if (typeof userStore2.user.preference.safetyTimeWindowE !== "boolean") {
-        userStore2.user.preference.safetyTimeWindowE = false;
+      runtimeUserStore2.user.preference.pushIntervalSec = Number(getPreferenceValue(runtimeUserStore2.user.preference, "pushIntervalSec", "pi")) || 3;
+      runtimeUserStore2.user.preference.pi = runtimeUserStore2.user.preference.pi || runtimeUserStore2.user.preference.pushIntervalSec;
+      runtimeUserStore2.user.preference.npi = runtimeUserStore2.user.preference.npi || 6;
+      runtimeUserStore2.user.preference.maxSessionActions = upgradePrefNumber(runtimeUserStore2.user.preference.maxSessionActions, 35, 60);
+      runtimeUserStore2.user.preference.maxDailyActions = upgradePrefNumber(runtimeUserStore2.user.preference.maxDailyActions, 80, 120);
+      runtimeUserStore2.user.preference.maxActionsPerMinute = upgradePrefNumber(runtimeUserStore2.user.preference.maxActionsPerMinute, 6, 9);
+      runtimeUserStore2.user.preference.maxConsecutiveFailures = upgradePrefNumber(runtimeUserStore2.user.preference.maxConsecutiveFailures, 8, 10);
+      runtimeUserStore2.user.preference.cooldownMinutesOnLimit = upgradePrefNumber(runtimeUserStore2.user.preference.cooldownMinutesOnLimit, 30, 25);
+      if (typeof runtimeUserStore2.user.preference.safetyTimeWindowE !== "boolean") {
+        runtimeUserStore2.user.preference.safetyTimeWindowE = false;
       }
-      userStore2.user.preference.safetyStartHour = userStore2.user.preference.safetyStartHour ?? 8;
-      userStore2.user.preference.safetyEndHour = userStore2.user.preference.safetyEndHour ?? 22;
-      userStore2.user.preference.imMaxReloadPerDay = upgradePrefNumber(userStore2.user.preference.imMaxReloadPerDay, 10, 15);
-      userStore2.user.preference.cleanerMaxScanCount = userStore2.user.preference.cleanerMaxScanCount || 120;
-      userStore2.user.preference.cleanerMaxDeleteCount = userStore2.user.preference.cleanerMaxDeleteCount || 40;
-      userStore2.user.preference.cleanerManualConfirmThreshold = userStore2.user.preference.cleanerManualConfirmThreshold || 20;
-      userStore2.user.preference.autoContactMinIntervalSec = upgradePrefNumber(userStore2.user.preference.autoContactMinIntervalSec, 12, 10);
-      userStore2.user.preference.maxAutoMessagePerSession = upgradePrefNumber(userStore2.user.preference.maxAutoMessagePerSession, 20, 30);
-      userStore2.user.preference.maxAutoResumePerSession = upgradePrefNumber(userStore2.user.preference.maxAutoResumePerSession, 12, 18);
-      userStore2.user.preference.chatMinReplyIntervalSec = upgradePrefNumber(userStore2.user.preference.chatMinReplyIntervalSec, 15, 12);
-      userStore2.user.preference.chatMaxPerMinute = upgradePrefNumber(userStore2.user.preference.chatMaxPerMinute, 4, 6);
-      userStore2.user.preference.chatMaxSessionReplies = upgradePrefNumber(userStore2.user.preference.chatMaxSessionReplies, 50, 75);
-      userStore2.user.preference.autoResumeMaxPerSession = upgradePrefNumber(userStore2.user.preference.autoResumeMaxPerSession, 8, 12);
-      userStore2.user.preference.acE = normalizePreferenceBoolean(userStore2.user.preference.acE, false);
-      userStore2.user.preference.acW = normalizePreferenceBoolean(userStore2.user.preference.acW, true);
-      userStore2.user.preference.acM = normalizePreferenceBoolean(userStore2.user.preference.acM, true);
-      userStore2.user.preference.acY = normalizePreferenceBoolean(userStore2.user.preference.acY, true);
-      Tools.migrateAiDeliveryJudgeConfigFromPreference(userStore2.user.preference);
-      userStore2.preferenceLoadStatus = "success";
-      userStore2.preferenceLoadError = "";
-      Tools.saveStoredUserProfile(userStore2.user);
-      logRecorder$1.info("加载用户偏好配置成功");
+      runtimeUserStore2.user.preference.safetyStartHour = runtimeUserStore2.user.preference.safetyStartHour ?? 8;
+      runtimeUserStore2.user.preference.safetyEndHour = runtimeUserStore2.user.preference.safetyEndHour ?? 22;
+      runtimeUserStore2.user.preference.imMaxReloadPerDay = upgradePrefNumber(runtimeUserStore2.user.preference.imMaxReloadPerDay, 10, 15);
+      runtimeUserStore2.user.preference.cleanerMaxScanCount = runtimeUserStore2.user.preference.cleanerMaxScanCount || 120;
+      runtimeUserStore2.user.preference.cleanerMaxDeleteCount = runtimeUserStore2.user.preference.cleanerMaxDeleteCount || 40;
+      runtimeUserStore2.user.preference.cleanerManualConfirmThreshold = runtimeUserStore2.user.preference.cleanerManualConfirmThreshold || 20;
+      runtimeUserStore2.user.preference.autoContactMinIntervalSec = upgradePrefNumber(runtimeUserStore2.user.preference.autoContactMinIntervalSec, 12, 10);
+      runtimeUserStore2.user.preference.maxAutoMessagePerSession = upgradePrefNumber(runtimeUserStore2.user.preference.maxAutoMessagePerSession, 20, 30);
+      runtimeUserStore2.user.preference.maxAutoResumePerSession = upgradePrefNumber(runtimeUserStore2.user.preference.maxAutoResumePerSession, 12, 18);
+      runtimeUserStore2.user.preference.chatMinReplyIntervalSec = upgradePrefNumber(runtimeUserStore2.user.preference.chatMinReplyIntervalSec, 15, 12);
+      runtimeUserStore2.user.preference.chatMaxPerMinute = upgradePrefNumber(runtimeUserStore2.user.preference.chatMaxPerMinute, 4, 6);
+      runtimeUserStore2.user.preference.chatMaxSessionReplies = upgradePrefNumber(runtimeUserStore2.user.preference.chatMaxSessionReplies, 50, 75);
+      runtimeUserStore2.user.preference.autoResumeMaxPerSession = upgradePrefNumber(runtimeUserStore2.user.preference.autoResumeMaxPerSession, 8, 12);
+      runtimeUserStore2.user.preference.acE = normalizePreferenceBoolean(runtimeUserStore2.user.preference.acE, false);
+      runtimeUserStore2.user.preference.acW = normalizePreferenceBoolean(runtimeUserStore2.user.preference.acW, true);
+      runtimeUserStore2.user.preference.acM = normalizePreferenceBoolean(runtimeUserStore2.user.preference.acM, true);
+      runtimeUserStore2.user.preference.acY = normalizePreferenceBoolean(runtimeUserStore2.user.preference.acY, true);
+      Tools.migrateAiDeliveryJudgeConfigFromPreference(runtimeUserStore2.user.preference);
+      runtimeUserStore2.preferenceLoadStatus = "success";
+      runtimeUserStore2.preferenceLoadError = "";
+      Tools.saveStoredUserProfile(runtimeUserStore2.user);
+      preferenceLogRecorder.info("加载用户投递设置成功");
     })
     .catch((error: any) => {
       if (!isNetworkLikeError(error)) {
         loginStore.loginFail();
       }
       const errorMsg = typeof error === "string" ? error : error?.message || error?.response?.data?.message || "未知错误";
-      userStore2.preferenceLoadStatus = "failed";
-      userStore2.preferenceLoadError = errorMsg;
-      logRecorder$1.error("加载用户偏好配置失败", errorMsg);
+      runtimeUserStore2.preferenceLoadStatus = "failed";
+      runtimeUserStore2.preferenceLoadError = errorMsg;
+      preferenceLogRecorder.error("加载用户投递设置失败", errorMsg);
     })
     .finally(() => {
-      if (!userStore2.user.preference) {
-        userStore2.user.preference = {};
+      if (!runtimeUserStore2.user.preference) {
+        runtimeUserStore2.user.preference = {};
       }
     });
 }

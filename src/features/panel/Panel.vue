@@ -4,7 +4,7 @@ import * as Vue from "vue";
 import * as ElementPlus from "element-plus";
 import * as Icons from "@element-plus/icons-vue";
 import axios from "axios";
-import { request, ElMessage, isProdEnv } from "@/core/http/request";
+import { request, showAppMessage, isProdEnv } from "@/core/http/request";
 import { Tools } from "@/shared/utils/tools";
 import { UserStore } from "@/state/user";
 import { LoginStore } from "@/state/login";
@@ -101,10 +101,10 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
 
     const componentMap = /* @__PURE__ */ new Map();
     componentMap.set("1", { component: AiJob, name: "工作台", icon: SVG_TAB_AI });
-    componentMap.set("2", { component: AiConfig, name: "AI中心", icon: SVG_TAB_CONFIG });
-    componentMap.set("3", { component: AiDeliveryJudge, name: "AI投递策略", icon: SVG_TAB_JUDGE });
+    componentMap.set("2", { component: AiConfig, name: "AI 配置", icon: SVG_TAB_CONFIG });
+    componentMap.set("3", { component: AiDeliveryJudge, name: "AI 投递判定", icon: SVG_TAB_JUDGE });
     componentMap.set("4", { component: Preference, name: "传统投递", icon: SVG_TAB_PREF });
-    componentMap.set("5", { component: MemorySession, name: "记忆与会话", icon: SVG_TAB_MEMORY });
+    componentMap.set("5", { component: MemorySession, name: "对话与通知", icon: SVG_TAB_MEMORY });
     componentMap.set("6", { component: RunRecord, name: "运行记录", icon: SVG_TAB_RECORD });
     componentMap.set("7", { component: Account, name: "账户", icon: SVG_TAB_ACCOUNT });
 
@@ -461,7 +461,7 @@ const RenderComponent = _sfc_main$1;
   gap: 10px;
 }
 
-/* Form/div containers take full width (偏好设置/运行记录/AI配置) */
+/* Form/div containers take full width (传统投递/运行记录/AI 配置) */
 :deep(.ai-sidebar-body > form),
 :deep(.ai-sidebar-body > div),
 :deep(.ai-sidebar-body > .ai-config) {
@@ -597,7 +597,7 @@ const RenderComponent = _sfc_main$1;
   background-color: var(--ai-primary);
 }
 
-/* ===== 偏好设置 Tab: Form layout ===== */
+/* ===== 传统投递 Tab: Form layout ===== */
 /* Section titles */
 :deep(.form-preference .top-title) {
   display: block !important;
@@ -613,7 +613,7 @@ const RenderComponent = _sfc_main$1;
 :deep(.form-preference .top-title:first-child) {
   margin-top: 0;
 }
-/* ===== 偏好设置 Tab: Top-label layout ===== */
+/* ===== 传统投递 Tab: Top-label layout ===== */
 
 /* --- Core: all flex pair containers wrap --- */
 :deep(.form-preference > div > div[style*="display: flex"]) {
@@ -717,7 +717,7 @@ const RenderComponent = _sfc_main$1;
   gap: 8px;
 }
 
-/* ===== 偏好设置: 投递间隔/翻页间隔排版 ===== */
+/* ===== 传统投递: 投递间隔/翻页间隔排版 ===== */
 /* 间隔组元素保持 inline，与前面的 checkbox 分开 */
 :deep(.form-preference > div > div[style*="margin-bottom"] > p.time-interval) {
   font-size: 13px;
@@ -732,7 +732,7 @@ const RenderComponent = _sfc_main$1;
 }
 
 
-/* ===== 偏好设置: 图片简历按钮UI统一 ===== */
+/* ===== 传统投递: 图片简历按钮 UI 统一 ===== */
 :deep(.form-preference .form-item-upload .el-upload .el-button) {
   border-radius: var(--ai-radius) !important;
   height: 36px !important;
@@ -815,7 +815,7 @@ const RenderComponent = _sfc_main$1;
   max-width: 100%;
 }
 
-/* ===== AI配置 Tab: Collapse ===== */
+/* ===== AI 配置 Tab: Collapse ===== */
 :deep(.ai-config) {
   width: 100%;
 }

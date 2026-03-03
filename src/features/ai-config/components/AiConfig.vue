@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { computed, onMounted, provide, ref, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
-import { request, ElMessage } from '@/core/http/request';
+import { request, showAppMessage } from '@/core/http/request';
 import { Tools, DEFAULT_AI_DELIVERY_JUDGE_PROMPT } from '@/shared/utils/tools';
 import ApiKeyManager from './ApiKeyManager.vue';
 import PromptPresetManager from './PromptPresetManager.vue';
@@ -275,7 +275,7 @@ const applyLocalConfigFallback = () => {
   syncCurrentChannelToExt();
 
   if (!hasShownConfigFallbackWarning.value) {
-    ElMessage({ type: 'warning', message: '配置接口暂不可用，已使用本地配置' });
+    showAppMessage({ type: 'warning', message: '配置接口暂不可用，已使用本地配置' });
     hasShownConfigFallbackWarning.value = true;
   }
 };
@@ -358,11 +358,11 @@ const handleSave = async () => {
   try {
     const ok = await doPersistConfig('/api/user/ai/config/save');
     if (ok) {
-      ElMessage({ type: 'success', message: '保存成功' });
+      showAppMessage({ type: 'success', message: '保存成功' });
     }
   } catch (e) {
     const msg = getErrorMessage(e);
-    ElMessage({ type: 'error', message: `保存失败: ${msg}` });
+    showAppMessage({ type: 'error', message: `保存失败: ${msg}` });
   }
 };
 
@@ -370,18 +370,18 @@ const handleTempSave = async () => {
   try {
     const ok = await doPersistConfig('/api/user/ai/config/temp/save');
     if (ok) {
-      ElMessage({ type: 'success', message: '保存成功' });
+      showAppMessage({ type: 'success', message: '保存成功' });
       await fetchConfig();
     }
   } catch (error) {
-    ElMessage({ type: 'error', message: '保存失败' });
+    showAppMessage({ type: 'error', message: '保存失败' });
   }
 };
 
 const handleSavePrompt = async () => {
   if (Number(form.value.provider) === 0) {
     syncCurrentChannelToExt();
-    ElMessage({ type: 'success', message: '保存成功' });
+    showAppMessage({ type: 'success', message: '保存成功' });
     return;
   }
 
@@ -397,10 +397,10 @@ const handleSavePrompt = async () => {
     });
     if (resp.data.code === 200) {
       syncCurrentChannelToExt();
-      ElMessage({ type: 'success', message: '保存成功' });
+      showAppMessage({ type: 'success', message: '保存成功' });
     }
   } catch (e) {
-    ElMessage({ type: 'error', message: `保存失败: ${getErrorMessage(e)}` });
+    showAppMessage({ type: 'error', message: `保存失败: ${getErrorMessage(e)}` });
   }
 };
 
@@ -444,7 +444,7 @@ const syncAiDeliveryPromptToJudgeConfig = (showToast = false) => {
     extraPrompt: `${active.extraPrompt || ''}`.trim(),
   });
   if (showToast) {
-    ElMessage({ type: 'success', message: 'AI投递提示词已保存' });
+    showAppMessage({ type: 'success', message: 'AI投递提示词已保存' });
   }
 };
 
@@ -490,7 +490,7 @@ const startNewAiDeliveryPrompt = () => {
 const startEditAiDeliveryPrompt = (id) => {
   const item = getAiDeliveryPromptStore().items.find((entry) => entry.id === id);
   if (!item) {
-    ElMessage({ type: 'warning', message: '提示词不存在' });
+    showAppMessage({ type: 'warning', message: '提示词不存在' });
     return;
   }
   editingAiDeliveryPromptId.value = id;
@@ -508,11 +508,11 @@ const saveAiDeliveryPromptItem = () => {
   const extraPrompt = `${aiDeliveryPromptEditForm.value.extraPrompt || ''}`.trim();
 
   if (!name) {
-    ElMessage({ type: 'warning', message: '请输入提示词名称' });
+    showAppMessage({ type: 'warning', message: '请输入提示词名称' });
     return;
   }
   if (!prompt) {
-    ElMessage({ type: 'warning', message: '请输入判断提示词' });
+    showAppMessage({ type: 'warning', message: '请输入判断提示词' });
     return;
   }
 
@@ -542,7 +542,7 @@ const saveAiDeliveryPromptItem = () => {
 
   persistAiConfigExt();
   syncAiDeliveryPromptToJudgeConfig(false);
-  ElMessage({ type: 'success', message: editingAiDeliveryPromptId.value ? '提示词已更新' : '提示词已创建并启用' });
+  showAppMessage({ type: 'success', message: editingAiDeliveryPromptId.value ? '提示词已更新' : '提示词已创建并启用' });
   backToAiDeliveryPromptList();
 };
 
@@ -550,13 +550,13 @@ const activateAiDeliveryPrompt = (id) => {
   const store = getAiDeliveryPromptStore();
   const item = store.items.find((entry) => entry.id === id);
   if (!item) {
-    ElMessage({ type: 'warning', message: '提示词不存在' });
+    showAppMessage({ type: 'warning', message: '提示词不存在' });
     return;
   }
   store.activePromptId = id;
   persistAiConfigExt();
   syncAiDeliveryPromptToJudgeConfig(false);
-  ElMessage({ type: 'success', message: `已启用：${item.name}` });
+  showAppMessage({ type: 'success', message: `已启用：${item.name}` });
 };
 
 const deleteAiDeliveryPrompt = async (id) => {
@@ -604,7 +604,7 @@ const deleteAiDeliveryPrompt = async (id) => {
 
   persistAiConfigExt();
   syncAiDeliveryPromptToJudgeConfig(false);
-  ElMessage({ type: 'success', message: '提示词已删除' });
+  showAppMessage({ type: 'success', message: '提示词已删除' });
 };
 
 const handleSaveAiDeliveryPrompt = () => {
@@ -621,13 +621,13 @@ const handleTest = async () => {
       silentNetworkToast: true,
     });
     if (response.data.code === 200) {
-      ElMessage({ type: 'success', message: `测试通过: ${response.data.data || ''}` });
+      showAppMessage({ type: 'success', message: `测试通过: ${response.data.data || ''}` });
       form.value.testPassed = 1;
       return;
     }
-    ElMessage({ type: 'error', message: `测试失败: ${response.data.message || ''}` });
+    showAppMessage({ type: 'error', message: `测试失败: ${response.data.message || ''}` });
   } catch (e) {
-    ElMessage({ type: 'error', message: `测试失败: ${getErrorMessage(e)}` });
+    showAppMessage({ type: 'error', message: `测试失败: ${getErrorMessage(e)}` });
   } finally {
     isTestLoading.value = false;
   }
@@ -655,7 +655,7 @@ provide('aiConfigState', {
   getMergedPresetList,
   getPresetById,
 
-  ElMessage,
+  showAppMessage,
   ElMessageBox,
 
   fetchConfig,
@@ -691,13 +691,13 @@ onMounted(async () => {
 
         <div class="subpage-entry-card">
           <div class="subpage-entry-card__title">AI投递提示词</div>
-          <div class="subpage-entry-card__desc">统一维护岗位级 AI 判断提示词与附加指令；判断开关与策略请在「AI投递策略」中设置。</div>
+          <div class="subpage-entry-card__desc">统一维护岗位级 AI 判定提示词与附加指令；判定开关请在「AI 投递判定」中设置。</div>
           <div class="subpage-entry-card__body">
             <div :class="['delivery-view-wrapper', aiDeliveryPromptView === 'edit' ? 'is-edit' : '']">
               <div class="delivery-view-panels">
                 <div class="delivery-view-list">
                   <div class="delivery-list-header">
-                    <span class="delivery-list-tip">卡片支持启用、编辑、删除，启用项会同步到 AI 投递判断。</span>
+                    <span class="delivery-list-tip">卡片支持启用、编辑、删除，启用项会同步到 AI 投递判定。</span>
                     <el-button type="primary" size="small" @click="startNewAiDeliveryPrompt">新增提示词</el-button>
                   </div>
 

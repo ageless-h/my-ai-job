@@ -8,7 +8,7 @@
     size="large"
   >
     <el-text v-if="Tools.window.location.href.includes('job-recommend')" class="mx-1 top-title" type="danger">
-      !!!请前往顶部【搜索】按钮所在页面保存偏好设置!!!
+      !!!请前往顶部【搜索】按钮所在页面保存传统投递设置!!!
     </el-text>
 
     <el-text class="mx-1 top-title" type="warning">投递设置</el-text>
@@ -217,8 +217,8 @@
     </div>
 
     <el-form-item>
-      <el-button type="primary" @click="submitForm">保存偏好设置</el-button>
-      <el-button @click="resetForm">清除偏好设置</el-button>
+      <el-button type="primary" @click="submitForm">保存传统投递设置</el-button>
+      <el-button @click="resetForm">重置传统投递设置</el-button>
     </el-form-item>
   </el-form>
 </template>
@@ -226,7 +226,7 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { inject, ref } from 'vue';
-import { ElMessage } from '@/core/http/request';
+import { showAppMessage } from '@/core/http/request';
 import { Tools } from '@/shared/utils/tools';
 import { normalizePreferenceBoolean } from '@/shared/utils/preference';
 import { UserStore } from '@/state/user';
@@ -307,8 +307,8 @@ const submitForm = async () => {
       timeout: PREFERENCE_SAVE_TIMEOUT_MS,
     })
     .then(() => {
-      ElMessage({
-        message: '偏好设置保存成功',
+      showAppMessage({
+        message: '传统投递设置保存成功',
         type: 'success',
         duration: 2000,
       });

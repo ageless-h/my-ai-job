@@ -146,7 +146,7 @@
 
     <!-- 保存按钮 -->
     <div class="ms-section">
-      <el-button type="primary" @click="handleSavePreference">保存设置</el-button>
+      <el-button type="primary" @click="handleSavePreference">保存对话设置</el-button>
     </div>
   </div>
 </template>
@@ -154,7 +154,7 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { ref, inject, onMounted } from 'vue';
-import { ElMessage } from '@/core/http/request';
+import { showAppMessage } from '@/core/http/request';
 import { Tools } from '@/shared/utils/tools';
 import { normalizePreferenceBoolean } from '@/shared/utils/preference';
 import { UserStore } from '@/state/user';
@@ -234,7 +234,7 @@ const saveMemoryProfile = () => {
   const key = buildCurrentModelChannelKey();
   ext.memoryProfiles[key] = normalizeMemoryProfile(memoryProfile.value);
   Tools.saveAiConfigExt(ext);
-  ElMessage({ type: 'success', message: '模型记忆策略已保存' });
+  showAppMessage({ type: 'success', message: '模型记忆策略已保存' });
 };
 
 // ---- AI 对话 switch (legacy field: aiSeatStatus) ----
@@ -247,7 +247,7 @@ const handleAISeatStatusChange = async (val: boolean) => {
       timeout: PREFERENCE_SAVE_TIMEOUT_MS,
     });
   } catch (_error) {
-    ElMessage({ type: 'error', message: 'AI 对话开关保存失败，请重试' });
+    showAppMessage({ type: 'error', message: 'AI 对话开关保存失败，请重试' });
   }
 };
 
@@ -260,7 +260,7 @@ const handleSavePreference = async () => {
   }, {
     timeout: PREFERENCE_SAVE_TIMEOUT_MS,
   }).then(() => {
-    ElMessage({ message: '设置保存成功', type: 'success', duration: 2000 });
+    showAppMessage({ message: '对话与通知设置保存成功', type: 'success', duration: 2000 });
   });
 };
 

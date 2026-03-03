@@ -9,7 +9,7 @@
       </template>
 
       <el-form label-position="top" size="default" class="judge-form">
-        <el-form-item label="AI投递总开关">
+        <el-form-item label="AI 投递判定总开关">
           <el-switch
             v-model="form.enabled"
             active-text="开"
@@ -25,7 +25,7 @@
             <el-switch v-model="form.includeUserProfile" inline-prompt active-text="开" inactive-text="关" />
           </div>
           <div class="judge-inline-switches">
-            <span>包含传统规则摘要（仅用于辅助AI判断）</span>
+            <span>包含传统规则摘要（仅用于辅助 AI 判定）</span>
             <el-switch v-model="form.includeTraditionalSnapshot" inline-prompt active-text="开" inactive-text="关" />
           </div>
         </el-form-item>
@@ -48,13 +48,13 @@
       </el-form>
 
       <div class="judge-actions">
-        <el-button type="primary" @click="handleSave">保存设置</el-button>
+        <el-button type="primary" @click="handleSave">保存 AI 投递判定设置</el-button>
         <el-button :loading="previewLoading" @click="handlePreviewInputOnce">测试一次看输入</el-button>
         <el-button @click="resetToDefault">恢复默认配置</el-button>
       </div>
 
       <div v-if="showSyncHint" class="judge-sync-hint">
-        此处配置与「AI投递策略」页共享同一份数据，修改后会立即同步。
+        此处配置与「AI 投递判定」页共享同一份数据，修改后会立即同步。
       </div>
     </div>
 
@@ -73,7 +73,7 @@
 
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import { ElMessage } from "@/core/http/request";
+import { showAppMessage } from "@/core/http/request";
 import { Tools } from "@/shared/utils/tools";
 import {
   buildAiDeliveryFilterJobInput,
@@ -100,7 +100,7 @@ const props = withDefaults(
   }>(),
   {
     showSectionHeader: true,
-    sectionTitle: "AI投递判断（岗位级）",
+    sectionTitle: "AI 投递判定（岗位级）",
     embedded: false,
     showSyncHint: true
   }
@@ -154,8 +154,8 @@ const handleSave = () => {
   form.includeTraditionalSnapshot = saved.includeTraditionalSnapshot;
   form.onAiError = saved.onAiError;
   form.onInvalidResult = saved.onInvalidResult;
-  ElMessage({
-    message: "AI投递判断设置已保存",
+  showAppMessage({
+    message: "AI 投递判定设置已保存",
     type: "success",
     duration: 2000
   });
@@ -171,7 +171,7 @@ const resetToDefault = () => {
 
 const handlePreviewInputOnce = async () => {
   if (!platform) {
-    ElMessage({
+    showAppMessage({
       type: "warning",
       message: "当前页面不支持测试输入预览"
     });
@@ -181,7 +181,7 @@ const handlePreviewInputOnce = async () => {
   const jobList = platform.getJobList();
   const firstJob = Array.isArray(jobList) ? jobList.find((item) => item && typeof item === "object") : null;
   if (!firstJob) {
-    ElMessage({
+    showAppMessage({
       type: "warning",
       message: "当前页面没有可测试岗位，请先进入岗位列表页"
     });
@@ -223,7 +223,7 @@ const handlePreviewInputOnce = async () => {
     );
     previewVisible.value = true;
   } catch (error) {
-    ElMessage({
+    showAppMessage({
       type: "error",
       message: `测试失败：${(error as Error | undefined)?.message || "生成输入预览失败"}`,
       duration: 5000,

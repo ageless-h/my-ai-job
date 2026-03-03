@@ -55,10 +55,10 @@
 
     <!-- 导入导出 -->
     <div class="acc-section">
-      <div class="acc-section__title">偏好数据</div>
+      <div class="acc-section__title">投递设置数据</div>
       <div class="acc-section__body acc-action-row">
-        <el-button @click="exportSetting">导出偏好设置</el-button>
-        <el-button @click="importSetting">导入偏好设置</el-button>
+        <el-button @click="exportSetting">导出投递设置</el-button>
+        <el-button @click="importSetting">导入投递设置</el-button>
       </div>
     </div>
 
@@ -77,7 +77,7 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { ref, inject } from 'vue';
-import { ElMessage } from '@/core/http/request';
+import { showAppMessage } from '@/core/http/request';
 import { Tools } from '@/shared/utils/tools';
 import {
   extractResumeTextFromHtml,
@@ -508,7 +508,7 @@ const handleViewResumeContent = async () => {
       const reason = !token
         ? `未获取到登录 token（来源：${tokenDetail.source}）`
         : (isBossResumePage() ? '简历页未识别到正文内容' : '当前不在简历页，且在线拉取未返回正文');
-      ElMessage({ type: 'warning', message: `[AI助理] 暂无可查看的个人简历内容：${reason}` });
+      showAppMessage({ type: 'warning', message: `[AI助理] 暂无可查看的个人简历内容：${reason}` });
       return;
     }
     resumeTextPreviewContent.value = resumeText;
@@ -522,12 +522,12 @@ const handleViewResumeImage = () => {
   const { originImage, tinyImage } = getResumeImagePreview();
   const targetUrl = originImage || tinyImage;
   if (!targetUrl) {
-    ElMessage({ type: 'warning', message: '暂无可查看的图片简历，请先上传图片简历' });
+    showAppMessage({ type: 'warning', message: '暂无可查看的图片简历，请先上传图片简历' });
     return;
   }
   const opened = window.open(targetUrl, '_blank');
   if (!opened) {
-    ElMessage({ type: 'warning', message: '浏览器拦截了新窗口，请允许弹窗后重试' });
+    showAppMessage({ type: 'warning', message: '浏览器拦截了新窗口，请允许弹窗后重试' });
   }
 };
 
@@ -586,7 +586,7 @@ const handlerImportResume = async () => {
   const token = tokenDetail.token;
   const bossUserId = getBossUid();
   if (!token) {
-    ElMessage({ type: 'error', message: `未获取到 Boss 登录 token（来源：${tokenDetail.source}），请刷新页面后重试` });
+    showAppMessage({ type: 'error', message: `未获取到 Boss 登录 token（来源：${tokenDetail.source}），请刷新页面后重试` });
     return;
   }
   importResumeLoading.value = true;
@@ -623,7 +623,7 @@ const handlerImportResume = async () => {
         reasons.push('简历页HTML未识别到正文');
       }
       const reasonText = reasons.filter(Boolean).join('；');
-      ElMessage({ type: 'error', message: reasonText ? `未识别到BOSS个人简历页内容（${reasonText}）` : '未识别到BOSS个人简历页内容，请稍后重试' });
+      showAppMessage({ type: 'error', message: reasonText ? `未识别到BOSS个人简历页内容（${reasonText}）` : '未识别到BOSS个人简历页内容，请稍后重试' });
       return;
     }
 
@@ -651,12 +651,12 @@ const handlerImportResume = async () => {
     };
     writeImportedResumeToUser(resumeId, importData, resumePageText);
 
-    ElMessage({ type: 'success', message: '导入个人简历主页信息成功' });
+    showAppMessage({ type: 'success', message: '导入个人简历主页信息成功' });
   } catch (e: any) {
     const msg = isRetryableNetworkError(e)
       ? '网络超时，请稍后重试（已自动重试）'
       : getResumeFetchFailureReason(e);
-    ElMessage({ type: 'error', message: `导入简历失败: ${msg}` });
+    showAppMessage({ type: 'error', message: `导入简历失败: ${msg}` });
   } finally {
     importResumeLoading.value = false;
   }
@@ -675,7 +675,7 @@ const beforeUpload = (file: any) => {
 };
 const handleUploadSuccess = async (response: any) => {
   userStore.user.preference.cI = response.zpData.url + '===' + response.zpData.tinyUrl;
-  ElMessage({ message: '图片简历上传成功；点击保存账户信息可持久保存', type: 'success', duration: 3000 });
+  showAppMessage({ message: '图片简历上传成功；点击保存账户信息可持久保存', type: 'success', duration: 3000 });
 };
 
 // ---- Export / Import settings (migrated from Preference) ----
@@ -684,14 +684,14 @@ const exportSetting = async () => {
   const exportData = JSON.stringify(preference, null, 2);
   try {
     await navigator.clipboard.writeText(exportData);
-    ElNotification({ title: '导出成功', message: '偏好设置已复制到剪贴板', type: 'success', duration: 2000 });
+    ElNotification({ title: '导出成功', message: '投递设置已复制到剪贴板', type: 'success', duration: 2000 });
   } catch {
     ElNotification({ title: '导出失败', message: '复制到剪贴板时出错', type: 'error', duration: 2000 });
   }
 };
 
 const importSetting = async () => {
-  ElMessageBox.prompt('请粘贴导出的偏好设置配置', '导入偏好设置', {
+  ElMessageBox.prompt('请粘贴导出的投递设置', '导入投递设置', {
     confirmButtonText: '确认',
     cancelButtonText: '取消',
     inputType: 'textarea',
@@ -703,7 +703,7 @@ const importSetting = async () => {
         userStore.user.preference = { ...importedPreference };
         ElNotification({
           title: '导入成功',
-          message: '偏好设置已导入，请点击保存以持久化保存',
+          message: '投递设置已导入，请点击保存以持久化保存',
           type: 'success',
           duration: 3000,
         });
@@ -718,7 +718,7 @@ const importSetting = async () => {
 const handleSave = async () => {
   if (!loginInterceptor()) return;
   if (!userStore.user.phone || !userStore.user.email) {
-    ElMessage({ message: '请填写手机号或邮箱', type: 'error', duration: 2000 });
+    showAppMessage({ message: '请填写手机号或邮箱', type: 'error', duration: 2000 });
     return;
   }
   await axios2
@@ -729,7 +729,7 @@ const handleSave = async () => {
       timeout: PREFERENCE_SAVE_TIMEOUT_MS,
     })
     .then(() => {
-      ElMessage({ message: '账户信息保存成功', type: 'success', duration: 2000 });
+      showAppMessage({ message: '账户信息保存成功', type: 'success', duration: 2000 });
     });
 };
 </script>

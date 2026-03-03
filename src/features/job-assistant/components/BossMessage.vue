@@ -4,7 +4,7 @@ import * as Vue from "vue";
 import * as ElementPlus from "element-plus";
 import * as Icons from "@element-plus/icons-vue";
 import axios from "axios";
-import { request, ElMessage, isProdEnv } from "@/core/http/request";
+import { request, showAppMessage, isProdEnv } from "@/core/http/request";
 import { Tools } from "@/shared/utils/tools";
 import { UserStore } from "@/state/user";
 import { LoginStore } from "@/state/login";
@@ -215,7 +215,7 @@ const _withScopeId = (n) => (pushScopeId("data-v-251fd5d8"), n = n(), popScopeId
           };
           const sendBatchMessage = () => {
             if (!batchMessageText.value.trim()) {
-              ElMessage({
+              showAppMessage({
                 type: "warning",
                 message: "请输入消息内容"
               });
@@ -223,7 +223,7 @@ const _withScopeId = (n) => (pushScopeId("data-v-251fd5d8"), n = n(), popScopeId
             }
             const selectedItems = document.querySelectorAll(".friend-content-warp.batch-send-item");
             if (selectedItems.length === 0) {
-              ElMessage({
+              showAppMessage({
                 type: "warning",
                 message: "请至少选择一个联系人"
               });
@@ -246,7 +246,7 @@ const _withScopeId = (n) => (pushScopeId("data-v-251fd5d8"), n = n(), popScopeId
                 }
               }
             });
-            ElMessage({
+            showAppMessage({
               duration: 3e3,
               type: "success",
               message: `已发送消息给 ${selectedItems.length} 个联系人; 刷新页面查看结果`
@@ -263,7 +263,7 @@ const _withScopeId = (n) => (pushScopeId("data-v-251fd5d8"), n = n(), popScopeId
             const element = document.querySelector(".friend-content.selected");
             const encryptJobId = (_c = (_b = (_a = element == null ? void 0 : element.parentElement) == null ? void 0 : _a.__vue__) == null ? void 0 : _b.source) == null ? void 0 : _c.encryptJobId;
             if (!encryptJobId) {
-              ElMessage({
+              showAppMessage({
                 type: "info",
                 message: "请先进入聊天窗口"
               });
@@ -271,7 +271,7 @@ const _withScopeId = (n) => (pushScopeId("data-v-251fd5d8"), n = n(), popScopeId
             }
             const jobKey = BossOption.buildJobKey({ encryptJobId });
             AiPower.updateAskStatus(jobKey, false).then((_) => {
-              ElMessage({
+              showAppMessage({
                 type: "success",
                 message: "已重新触发AI代聊"
               });

@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 import { reactive, ref } from "vue";
 import { Tools } from "@/shared/utils/tools";
 import { Logger } from '@/shared/utils/logger';
+import { migratePreferenceKeys } from "@/shared/utils/preference";
 
 const logger = Logger.rootLogger;
 export interface UserPreference {
@@ -28,13 +29,16 @@ export function getLocalUser(): AiUser {
       hasEmail: !!user?.email,
       preferenceKeys: Object.keys(user?.preference || {}).length,
     });
+    if (user?.preference && typeof user.preference === "object") {
+      migratePreferenceKeys(user.preference as Record<string, unknown>);
+    }
     return user;
   } catch (_e) {
     return JSON.parse(fallbackJson) as AiUser;
   }
 }
 
-export const UserStore = defineStore("ai-user", () => {
+export const useUserStore = defineStore("ai-user", () => {
   const platformType = ref<number | undefined>();
   const user = reactive<AiUser>(getLocalUser());
   const preferenceLoadStatus = ref<"idle" | "loading" | "success" | "failed">("idle");
@@ -47,3 +51,6 @@ export const UserStore = defineStore("ai-user", () => {
     preferenceLoadError
   };
 });
+
+// Backward-compatible alias for legacy naming.
+export const UserStore = useUserStore;

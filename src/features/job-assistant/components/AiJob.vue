@@ -3,7 +3,7 @@
 import * as Vue from "vue";
 import * as ElementPlus from "element-plus";
 import * as Icons from "@element-plus/icons-vue";
-import { request, ElMessage, isProdEnv } from "@/core/http/request";
+import { request, showAppMessage, isProdEnv } from "@/core/http/request";
 import { Tools } from "@/shared/utils/tools";
 import { UserStore } from "@/state/user";
 import { LoginStore } from "@/state/login";
@@ -13,7 +13,6 @@ import { loginInterceptor, silentlyLogin, userRemoteLoad } from "@/core/auth/aut
 import { AiPower } from "@/core/ai/ai-power";
 import { Message } from "@/core/protocol/message";
 import { normalizePreferenceBoolean } from "@/shared/utils/preference";
-import ConversationCleaner from '@/features/conversation-cleaner/components/ConversationCleaner.vue';
 
 const VueAny = Vue as any;
 const ElementAny = ElementPlus as any;
@@ -287,7 +286,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                 const started = await startPush({ silent: true });
                 if (started) {
                   clearRecommendLoopReload();
-                  ElMessage({
+                  showAppMessage({
                     message: "推荐页无限循环：页面已刷新，已切换到其他职位(深圳)并继续运行",
                     type: "info",
                     duration: 2e3
@@ -297,7 +296,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               }
               await Tools.sleep(RECOMMEND_LOOP_RESUME_INTERVAL_MS);
             }
-            ElMessage({
+            showAppMessage({
               message: "推荐页无限循环恢复超时，正在重新进入目标页",
               type: "warning",
               duration: 2500
@@ -387,8 +386,8 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             const aiOnlyMode = aiDeliveryJudgeEnabled && !traditionalDeliveryEnabled;
             if (userStore.preferenceLoadStatus === "loading") {
               if (!opts.silent) {
-                ElMessage({
-                  message: "偏好设置加载中，请稍后再启动",
+                showAppMessage({
+                  message: "投递设置加载中，请稍后再启动",
                   type: "warning",
                   duration: 2500
                 });
@@ -398,8 +397,8 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             userRemoteLoad();
             if (aiOnlyMode) {
               if (!opts.silent) {
-                ElMessage({
-                  message: "已按AI投递模式启动，偏好配置将在后台同步",
+                showAppMessage({
+                  message: "已按 AI 投递模式启动，投递设置将在后台同步",
                   type: "info",
                   duration: 2500
                 });
@@ -407,8 +406,8 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               return true;
             }
             if (!opts.silent) {
-              ElMessage({
-                message: userStore.preferenceLoadStatus === "failed" ? "偏好加载失败，正在重试加载，请稍后再启动" : "偏好设置加载中，请稍后再启动",
+              showAppMessage({
+                message: userStore.preferenceLoadStatus === "failed" ? "投递设置加载失败，正在重试加载，请稍后再启动" : "投递设置加载中，请稍后再启动",
                 type: "warning",
                 duration: 2500
               });
@@ -426,7 +425,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               const aligned = await alignOtherJobsShenzhen();
               if (!aligned) {
                 if (!opts.silent) {
-                  ElMessage({
+                  showAppMessage({
                     message: "未定位到“其他职位(深圳)”入口，正在重新进入目标页",
                     type: "warning",
                     duration: 2500
@@ -452,7 +451,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
               const shouldLoopRestart = pushStatus.value === PushStatus.PUSHING && shouldEnableRecommendLoop();
               if (shouldLoopRestart) {
                 markRecommendLoopReload();
-                ElMessage({
+                showAppMessage({
                   message: "推荐页无限循环：本轮完成，正在刷新并自动继续投递",
                   type: "info",
                   duration: 2500
@@ -468,7 +467,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                 }, 1200);
                 return;
               }
-              ElMessage({
+              showAppMessage({
                 message: `批量${actionLabel.value}完成`,
                 type: "success",
                 duration: 3e3
@@ -497,7 +496,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
             if (typeof pushResultCounter.clearCounts === "function") {
               pushResultCounter.clearCounts();
             }
-            ElMessage({
+            showAppMessage({
               message: "已清理投递成功/失败记录",
               type: "success",
               duration: 2e3
@@ -615,7 +614,7 @@ const _withScopeId$3 = (n) => (pushScopeId("data-v-13350d57"), n = n(), popScope
                   createVNode(_component_el_tooltip, {
                     effect: "dark",
                     "raw-content": "",
-                    content: "\r\n    先通过Boss的筛选功能圈选你的意向岗位<p/><span style='color:red;'>在【偏好设置-投递设置】中选择</span><br/>您的投递偏好，用于精准投递岗位\r\n    ",
+                    content: "\r\n    先通过Boss的筛选功能圈选你的意向岗位<p/><span style='color:red;'>在【传统投递】Tab 中设置</span><br/>您的投递设置，用于精准投递岗位\r\n    ",
                     placement: "bottom"
                   }, {
                     default: withCtx(() => [
@@ -684,10 +683,6 @@ const RenderComponent = _sfc_main$8;
 <template>
   <div>
     <RenderComponent />
-    <div class="cleaner-section">
-      <div class="cleaner-section__title">会话清理</div>
-      <ConversationCleaner />
-    </div>
   </div>
 </template>
 

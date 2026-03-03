@@ -4,7 +4,7 @@ import * as Vue from "vue";
 import * as ElementPlus from "element-plus";
 import * as Icons from "@element-plus/icons-vue";
 import axios from "axios";
-import { request, ElMessage, isProdEnv } from "@/core/http/request";
+import { request, showAppMessage, isProdEnv } from "@/core/http/request";
 import { Tools } from "@/shared/utils/tools";
 import { UserStore } from "@/state/user";
 import { LoginStore } from "@/state/login";

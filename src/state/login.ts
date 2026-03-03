@@ -2,7 +2,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-export const LoginStore = defineStore("LoginStore", () => {
+export const useLoginStore = defineStore("ai-login", () => {
   const login = ref<boolean | undefined>();
   const loginFailStatus = ref<boolean | undefined>();
 
@@ -23,3 +23,6 @@ export const LoginStore = defineStore("LoginStore", () => {
     loginFail
   };
 });
+
+// Backward-compatible alias for legacy naming.
+export const LoginStore = useLoginStore;
