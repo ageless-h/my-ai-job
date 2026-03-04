@@ -737,31 +737,46 @@ const handleSave = async () => {
 <style scoped>
 .account-page {
   width: 100%;
+  padding: 4px;
+  background: #f8f9fa;
+  border-radius: 8px;
 }
 .acc-section {
-  margin-bottom: 12px;
-  padding: 10px 12px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
   background: #fff;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  border: 1px solid #eef0f5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 .acc-section__title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #303133;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #ebeef5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.acc-section__title::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--boss-primary, #00bebd);
+  border-radius: 2px;
 }
 .acc-section__body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .acc-resume-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 .acc-label {
@@ -771,6 +786,10 @@ const handleSave = async () => {
 .acc-action-row {
   flex-direction: row;
   flex-wrap: wrap;
+  gap: 10px;
+}
+:deep(.acc-action-row .el-button) {
+  min-width: 128px;
 }
 :deep(.el-form-item) {
   margin-bottom: 12px;
@@ -779,5 +798,11 @@ const handleSave = async () => {
   font-size: 13px;
   font-weight: 600;
   color: #303133;
+}
+:deep(.el-button--primary) {
+  --el-button-bg-color: var(--boss-primary, #00bebd);
+  --el-button-border-color: var(--boss-primary, #00bebd);
+  --el-button-hover-bg-color: var(--boss-primary-hover, #00a8a7);
+  --el-button-hover-border-color: var(--boss-primary-hover, #00a8a7);
 }
 </style>

@@ -216,9 +216,9 @@ const RenderComponent = _sfc_main$1;
 
 <style scoped>
 .ai-job-root {
-  --ai-primary: #409eff;
-  --ai-primary-light: rgba(64, 158, 255, 0.1);
-  --ai-primary-hover: #337ecc;
+  --ai-primary: var(--boss-primary, #00bebd);
+  --ai-primary-light: var(--boss-primary-light, rgba(0, 190, 189, 0.12));
+  --ai-primary-hover: var(--boss-primary-hover, #00a8a7);
   --ai-text-main: #303133;
   --ai-text-sub: #909399;
   --ai-text-muted: #c0c4cc;
@@ -313,7 +313,7 @@ const RenderComponent = _sfc_main$1;
   font-weight: 800;
   color: var(--ai-text-main);
   letter-spacing: -0.02em;
-  background: linear-gradient(120deg, var(--ai-primary), #67c23a);
+  background: linear-gradient(120deg, var(--ai-primary), #36cfc9);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -576,11 +576,11 @@ const RenderComponent = _sfc_main$1;
 }
 
 :deep(.el-button--primary) {
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 190, 189, 0.2);
 }
 
 :deep(.el-button--primary:hover) {
-  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.3);
+  box-shadow: 0 6px 16px rgba(0, 190, 189, 0.3);
   transform: translateY(-1px);
 }
 
@@ -920,7 +920,7 @@ const RenderComponent = _sfc_main$1;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 190, 189, 0.4);
   z-index: 99999;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   user-select: none;
@@ -929,14 +929,14 @@ const RenderComponent = _sfc_main$1;
 }
 
 @keyframes ai-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(64, 158, 255, 0.7); }
-  70% { box-shadow: 0 0 0 15px rgba(64, 158, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(64, 158, 255, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(0, 190, 189, 0.7); }
+  70% { box-shadow: 0 0 0 15px rgba(0, 190, 189, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 190, 189, 0); }
 }
 
 :deep(.ai-fab:hover) {
   transform: scale(1.1) rotate(15deg);
-  box-shadow: 0 12px 32px rgba(64, 158, 255, 0.5);
+  box-shadow: 0 12px 32px rgba(0, 190, 189, 0.5);
   animation: none;
 }
 

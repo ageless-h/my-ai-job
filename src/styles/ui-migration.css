@@ -1,0 +1,64 @@
+/* UI migration theme (scoped to userscript mount root) */
+#ai-job {
+  --boss-primary: #00bebd;
+  --boss-primary-hover: #00a8a7;
+  --boss-primary-light: #e5f8f8;
+  --boss-text-primary: #333333;
+  --boss-text-regular: #666666;
+  --boss-text-secondary: #999999;
+  --boss-bg-color: #f8f8f8;
+  --boss-border-color: #ebeef5;
+
+  --el-color-primary: #00bebd;
+  --el-color-primary-light-3: #4dcfce;
+  --el-color-primary-light-5: #80dfde;
+  --el-color-primary-light-7: #b3efee;
+  --el-color-primary-light-8: #cce7e6;
+  --el-color-primary-light-9: #e6f9f8;
+  --el-color-primary-dark-2: #009897;
+
+  --el-checkbox-checked-bg-color: #00bebd;
+  --el-checkbox-checked-input-border-color: #00bebd;
+  --el-checkbox-checked-text-color: #00bebd;
+  --el-radio-checked-text-color: #00bebd;
+  --el-radio-checked-input-border-color: #00bebd;
+  --el-radio-checked-bg-color: #00bebd;
+  --el-input-focus-border-color: #00bebd;
+  --el-select-input-focus-border-color: #00bebd;
+  --el-switch-on-color: #00bebd;
+}
+
+#ai-job,
+#ai-job * {
+  box-sizing: border-box;
+}
+
+#ai-job .el-checkbox__input.is-checked .el-checkbox__inner,
+#ai-job .el-checkbox__input.is-indeterminate .el-checkbox__inner,
+#ai-job .el-radio__input.is-checked .el-radio__inner,
+#ai-job .el-switch.is-checked .el-switch__core {
+  border-color: #00bebd !important;
+  background-color: #00bebd !important;
+}
+
+#ai-job .el-input__wrapper.is-focus,
+#ai-job .el-input__wrapper:focus-within,
+#ai-job .el-textarea__inner:focus,
+#ai-job .el-select .el-input__wrapper.is-focus,
+#ai-job .el-select .el-input__wrapper:focus-within {
+  box-shadow: 0 0 0 1px #00bebd inset !important;
+}
+
+#ai-job .el-checkbox.is-checked .el-checkbox__label,
+#ai-job .el-checkbox__input.is-checked + .el-checkbox__label,
+#ai-job .el-radio.is-checked .el-radio__label,
+#ai-job .el-radio__input.is-checked + .el-radio__label,
+#ai-job .el-select-dropdown__item.is-selected {
+  color: #00bebd !important;
+}
+
+#ai-job .el-tag {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
