@@ -1,10 +1,12 @@
 <template>
   <div class="account-page">
+    <div class="account-header-title">账户与数据</div>
+
     <!-- 账号信息 -->
     <div class="acc-section">
-      <div class="acc-section__title">账号信息</div>
+      <div class="acc-section__title">基本信息</div>
       <div class="acc-section__body">
-        <el-form label-width="auto" label-position="top" size="default">
+        <el-form class="acc-form" label-width="auto" label-position="top" size="default">
           <el-form-item label="手机号" prop="phone">
             <el-input v-model="userStore.user.phone" placeholder="请输入手机号" />
           </el-form-item>
@@ -17,45 +19,64 @@
 
     <!-- 简历管理 -->
     <div class="acc-section">
-      <div class="acc-section__title">简历管理</div>
+      <div class="acc-section__title">在线简历库</div>
       <div class="acc-section__body">
-        <div class="acc-resume-row">
-          <el-tooltip
-            effect="dark"
-            raw-content
-            content="导入BOSS个人简历主页信息（非PDF附件）<p/>- 用于AI对话定制化回复"
-            placement="bottom"
-          >
-            <el-button type="primary" :loading="importResumeLoading" @click="handlerImportResume">
-              导入个人页简历
-            </el-button>
-          </el-tooltip>
-          <el-button @click="handleViewResumeContent">查看简历内容</el-button>
-          <el-button @click="handleViewResumeImage">查看简历图像</el-button>
-        </div>
-        <div class="acc-resume-row">
-          <el-checkbox v-model="userStore.user.preference.cIE" label="" size="large" />
-          <span class="acc-label">发送图片简历</span>
-          <el-upload
-            action="https://www.zhipin.com/wapi/zpupload/image/uploadSingle"
-            :before-upload="beforeUpload"
-            :on-success="handleUploadSuccess"
-            :show-file-list="false"
-            :data="uploadData"
-            :headers="{ Zp_token: Tools.getCookieValue('bst') }"
-          >
-            <el-button size="small" type="primary">选择图片简历</el-button>
-          </el-upload>
-          <el-tag v-if="userStore.user.preference.cI" type="success" size="small" style="margin-left: 5px">
-            已上传
-          </el-tag>
+        <div class="acc-resume-manage">
+          <div class="acc-resume-group">
+            <div class="acc-resume-group__title">个人主页简历（文本）</div>
+            <div class="acc-resume-group__desc">导入在线个人主页简历信息，用于 AI 对话与职位匹配。</div>
+            <div class="acc-resume-row">
+              <el-tooltip
+                effect="dark"
+                raw-content
+                content="导入BOSS个人简历主页信息（非PDF附件）<p/>- 用于AI对话定制化回复"
+                placement="bottom"
+              >
+                <el-button type="primary" :loading="importResumeLoading" @click="handlerImportResume">
+                  导入个人页简历
+                </el-button>
+              </el-tooltip>
+              <el-button @click="handleViewResumeContent">查看简历内容</el-button>
+              <el-button @click="handleViewResumeImage">查看简历图像</el-button>
+            </div>
+          </div>
+
+          <div class="acc-divider" />
+
+          <div class="acc-resume-group">
+            <div class="acc-resume-group__title">附件简历（图像）</div>
+            <div class="acc-resume-group__desc">部分 HR 需要图片附件简历，可在此上传并快捷发送。</div>
+            <div class="acc-resume-row acc-resume-row--column">
+              <div class="acc-resume-row">
+                <el-checkbox v-model="userStore.user.preference.cIE" label="" size="large" />
+                <span class="acc-label">发送图片简历</span>
+              </div>
+              <div class="acc-resume-row">
+                <el-upload
+                  action="https://www.zhipin.com/wapi/zpupload/image/uploadSingle"
+                  :before-upload="beforeUpload"
+                  :on-success="handleUploadSuccess"
+                  :show-file-list="false"
+                  :data="uploadData"
+                  :headers="{ Zp_token: Tools.getCookieValue('bst') }"
+                >
+                  <el-button size="small" type="primary">选择图片简历</el-button>
+                </el-upload>
+                <el-button size="small" @click="handleViewResumeImage">预览当前图片</el-button>
+                <el-tag v-if="userStore.user.preference.cI" type="success" size="small" style="margin-left: 5px">
+                  已上传
+                </el-tag>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- 导入导出 -->
     <div class="acc-section">
-      <div class="acc-section__title">投递设置数据</div>
+      <div class="acc-section__title">投递配置备份</div>
+      <div class="acc-section__desc">可导出并迁移投递设置，便于多设备同步和配置复用。</div>
       <div class="acc-section__body acc-action-row">
         <el-button @click="exportSetting">导出投递设置</el-button>
         <el-button @click="importSetting">导入投递设置</el-button>
@@ -63,8 +84,10 @@
     </div>
 
     <!-- 保存 -->
-    <div class="acc-section">
-      <el-button type="primary" @click="handleSave">保存账户信息</el-button>
+    <div class="acc-section acc-section--action">
+      <div class="acc-section__body acc-save-row">
+        <el-button type="primary" @click="handleSave">保存变更</el-button>
+      </div>
     </div>
 
     <el-dialog v-model="resumeTextPreviewVisible" title="个人简历内容" width="760px">
@@ -737,18 +760,29 @@ const handleSave = async () => {
 <style scoped>
 .account-page {
   width: 100%;
-  padding: 4px;
-  background: #f8f9fa;
-  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px;
+  background: transparent;
 }
+
+.account-header-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.4;
+  margin: 0 2px;
+}
+
 .acc-section {
-  margin-bottom: 14px;
   padding: 14px 16px;
   background: #fff;
   border-radius: 10px;
   border: 1px solid #eef0f5;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
+
 .acc-section__title {
   font-size: 14px;
   font-weight: 600;
@@ -768,41 +802,129 @@ const handleSave = async () => {
   background: var(--boss-primary, #00bebd);
   border-radius: 2px;
 }
+
+.acc-section__desc {
+  font-size: 12px;
+  color: #909399;
+  margin: -2px 0 8px;
+  line-height: 1.6;
+}
+
 .acc-section__body {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+
+.acc-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+
+.acc-resume-manage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.acc-resume-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.acc-resume-group__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.acc-resume-group__desc {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.6;
+}
+
+.acc-divider {
+  height: 1px;
+  background: #eef1f6;
+}
+
 .acc-resume-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
+
+.acc-resume-row--column {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .acc-label {
   font-size: 13px;
   color: #606266;
 }
+
 .acc-action-row {
   flex-direction: row;
   flex-wrap: wrap;
   gap: 10px;
 }
+
+.acc-save-row {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.acc-section--action {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
 :deep(.acc-action-row .el-button) {
   min-width: 128px;
 }
+
 :deep(.el-form-item) {
   margin-bottom: 12px;
 }
+
+:deep(.acc-form .el-form-item) {
+  margin-bottom: 8px;
+}
+
 :deep(.el-form-item__label) {
   font-size: 13px;
   font-weight: 600;
   color: #303133;
 }
+
+:deep(.acc-resume-row .el-button) {
+  min-height: 32px;
+}
+
 :deep(.el-button--primary) {
   --el-button-bg-color: var(--boss-primary, #00bebd);
   --el-button-border-color: var(--boss-primary, #00bebd);
   --el-button-hover-bg-color: var(--boss-primary-hover, #00a8a7);
   --el-button-hover-border-color: var(--boss-primary-hover, #00a8a7);
+}
+
+@media (max-width: 860px) {
+  .acc-form {
+    grid-template-columns: 1fr;
+  }
+
+  .acc-save-row {
+    justify-content: stretch;
+  }
+
+  :deep(.acc-save-row .el-button) {
+    width: 100%;
+  }
 }
 </style>

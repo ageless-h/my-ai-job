@@ -219,6 +219,8 @@ const RenderComponent = _sfc_main$1;
   --ai-primary: var(--boss-primary, #00bebd);
   --ai-primary-light: var(--boss-primary-light, rgba(0, 190, 189, 0.12));
   --ai-primary-hover: var(--boss-primary-hover, #00a8a7);
+  --ai-header-height: 64px;
+  --ai-nav-width: 96px;
   --ai-text-main: #303133;
   --ai-text-sub: #909399;
   --ai-text-muted: #c0c4cc;
@@ -297,7 +299,7 @@ const RenderComponent = _sfc_main$1;
 
 /* Header */
 :deep(.ai-sidebar-header) {
-  height: 64px;
+  height: var(--ai-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -309,6 +311,9 @@ const RenderComponent = _sfc_main$1;
 }
 
 :deep(.ai-sidebar-title) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 19px;
   font-weight: 800;
   color: var(--ai-text-main);
@@ -316,6 +321,15 @@ const RenderComponent = _sfc_main$1;
   background: linear-gradient(120deg, var(--ai-primary), #36cfc9);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+:deep(.ai-sidebar-title::before) {
+  content: "";
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: url("https://z.zhipin.com/web/v2/favicon.ico") center / cover no-repeat;
 }
 
 :deep(.ai-sidebar-minimize) {
@@ -338,23 +352,30 @@ const RenderComponent = _sfc_main$1;
 
 /* Navigation Tabs */
 :deep(.ai-sidebar-nav) {
+  position: absolute;
+  top: var(--ai-header-height);
+  bottom: 0;
+  left: 0;
+  width: var(--ai-nav-width);
   display: flex;
+  flex-direction: column;
   align-items: stretch;
-  height: 48px;
-  border-bottom: 1px solid var(--ai-border);
-  flex-shrink: 0;
-  background: transparent;
-  overflow: hidden;
+  border-right: 1px solid var(--ai-border);
+  background: var(--boss-bg-color, #f8f8f8);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 8px;
 }
 
 :deep(.ai-nav-tab) {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 42px;
-  min-width: 42px;
-  max-width: 42px;
-  height: 48px;
+  flex: 0 0 64px;
+  min-width: 0;
+  max-width: none;
+  height: 64px;
+  flex-direction: column;
   font-size: 14px;
   font-weight: 500;
   color: var(--ai-text-sub);
@@ -362,25 +383,31 @@ const RenderComponent = _sfc_main$1;
   position: relative;
   transition: all 0.3s;
   user-select: none;
-  gap: 0;
+  gap: 6px;
   overflow: hidden;
-  padding: 0 8px;
+  padding: 8px 6px;
+  text-align: center;
+  border-left: 3px solid transparent;
 }
 
 :deep(.ai-nav-tab span) {
-  display: none;
+  display: block;
   position: relative;
   z-index: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
+  font-size: 12px;
 }
 
 :deep(.ai-nav-tab.is-active) {
-  flex: 1 1 auto;
+  flex: 0 0 64px;
   max-width: none;
   gap: 6px;
+  background: #ffffff;
+  border-left-color: var(--ai-primary);
 }
 
 :deep(.ai-nav-tab.is-active span) {
@@ -388,8 +415,8 @@ const RenderComponent = _sfc_main$1;
 }
 
 :deep(.ai-nav-tab:hover) {
-  background-color: var(--ai-primary-light);
-  color: var(--ai-primary);
+  background-color: #f0f2f5;
+  color: var(--ai-text-main);
 }
 
 :deep(.ai-nav-tab.is-active) {
@@ -398,30 +425,27 @@ const RenderComponent = _sfc_main$1;
 }
 
 :deep(.ai-nav-tab::after) {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  height: 3px;
-  background: var(--ai-primary);
-  border-radius: 3px 3px 0 0;
-  transition: all 0.3s ease;
-  transform: translateX(-50%);
+  display: none;
 }
 
 :deep(.ai-nav-tab.is-active::after) {
-  width: 40%;
+  width: 0;
 }
 
 :deep(.ai-nav-tab svg) {
   flex-shrink: 0;
   margin-right: 0 !important;
+  margin-bottom: 2px;
 }
 
 /* Content Body */
 :deep(.ai-sidebar-body) {
-  flex: 1;
+  position: absolute;
+  top: var(--ai-header-height);
+  left: var(--ai-nav-width);
+  right: 0;
+  bottom: 0;
+  width: auto;
   overflow-y: auto;
   padding: 24px;
   animation: ai-fade-in 0.4s ease-out;
@@ -994,6 +1018,17 @@ const RenderComponent = _sfc_main$1;
   :deep(.ai-sidebar) {
     width: 100% !important;
     border-radius: 0;
+  }
+  .ai-job-root {
+    --ai-nav-width: 82px;
+  }
+  :deep(.ai-nav-tab) {
+    height: 58px;
+    flex-basis: 58px;
+    padding: 6px 4px;
+  }
+  :deep(.ai-sidebar-body) {
+    padding: 16px;
   }
   :deep(.ai-fab) {
     right: 50%;
