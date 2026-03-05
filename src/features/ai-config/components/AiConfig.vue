@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { computed, onMounted, provide, ref, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
+import { Plus, Back } from '@element-plus/icons-vue';
 import { request, showAppMessage } from '@/core/http/request';
 import { Tools, DEFAULT_AI_DELIVERY_JUDGE_PROMPT } from '@/shared/utils/tools';
 import ApiKeyManager from './ApiKeyManager.vue';
@@ -33,6 +34,7 @@ const availableModels = ref([]);
 const providerDetails = ref({});
 const lastFetchedConfig = ref(null);
 const hasShownConfigFallbackWarning = ref(false);
+const isPreviewMode = typeof window !== 'undefined' && window.location.pathname.includes('preview.html');
 
 const getErrorMessage = (error) => {
   return error?.response?.data?.message || error?.message || '未知错误';
@@ -274,7 +276,7 @@ const applyLocalConfigFallback = () => {
   handleProviderChange(form.value.provider, true);
   syncCurrentChannelToExt();
 
-  if (!hasShownConfigFallbackWarning.value) {
+  if (!isPreviewMode && !hasShownConfigFallbackWarning.value) {
     showAppMessage({ type: 'warning', message: '配置接口暂不可用，已使用本地配置' });
     hasShownConfigFallbackWarning.value = true;
   }
@@ -673,119 +675,132 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="ai-config">
-    <div class="ai-section">
-      <div class="ai-section-title">提示词中心</div>
-      <div class="tune-form">
-        <div class="subpage-entry-card">
-          <div class="subpage-entry-card__title">提示词预设管理</div>
-          <div class="subpage-entry-card__desc">管理全局与模型预设，启用后自动合并到系统提示词。</div>
-          <div class="subpage-entry-card__body">
+  <div class="ai-config-tab">
+    <div class="header-title">AI 配置</div>
+    <div class="boss-card mt-16">
+      <div class="card-title">提示词中心</div>
+      <div class="ai-section-desc">统一管理系统判断和代聊预设，支持调试</div>
+      <div class="nested-card">
+        <div class="nested-title">提示词预设管理</div>
+        <div class="nested-desc">管理全局与模型预设，启用后自动合并到系统提示词。</div>
+        <div class="nested-body">
             <PromptPresetManager />
-          </div>
-          <div class="subpage-entry-card__actions">
+        </div>
+        <div class="nested-actions">
             <el-button type="primary" @click="handleSavePrompt">保存</el-button>
             <el-button type="warning" @click="openDebugDialog">调试</el-button>
-          </div>
         </div>
+      </div>
+    </div>
 
-        <div class="subpage-entry-card">
-          <div class="subpage-entry-card__title">AI投递提示词</div>
-          <div class="subpage-entry-card__desc">统一维护岗位级 AI 判定提示词与附加指令；判定开关请在「AI 投递判定」中设置。</div>
-          <div class="subpage-entry-card__body">
+    <div class="boss-card mt-16">
+      <div class="card-title">AI投递判定提示词</div>
+      <div class="ai-section-desc">统一维护岗位级 AI 判定提示词与附加指令；判定开关请在「AI 投递判定」Tab 中打开。</div>
+      <div class="nested-card">
+        <div class="nested-body">
             <div :class="['delivery-view-wrapper', aiDeliveryPromptView === 'edit' ? 'is-edit' : '']">
               <div class="delivery-view-panels">
                 <div class="delivery-view-list">
                   <div class="delivery-list-header">
-                    <span class="delivery-list-tip">卡片支持启用、编辑、删除，启用项会同步到 AI 投递判定。</span>
-                    <el-button type="primary" size="small" @click="startNewAiDeliveryPrompt">新增提示词</el-button>
+                    <span class="delivery-list-tip">支持多套判定策略，按需开启生效</span>
+                    <el-button class="boss-btn-primary" @click="startNewAiDeliveryPrompt">
+                      <el-icon class="mr-4"><Plus /></el-icon>新增判定提示词
+                    </el-button>
                   </div>
 
                   <template v-if="aiDeliveryPromptList.length">
                     <div
                       v-for="item in aiDeliveryPromptList"
                       :key="item.id"
-                      class="subpage-entry-card subpage-entry-card--nested delivery-prompt-card"
+                      class="inner-card delivery-prompt-card"
                     >
-                      <div class="subpage-entry-card__title">{{ item.name }}</div>
-                      <div class="subpage-entry-card__desc">
+                      <div class="inner-title">{{ item.name }}</div>
+                      <div class="inner-desc">
                         {{
                           (item.prompt || '').length > 90
                             ? `${(item.prompt || '').slice(0, 90)}...`
                             : item.prompt || '暂无判断提示词'
                         }}
                       </div>
-                      <div class="subpage-entry-card__body delivery-prompt-card__extra">
-                        <span>附加指令：</span>
-                        <span>{{ item.extraPrompt || '无' }}</span>
+                      <div class="inner-extra">
+                        <span class="extra-label">附加指令：</span>
+                        <span class="extra-val">{{ item.extraPrompt || '无' }}</span>
                       </div>
-                      <div class="subpage-entry-card__actions delivery-prompt-card__actions">
-                        <el-switch
-                          :model-value="activeAiDeliveryPromptId === item.id"
-                          size="small"
-                          active-text="启用"
-                          inactive-text=""
-                          @update:model-value="(value) => value && activateAiDeliveryPrompt(item.id)"
-                        />
-                        <div class="delivery-prompt-card__buttons">
-                          <el-button size="small" type="primary" plain @click="startEditAiDeliveryPrompt(item.id)">编辑</el-button>
-                          <el-button size="small" type="danger" plain @click="deleteAiDeliveryPrompt(item.id)">删除</el-button>
+                      <div class="inner-actions">
+                        <div class="delivery-prompt-card__status inner-status">
+                          <el-switch
+                            :model-value="activeAiDeliveryPromptId === item.id"
+                            size="small"
+                            @update:model-value="(value) => value && activateAiDeliveryPrompt(item.id)"
+                          />
+                          <span class="status-text" :class="activeAiDeliveryPromptId === item.id ? 'is-active' : 'is-inactive'">
+                            {{ activeAiDeliveryPromptId === item.id ? '当前生效中' : '未启用' }}
+                          </span>
+                        </div>
+                        <div class="inner-buttons">
+                          <el-button size="small" class="boss-btn-text" type="primary" link @click="startEditAiDeliveryPrompt(item.id)">修改策略</el-button>
+                          <div class="divider-v" />
+                          <el-button size="small" class="boss-btn-text" type="danger" link @click="deleteAiDeliveryPrompt(item.id)">删除</el-button>
                         </div>
                       </div>
                     </div>
                   </template>
-                  <el-empty v-else description="暂无提示词，点击右上角新增" />
+                  <el-empty v-else description="暂无判定提示词，点击右上角新增" :image-size="60" />
                 </div>
 
                 <div class="delivery-view-edit">
-                  <div class="delivery-edit-header">
-                    <el-button link type="primary" @click="backToAiDeliveryPromptList">← 返回列表</el-button>
-                    <span class="delivery-edit-title">{{ editingAiDeliveryPromptId ? '编辑提示词' : '新增提示词' }}</span>
+                  <div class="boss-edit-header">
+                    <el-button class="boss-btn-back" @click="backToAiDeliveryPromptList">
+                      <el-icon class="mr-4"><Back /></el-icon>返回策略列表
+                    </el-button>
+                    <div class="boss-edit-divider" />
+                    <span class="boss-edit-title mb-0">{{ editingAiDeliveryPromptId ? '编辑判定规则' : '新增判定规则' }}</span>
                   </div>
 
-                  <el-form-item label="提示词名称">
-                    <el-input v-model="aiDeliveryPromptEditForm.name" placeholder="例如：宽松地域策略" />
-                  </el-form-item>
+                  <el-form label-position="top" class="delivery-edit-form mt-16">
+                    <el-form-item label="提示词名称" class="mb-24">
+                      <el-input v-model="aiDeliveryPromptEditForm.name" placeholder="例如：宽松地域策略" />
+                    </el-form-item>
 
-                  <el-form-item label="判断提示词">
-                    <el-input
-                      v-model="aiDeliveryPromptEditForm.prompt"
-                      type="textarea"
-                      :rows="8"
-                      :maxlength="5000"
-                      show-word-limit
-                      placeholder='示例：你是求职投递决策助手。请根据岗位信息和求职者个人信息判断是否建议投递。只输出JSON：{"match":true|false,"reason":"原因"}。'
-                    />
-                  </el-form-item>
+                    <el-form-item label="核心判断提示词" class="mb-24">
+                      <el-input
+                        v-model="aiDeliveryPromptEditForm.prompt"
+                        type="textarea"
+                        :rows="7"
+                        :maxlength="5000"
+                        show-word-limit
+                        placeholder='示例：你是求职投递决策助手。请根据岗位信息和求职者个人信息判断是否建议投递。只输出JSON：{"match":true|false,"reason":"原因"}。'
+                      />
+                    </el-form-item>
 
-                  <el-form-item label="附加指令（可选）">
-                    <el-input
-                      v-model="aiDeliveryPromptEditForm.extraPrompt"
-                      type="textarea"
-                      :rows="3"
-                      :maxlength="2000"
-                      show-word-limit
-                      placeholder="办公地点不进行限制，只要在国内即可"
-                    />
-                  </el-form-item>
+                    <el-form-item label="附加过滤指令（可选）" class="mb-24">
+                      <el-input
+                        v-model="aiDeliveryPromptEditForm.extraPrompt"
+                        type="textarea"
+                        :rows="3"
+                        :maxlength="2000"
+                        show-word-limit
+                        placeholder="例如：办公地点不进行限制，只要在国内即可"
+                      />
+                    </el-form-item>
+                  </el-form>
 
-                  <div class="delivery-edit-actions">
-                    <el-button @click="backToAiDeliveryPromptList">取消</el-button>
-                    <el-button type="primary" @click="saveAiDeliveryPromptItem">保存提示词</el-button>
+                  <div class="boss-edit-actions">
+                    <el-button class="boss-btn-text" style="margin-right: auto;" @click="backToAiDeliveryPromptList">放弃修改</el-button>
+                    <el-button class="boss-btn-primary" @click="saveAiDeliveryPromptItem">确定保存策略</el-button>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div class="subpage-entry-card__actions">
+        </div>
+        <div class="nested-actions">
             <el-button type="primary" @click="handleSaveAiDeliveryPrompt">保存AI投递提示词</el-button>
-          </div>
         </div>
       </div>
     </div>
 
-    <div class="ai-section">
-      <div class="ai-section-title">自有API配置</div>
+    <div class="boss-card mt-16 api-card-section">
+      <div class="card-title">模型与 API 配置</div>
       <ApiKeyManager />
     </div>
 
@@ -794,34 +809,336 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-:deep(.ai-config){padding:15px 1px 1px;background:#fff}
-:deep(.config-form){margin:0}
-:deep(.tune-form){margin-bottom:10px;padding:0 10px;font-weight:700}
-:deep(.ai-section-desc){margin:0 10px 10px;font-size:12px;line-height:1.6;color:#606266;font-weight:400}
-.subpage-entry-card{border:1px solid #e4e7ed;border-radius:8px;padding:12px;margin-bottom:12px;background:#fff}
-.subpage-entry-card__title{font-size:14px;font-weight:600;color:#303133}
-.subpage-entry-card__desc{margin-top:4px;margin-bottom:10px;font-size:12px;line-height:1.6;color:#606266;font-weight:400}
-.subpage-entry-card__body{font-weight:400}
-.subpage-entry-card__actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.subpage-entry-card--nested{margin-bottom:0;padding:10px}
-.subpage-entry-card--nested + .subpage-entry-card--nested{margin-top:10px}
-.subpage-entry-card--nested .subpage-entry-card__title{font-size:13px}
-.subpage-entry-card--nested .subpage-entry-card__desc{margin-bottom:8px}
-.delivery-view-wrapper{position:relative;overflow:hidden}
-.delivery-view-panels{display:flex;width:200%;transition:transform .28s ease}
-.delivery-view-wrapper.is-edit .delivery-view-panels{transform:translateX(-50%)}
-.delivery-view-list,.delivery-view-edit{width:50%;flex-shrink:0}
-.delivery-view-edit{visibility:hidden;max-height:0;overflow:hidden}
-.delivery-view-wrapper.is-edit .delivery-view-edit{visibility:visible;max-height:none;overflow:visible}
-.delivery-view-wrapper.is-edit .delivery-view-list{visibility:hidden;max-height:0;overflow:hidden}
-.delivery-list-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.delivery-list-tip{font-size:12px;line-height:1.6;color:#606266}
-.delivery-prompt-card{background:#fff}
-.delivery-prompt-card__extra{font-size:12px;line-height:1.6;color:#606266;display:flex;gap:4px;word-break:break-all}
-.delivery-prompt-card__actions{justify-content:space-between}
-.delivery-prompt-card__buttons{display:flex;align-items:center;gap:8px}
-.delivery-view-edit{padding-left:4px}
-.delivery-edit-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.delivery-edit-title{font-size:13px;font-weight:600;color:#303133}
-.delivery-edit-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.ai-config-tab {
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  padding: 20px 20px 100px;
+  box-sizing: border-box;
+  background: #f8f9fa;
+  overflow-y: auto;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 20px;
+  border-left: 4px solid var(--boss-primary, #00bebd);
+  padding-left: 10px;
+  line-height: 1.2;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.mt-24 {
+  margin-top: 24px;
+}
+
+.mb-24 {
+  margin-bottom: 24px;
+}
+
+.mb-0 {
+  margin-bottom: 0 !important;
+}
+
+.mr-4 {
+  margin-right: 4px;
+}
+
+.boss-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid #ebeef5;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 8px;
+}
+
+.ai-section-desc {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.nested-card {
+  background: #fff;
+  border: 1px solid #f0f2f5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.nested-title {
+  padding: 14px 16px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.nested-desc {
+  padding: 6px 16px 14px;
+  font-size: 13px;
+  color: #888;
+  line-height: 1.6;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.nested-body {
+  padding: 20px;
+}
+
+.nested-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid #f0f2f5;
+  background: #fafafa;
+}
+
+.delivery-view-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.delivery-view-panels {
+  display: flex;
+  width: 200%;
+  transition: transform 0.28s ease;
+}
+
+.delivery-view-wrapper.is-edit .delivery-view-panels {
+  transform: translateX(-50%);
+}
+
+.delivery-view-list,
+.delivery-view-edit {
+  width: 50%;
+  flex-shrink: 0;
+  padding: 2px;
+}
+
+.delivery-view-edit {
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+}
+
+.delivery-view-wrapper.is-edit .delivery-view-edit {
+  visibility: visible;
+  height: auto;
+  overflow: visible;
+}
+
+.delivery-view-wrapper.is-edit .delivery-view-list {
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+}
+
+.delivery-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.delivery-list-tip {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #888;
+}
+
+.inner-card {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: all 0.25s ease;
+}
+
+.inner-card:last-child {
+  margin-bottom: 0;
+}
+
+.inner-card:hover {
+  border-color: var(--boss-primary, #00bebd);
+  box-shadow: 0 4px 12px rgba(0, 190, 189, 0.08);
+  transform: translateY(-2px);
+}
+
+.inner-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 12px;
+}
+
+.inner-desc {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-radius: 6px;
+}
+
+.inner-extra {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  word-break: break-all;
+}
+
+.extra-label {
+  flex-shrink: 0;
+}
+
+.extra-val {
+  color: var(--boss-primary, #00bebd);
+  font-weight: 500;
+}
+
+.inner-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px dashed #ebeef5;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.inner-status,
+.delivery-prompt-card__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-text {
+  font-size: 13px;
+  transition: all 0.3s;
+}
+
+.status-text.is-active {
+  color: var(--boss-primary, #00bebd);
+  font-weight: 500;
+}
+
+.status-text.is-inactive {
+  color: #888;
+}
+
+.inner-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.divider-v {
+  width: 1px;
+  height: 14px;
+  background: #e4e7ed;
+}
+
+.delivery-view-edit {
+  padding-left: 2px;
+}
+
+.boss-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 20px;
+  margin-bottom: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.boss-edit-divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 16px;
+  background-color: #dcdfe6;
+}
+
+.boss-edit-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #222;
+}
+
+.delivery-edit-form {
+  margin-top: 0;
+}
+
+.boss-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #ebeef5;
+}
+
+.boss-btn-primary {
+  background-color: var(--boss-primary, #00bebd) !important;
+  border-color: var(--boss-primary, #00bebd) !important;
+  color: #fff !important;
+}
+
+.boss-btn-primary:hover,
+.boss-btn-primary:focus {
+  background-color: #00a9a8 !important;
+  border-color: #00a9a8 !important;
+  color: #fff !important;
+}
+
+.boss-btn-text.el-button.is-link {
+  padding: 0;
+  height: auto;
+  min-height: 0;
+  white-space: nowrap;
+}
+
+.boss-btn-back {
+  border: 0;
+  padding: 0;
+  color: var(--boss-primary, #00bebd);
+  background: transparent;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #444;
+  padding-bottom: 8px !important;
+}
+
+:deep(.config-form) {
+  margin: 0;
+}
 </style>

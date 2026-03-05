@@ -1,226 +1,217 @@
 <template>
-  <el-form
-    ref="ruleFormRef"
-    :model="userStore.user"
-    label-position="right"
-    label-width="auto"
-    class="form-preference"
-    size="large"
-  >
-    <el-text v-if="Tools.window.location.href.includes('job-recommend')" class="mx-1 top-title" type="danger">
+  <div class="preference-tab">
+    <div class="header-title">传统投递偏好</div>
+
+    <el-text v-if="Tools.window.location.href.includes('job-recommend')" class="mx-1 top-title top-title-danger" type="danger">
       !!!请前往顶部【搜索】按钮所在页面保存传统投递设置!!!
     </el-text>
 
-    <el-text class="mx-1 top-title" type="warning">投递设置</el-text>
-
-    <div class="delivery-mode-card">
-      <div class="delivery-mode-card__title">传统投递总开关</div>
-      <div class="delivery-mode-card__desc">
-        关闭后将跳过传统规则过滤（如公司名/岗位名/薪资等），仅保留基础状态检查。
+    <el-form
+      ref="ruleFormRef"
+      :model="userStore.user"
+      label-position="top"
+      class="form-preference"
+      size="large"
+    >
+      <div class="boss-card">
+        <div class="setting-row">
+          <div class="switch-content">
+            <span class="label">启用传统投递规则</span>
+            <div class="sub-desc mt-4">关闭后将跳过传统规则过滤（如公司名/岗位名/薪资等），仅保留基础状态检查。</div>
+          </div>
+          <el-switch
+            v-model="userStore.user.preference.traditionalDeliveryE"
+            active-text="开"
+            inactive-text="关"
+            inline-prompt
+            :style="{ '--el-switch-on-color': 'var(--boss-primary, #00bebd)', '--el-switch-off-color': '#dcdfe6' }"
+          />
+        </div>
       </div>
-      <div class="delivery-mode-card__switch">
-        <span>启用传统投递规则</span>
-        <el-switch
-          v-model="userStore.user.preference.traditionalDeliveryE"
-          active-text="开"
-          inactive-text="关"
-          inline-prompt
-          :style="{ '--el-switch-on-color': '#409eff', '--el-switch-off-color': '#dcdfe6' }"
-        />
+
+      <div class="boss-card mt-16">
+        <div class="card-title">基本要求过滤</div>
+
+        <div class="responsive-grid">
+          <el-form-item class="custom-chk-label">
+            <el-checkbox v-model="userStore.user.preference.srE">薪资要求 (月薪k)</el-checkbox>
+            <el-input v-model="userStore.user.preference.sr" placeholder="例如：15-30" />
+          </el-form-item>
+
+          <el-form-item class="custom-chk-label">
+            <el-checkbox v-model="userStore.user.preference.csrE">公司规模范围</el-checkbox>
+            <el-input v-model="userStore.user.preference.csr" placeholder="例如：100-9999" />
+          </el-form-item>
+        </div>
+
+        <div class="judge-divider"></div>
+
+        <div class="switch-grid mt-16">
+          <el-checkbox v-model="userStore.user.preference.fhE" border class="boss-grid-check">自动过滤猎头岗位</el-checkbox>
+          <el-checkbox v-model="userStore.user.preference.polE" border class="boss-grid-check">仅投递 BOSS 刚刚活跃/在线</el-checkbox>
+        </div>
+
+        <div class="activity-filter mt-16">
+          <el-checkbox v-model="userStore.user.preference.acE" class="mr-12" border>启用活跃度过滤</el-checkbox>
+          <div class="activity-dims" :class="{ 'is-disabled': !userStore.user.preference.acE }">
+            <span class="dim-label">允许的活跃维度：</span>
+            <el-checkbox v-model="userStore.user.preference.acW" :disabled="!userStore.user.preference.acE">本周活跃</el-checkbox>
+            <el-checkbox v-model="userStore.user.preference.acM" :disabled="!userStore.user.preference.acE">本月活跃</el-checkbox>
+            <el-checkbox v-model="userStore.user.preference.acY" :disabled="!userStore.user.preference.acE">半年前活跃</el-checkbox>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="setting-row">
-      <el-form-item label="公司名包含" class="setting-item">
-        <template #label>
-          <el-checkbox v-model="userStore.user.preference.cniE" label="" size="large" />
-          公司名包含
-        </template>
-        <el-select
-          v-model="userStore.user.preference.cni"
-          multiple
-          filterable
-          remote
-          allow-create
-          default-first-option
-          :reserve-keyword="false"
-          placeholder="公司名包含"
-          style="width: 240px"
-        >
-          <el-option v-for="item in companyHints" :key="item" :label="item" :value="item" />
-        </el-select>
-      </el-form-item>
+      <div class="boss-card mt-16">
+        <div class="card-title">关键词过滤 (包含/排除)</div>
 
-      <el-form-item label="公司名排除" class="setting-item">
-        <template #label>
-          <el-checkbox v-model="userStore.user.preference.cneE" label="" size="large" />
-          公司名排除
-        </template>
-        <el-select
-          v-model="userStore.user.preference.cne"
-          multiple
-          filterable
-          remote
-          allow-create
-          default-first-option
-          :reserve-keyword="false"
-          placeholder="公司名排除"
-          style="width: 240px"
-        >
-          <el-option v-for="item in companyHints" :key="item" :label="item" :value="item" />
-        </el-select>
-      </el-form-item>
-    </div>
+        <div class="responsive-grid mt-16">
+          <el-form-item class="custom-chk-label">
+            <el-checkbox v-model="userStore.user.preference.cniE">
+              公司名 <el-tag size="small" type="success" effect="light" round class="ml-4">包含</el-tag>
+            </el-checkbox>
+            <el-select
+              v-model="userStore.user.preference.cni"
+              multiple
+              filterable
+              remote
+              allow-create
+              default-first-option
+              :reserve-keyword="false"
+              placeholder="输入后回车添加"
+            >
+              <el-option v-for="item in companyHints" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
 
-    <div class="setting-row">
-      <el-form-item label="岗位名称包含" class="setting-item">
-        <template #label>
-          <el-checkbox v-model="userStore.user.preference.jniE" label="" size="large" />
-          岗位名称包含
-        </template>
-        <el-select
-          v-model="userStore.user.preference.jni"
-          multiple
-          filterable
-          remote
-          allow-create
-          default-first-option
-          :reserve-keyword="false"
-          placeholder="岗位名称包含"
-          style="width: 240px"
-        >
-          <el-option v-for="item in jobNameHints" :key="item" :label="item" :value="item" />
-        </el-select>
-      </el-form-item>
+          <el-form-item class="custom-chk-label">
+            <el-checkbox v-model="userStore.user.preference.cneE">
+              公司名 <el-tag size="small" type="danger" effect="light" round class="ml-4">排除</el-tag>
+            </el-checkbox>
+            <el-select
+              v-model="userStore.user.preference.cne"
+              multiple
+              filterable
+              remote
+              allow-create
+              default-first-option
+              :reserve-keyword="false"
+              placeholder="输入后回车添加"
+            >
+              <el-option v-for="item in companyHints" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
+        </div>
 
-      <el-form-item label="岗位名称排除" class="setting-item">
-        <template #label>
-          <el-checkbox v-model="userStore.user.preference.jneE" label="" size="large" />
-          岗位名称排除
-        </template>
-        <el-select
-          v-model="userStore.user.preference.jne"
-          multiple
-          filterable
-          remote
-          allow-create
-          default-first-option
-          :reserve-keyword="false"
-          placeholder="岗位名称排除"
-          style="width: 240px"
-        >
-          <el-option v-for="item in jobNameExcludeHints" :key="item" :label="item" :value="item" />
-        </el-select>
-      </el-form-item>
-    </div>
+        <div class="responsive-grid">
+          <el-form-item class="custom-chk-label">
+            <el-checkbox v-model="userStore.user.preference.jniE">
+              岗位名称 <el-tag size="small" type="success" effect="light" round class="ml-4">包含</el-tag>
+            </el-checkbox>
+            <el-select
+              v-model="userStore.user.preference.jni"
+              multiple
+              filterable
+              remote
+              allow-create
+              default-first-option
+              :reserve-keyword="false"
+              placeholder="例如：前端, Web (输入后回车)"
+            >
+              <el-option v-for="item in jobNameHints" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
 
-    <div class="setting-row">
-      <el-form-item label="工作内容包含(任一)" class="setting-item">
-        <template #label>
-          <el-checkbox v-model="userStore.user.preference.jciE" label="" size="large" />
-          内容包含(任一)
-        </template>
-        <el-select
-          v-model="userStore.user.preference.jci"
-          multiple
-          filterable
-          remote
-          allow-create
-          default-first-option
-          :reserve-keyword="false"
-          placeholder="工作内容包含(任一关键词命中)"
-          style="width: 240px"
-        >
-          <el-option v-for="item in jobContentHints" :key="item" :label="item" :value="item" />
-        </el-select>
-      </el-form-item>
+          <el-form-item class="custom-chk-label">
+            <el-checkbox v-model="userStore.user.preference.jneE">
+              岗位名称 <el-tag size="small" type="danger" effect="light" round class="ml-4">排除</el-tag>
+            </el-checkbox>
+            <el-select
+              v-model="userStore.user.preference.jne"
+              multiple
+              filterable
+              remote
+              allow-create
+              default-first-option
+              :reserve-keyword="false"
+              placeholder="例如：外包, 实习 (输入后回车)"
+            >
+              <el-option v-for="item in jobNameExcludeHints" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
+        </div>
 
-      <el-form-item label="工作内容排除" class="setting-item">
-        <template #label>
-          <el-checkbox v-model="userStore.user.preference.jceE" label="" size="large" />
-          工作内容排除
-        </template>
-        <el-select
-          v-model="userStore.user.preference.jce"
-          multiple
-          filterable
-          remote
-          allow-create
-          default-first-option
-          :reserve-keyword="false"
-          placeholder="工作内容排除"
-          style="width: 240px"
-        >
-          <el-option v-for="item in jobContentExcludeHints" :key="item" :label="item" :value="item" />
-        </el-select>
-      </el-form-item>
-    </div>
+        <div class="responsive-grid">
+          <el-form-item class="custom-chk-label">
+            <el-checkbox v-model="userStore.user.preference.jciE">
+              工作内容JD <el-tag size="small" type="success" effect="light" round class="ml-4">包含</el-tag>
+              <span class="text-xs text-muted ml-4">(任一命中)</span>
+            </el-checkbox>
+            <el-select
+              v-model="userStore.user.preference.jci"
+              multiple
+              filterable
+              remote
+              allow-create
+              default-first-option
+              :reserve-keyword="false"
+              placeholder="例如：Vue3, TS (输入后回车)"
+            >
+              <el-option v-for="item in jobContentHints" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
 
-    <div class="setting-row">
-      <el-form-item label="薪资范围" class="setting-item">
-        <template #label>
-          <el-checkbox v-model="userStore.user.preference.srE" label="" size="large" />
-          薪资范围(月薪k)
-        </template>
-        <el-input v-model="userStore.user.preference.sr" placeholder="薪资范围 例:9-15" />
-      </el-form-item>
-
-      <el-form-item label="公司规模范围" class="setting-item">
-        <template #label>
-          <el-checkbox v-model="userStore.user.preference.csrE" label="" size="large" />
-          公司规模范围
-        </template>
-        <el-input v-model="userStore.user.preference.csr" placeholder="公司规模范围 例:10-5000" style="width: 242px" />
-      </el-form-item>
-    </div>
-
-    <el-form-item label="发送自定义招呼语">
-      <template #label>
-        <el-checkbox v-model="userStore.user.preference.cgE" label="" size="large" />
-        <span>发送自定义招呼语</span>
-      </template>
-      <el-input v-model="userStore.user.preference.cg" type="textarea" />
-    </el-form-item>
-
-    <div class="single-setting-row">
-      <el-checkbox v-model="userStore.user.preference.fhE" label="" size="large">过滤猎头</el-checkbox>
-    </div>
-
-    <div class="single-setting-row">
-      <el-checkbox v-model="userStore.user.preference.polE" label="" size="large">仅投递 BOSS 在线岗位</el-checkbox>
-    </div>
-
-    <div class="single-setting-row">
-      <div class="activity-row">
-        <el-checkbox v-model="userStore.user.preference.acE" label="" size="large">活跃度过滤</el-checkbox>
-        <span>维度</span>
-        <el-checkbox v-model="userStore.user.preference.acW" label="" size="large">周</el-checkbox>
-        <el-checkbox v-model="userStore.user.preference.acM" label="" size="large">月</el-checkbox>
-        <el-checkbox v-model="userStore.user.preference.acY" label="" size="large">年</el-checkbox>
+          <el-form-item class="custom-chk-label">
+            <el-checkbox v-model="userStore.user.preference.jceE">
+              工作内容JD <el-tag size="small" type="danger" effect="light" round class="ml-4">排除</el-tag>
+            </el-checkbox>
+            <el-select
+              v-model="userStore.user.preference.jce"
+              multiple
+              filterable
+              remote
+              allow-create
+              default-first-option
+              :reserve-keyword="false"
+              placeholder="例如：驻场, 催收 (输入后回车)"
+            >
+              <el-option v-for="item in jobContentExcludeHints" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
+        </div>
       </div>
-    </div>
 
-    <div class="single-setting-row">
-      <div class="interval-row">
-        <p class="time-interval">投递间隔</p>
-        <el-input-number v-model="userStore.user.preference.pi" :min="3" :max="60" size="small" />
-        <p class="time-interval">秒</p>
+      <div class="boss-card mt-16 mb-24">
+        <div class="card-title">沟通与运行节律</div>
+
+        <el-form-item class="custom-chk-label">
+          <el-checkbox v-model="userStore.user.preference.cgE">投递时发送自定义招呼语</el-checkbox>
+          <el-input v-model="userStore.user.preference.cg" type="textarea" :rows="3" />
+        </el-form-item>
+
+        <div class="interval-groups mt-16">
+          <div class="interval-item">
+            <span class="interval-label">投递频率间隔：</span>
+            <el-input-number v-model="userStore.user.preference.pi" :min="3" :max="60" controls-position="right" />
+            <span class="interval-unit">秒 / 次</span>
+          </div>
+
+          <div class="interval-item">
+            <span class="interval-label">翻页等待间隔：</span>
+            <el-input-number v-model="userStore.user.preference.npi" :min="6" :max="60" controls-position="right" />
+            <span class="interval-unit">秒 / 页</span>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="single-setting-row">
-      <div class="interval-row">
-        <p class="time-interval">翻页间隔</p>
-        <el-input-number v-model="userStore.user.preference.npi" :min="6" :max="60" size="small" />
-        <p class="time-interval">秒</p>
+      <div class="action-footer mt-24">
+        <div class="footer-right buttons">
+          <el-button link class="text-muted" @click="resetForm">恢复默认过滤</el-button>
+          <el-button color="#00bebd" type="primary" class="save-btn" style="color: white;" @click="submitForm">保存传统投递偏好</el-button>
+        </div>
       </div>
-    </div>
-
-    <el-form-item>
-      <el-button type="primary" @click="submitForm">保存传统投递设置</el-button>
-      <el-button @click="resetForm">重置传统投递设置</el-button>
-    </el-form-item>
-  </el-form>
+    </el-form>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -328,69 +319,266 @@ preferenceDefaultValueHandler();
   width: 100%;
 }
 
-.delivery-mode-card {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 12px;
-  background: #fff;
+.preference-tab {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 16px;
+  padding-bottom: 80px;
+  background-color: #f8f9fa;
 }
 
-.delivery-mode-card__title {
-  font-size: 14px;
+.header-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 16px;
+  border-left: 3px solid var(--boss-primary, #00bebd);
+  padding-left: 8px;
+  line-height: 1;
+}
+
+.top-title {
+  display: block;
+  margin: 4px 0 2px;
+}
+
+.top-title-danger {
   font-weight: 600;
-  color: #303133;
 }
 
-.delivery-mode-card__desc {
-  margin-top: 4px;
-  margin-bottom: 10px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: #606266;
+.boss-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eef0f5;
 }
 
-.delivery-mode-card__switch {
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.card-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background-color: var(--boss-primary, #00bebd);
+  margin-right: 8px;
+  border-radius: 2px;
 }
 
 .setting-row {
   display: flex;
-  margin-top: 10px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.switch-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.sub-desc {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.judge-divider {
+  height: 1px;
+  background-color: #f0f2f5;
+  margin: 16px 0;
+}
+
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 0 24px;
+}
+
+.switch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 16px;
+}
+
+.activity-filter {
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+  background: #fafafa;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: 1px solid #ebeef5;
 }
 
-.setting-item {
-  margin-bottom: 10px;
-}
-
-.single-setting-row {
+.activity-dims {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 12px;
+  margin-left: 12px;
+  padding-left: 20px;
+  border-left: 1px solid #dcdfe6;
 }
 
-.activity-row,
-.interval-row {
+.dim-label {
+  font-size: 13px;
+  color: #666;
+}
+
+.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.interval-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 32px;
+  background: #fdfdfd;
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px dashed #dcdfe6;
+}
+
+.interval-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+}
+
+.interval-label {
+  font-size: 14px;
+  color: #333;
+  margin-right: 8px;
+}
+
+.interval-unit {
+  font-size: 13px;
+  color: #999;
+  margin-left: 8px;
+}
+
+.action-footer {
+  display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  margin-bottom: 40px;
 }
 
-:deep(.el-input-number--small) {
-  line-height: 22px;
-  width: 80px;
+.footer-right.buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.time-interval {
-  margin: 0;
+.text-muted {
+  color: #909399;
+}
+
+.save-btn {
+  padding: 0 32px;
+}
+
+.mt-4 {
+  margin-top: 4px;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.mt-24 {
+  margin-top: 24px;
+}
+
+.mb-24 {
+  margin-bottom: 24px;
+}
+
+.ml-4 {
+  margin-left: 4px;
+}
+
+.mr-12 {
+  margin-right: 12px;
+}
+
+.text-xs {
+  font-size: 12px;
+}
+
+:deep(.custom-chk-label) {
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.custom-chk-label .el-checkbox) {
+  margin-bottom: 6px;
+  height: auto;
+  margin-right: 0;
+}
+
+:deep(.el-checkbox__label) {
+  white-space: normal;
+  line-height: 1.4;
+  word-break: break-word;
+  vertical-align: middle;
+}
+
+:deep(.boss-grid-check.el-checkbox.is-bordered) {
+  margin-right: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+  background-color: #fff;
+}
+
+:deep(.boss-grid-check.el-checkbox.is-bordered.is-checked) {
+  background-color: #f0fbfb;
+  border-color: var(--boss-primary, #00bebd);
+}
+
+:deep(.boss-grid-check .el-checkbox__label) {
+  white-space: normal;
+  line-height: 1.4;
+  flex: 1;
+}
+
+:deep(.form-preference .el-form-item) {
+  margin-bottom: 12px;
+}
+
+:deep(.form-preference .el-select) {
+  width: 100%;
 }
 </style>

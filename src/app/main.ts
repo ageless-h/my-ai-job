@@ -10,6 +10,14 @@ import App from "@/app/App.vue";
 import { request } from "@/core/http/request";
 import { PlatformFactory } from "@/core/platform/platform-factory";
 
+declare global {
+  interface Window {
+    __AI_JOB_HUNTING_MOUNTED__?: boolean;
+  }
+}
+
+const ROOT_ID = "ai-job";
+
 const app = createApp(App);
 app.use(createPinia());
 app.use(ElementPlus, { locale: zhCn });
@@ -18,11 +26,29 @@ const platform = PlatformFactory.getInstance(location.href);
 app.provide("$platform", platform);
 app.provide("$axios", request);
 
-const rootApp = document.createElement("div");
-rootApp.id = "ai-job";
-rootApp.classList.add("page-job-content");
+const ensureSingleRoot = () => {
+  const roots = Array.from(document.querySelectorAll<HTMLElement>(`#${ROOT_ID}`));
+  if (roots.length > 1) {
+    roots.slice(1).forEach((node) => node.remove());
+  }
+  return roots[0] || null;
+};
 
-window.onload = () => {
+const mountApp = () => {
+  const existingRoot = ensureSingleRoot();
+  if (existingRoot) {
+    window.__AI_JOB_HUNTING_MOUNTED__ = true;
+    return;
+  }
+
+  if (window.__AI_JOB_HUNTING_MOUNTED__) {
+    return;
+  }
+
+  const rootApp = document.createElement("div");
+  rootApp.id = ROOT_ID;
+  rootApp.classList.add("page-job-content");
+
   platform.getMountEle().then((elP) => {
     const containerEle = elP.el;
     if (elP.p === "end") {
@@ -32,5 +58,12 @@ window.onload = () => {
     }
 
     app.mount(rootApp);
+    window.__AI_JOB_HUNTING_MOUNTED__ = true;
   });
 };
+
+if (document.readyState === "complete") {
+  mountApp();
+} else {
+  window.addEventListener("load", mountApp, { once: true });
+}

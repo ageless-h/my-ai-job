@@ -62,3 +62,41 @@
   display: inline-flex;
   align-items: center;
 }
+
+#ai-job .ai-job-tab,
+#ai-job .run-record-tab,
+#ai-job .ai-config-tab,
+#ai-job .account-page {
+  min-width: 0;
+}
+
+#ai-job .header-title {
+  letter-spacing: 0.2px;
+  flex-shrink: 0;
+}
+
+#ai-job .run-record-root,
+#ai-job .ai-config .ai-section {
+  background: #fff;
+  border: 1px solid #eef0f5;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+#ai-job .subpage-entry-card {
+  border: 1px solid #eef0f5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+#ai-job .subpage-entry-card:hover {
+  border-color: #00bebd;
+  box-shadow: 0 4px 12px rgba(0, 190, 189, 0.08);
+}
+
+#ai-job .el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
+  --el-button-bg-color: #00bebd;
+  --el-button-border-color: #00bebd;
+  --el-button-hover-bg-color: #00a9a8;
+  --el-button-hover-border-color: #00a9a8;
+}
