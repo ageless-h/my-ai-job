@@ -64,7 +64,7 @@ import {
 } from '@/features/conversation-cleaner/services/conversation-cleaner';
 import type { CleanCandidate, ScanProgress } from '@/features/conversation-cleaner/services/conversation-cleaner';
 
-import { ElMessage } from '@/core/http/request';
+import { showAppMessage } from '@/core/http/request';
 import { ElMessageBox } from 'element-plus';
 import { UserStore } from '@/state/user';
 const candidates = ref<CleanCandidate[]>([]);
@@ -135,7 +135,7 @@ async function startScan() {
     });
     candidates.value = result;
   } catch (e: any) {
-    ElMessage({ type: 'error', message: `扫描失败: ${e?.message || e}` });
+    showAppMessage({ type: 'error', message: `扫描失败: ${e?.message || e}` });
   } finally {
     scanning.value = false;
     scanned.value = true;
@@ -171,7 +171,7 @@ async function confirmDelete() {
         },
       );
       if ((value || '').trim() !== confirmWord) {
-        ElMessage({ type: 'warning', message: '确认词不匹配，已取消删除' });
+        showAppMessage({ type: 'warning', message: '确认词不匹配，已取消删除' });
         return;
       }
     } catch {
@@ -205,7 +205,7 @@ async function confirmDelete() {
       c.selected = selectedBeforeDelete.has(c.securityId) && !successSet.has(c.securityId);
     });
   } catch (e: any) {
-    ElMessage({ type: 'error', message: `删除失败: ${e?.message || e}` });
+    showAppMessage({ type: 'error', message: `删除失败: ${e?.message || e}` });
   } finally {
     deleting.value = false;
   }

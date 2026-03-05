@@ -125,11 +125,11 @@ const saveDebugHistoryByChannelKey = (channelKey, historyList) => {
 
 const handleSendDebug = async () => {
   if (!debugQuestion.value) {
-    state.ElMessage({ type: 'warning', message: '请输入问题' });
+    state.showAppMessage({ type: 'warning', message: '请输入问题' });
     return;
   }
   if (debugHistory.value.length >= 20) {
-    state.ElMessage({ type: 'warning', message: '总对话长度不能超过20条，请先清空历史消息重试' });
+    state.showAppMessage({ type: 'warning', message: '总对话长度不能超过20条，请先清空历史消息重试' });
     return;
   }
 
@@ -177,7 +177,7 @@ const handleSendDebug = async () => {
       persistCurrentDebugHistory();
     }
   } catch (e) {
-    state.ElMessage({ type: 'error', message: `调试失败: ${e?.message || e || ''}` });
+    state.showAppMessage({ type: 'error', message: `调试失败: ${e?.message || e || ''}` });
   } finally {
     isDebugLoading.value = false;
   }

@@ -1,11 +1,11 @@
 // -*- coding: utf-8 -*-
 import axios from "axios";
 import { AiPower } from "@/core/ai/ai-power";
-import { AbsPlatform, PushResultStatus, PushStatus, pushResultCounter, userStore$2 } from "@/core/engine/push-engine";
+import { AbsPlatform, PushResultStatus, PushStatus, pushResultCounter, runtimeUserStore } from "@/core/engine/push-engine";
 import { Logger } from "@/shared/utils/logger";
 import { Tools } from "@/shared/utils/tools";
 import { extractResumeTextFromHtml } from "@/shared/utils/resume";
-import { normalizePreferenceBoolean } from "@/shared/utils/preference";
+import { getPreferenceValue, normalizePreferenceBoolean } from "@/shared/utils/preference";
 import {
   buildAiDeliveryFilterJobInput,
   buildAiDeliveryJudgePrompt,
@@ -15,12 +15,12 @@ import {
 } from "@/shared/utils/ai-delivery";
 import { TampermonkeyApi } from "@/shared/utils/tampermonkey";
 import {
-  NotMatchException,
-  PushReqException,
-  CollectReqException,
-  FetchJobBossFailExp,
-  PublishLimitExp,
-  PublishStopExp
+  NotMatchError,
+  PushRequestError,
+  FavoriteRequestError,
+  FetchJobDetailError,
+  PushLimitError,
+  PushStopError
 } from "@/shared/errors";
 import { Message } from "@/core/protocol/message";
 import { simulateScrollToEnd } from "@/shared/utils/scroll";
@@ -296,7 +296,7 @@ export class BossPlatform extends AbsPlatform {
     maxMessagesPerSession: number;
     maxResumesPerSession: number;
   } {
-    const preference = userStore$2?.user?.preference || {};
+    const preference = runtimeUserStore?.user?.preference || {};
     const toNumberOr = (value: unknown, fallback: number): number => {
       const n = Number(value);
       return Number.isFinite(n) ? n : fallback;
@@ -354,7 +354,7 @@ export class BossPlatform extends AbsPlatform {
         });
 
       if (elementNodeList2.length !== 0 && jobList.length === 0) {
-        this.logRecorder.info("当前筛选条件下岗位均已投递");
+        this.preferenceLogRecorder.info("当前筛选条件下岗位均已投递");
       }
 
       return jobList;
@@ -444,7 +444,7 @@ export class BossPlatform extends AbsPlatform {
       this.scrollJobsListToEnd().then(() => {
         logger$1.info("获取下一页成功");
       }).catch((e) => {
-        this.logRecorder.warn("获取下一页失败", e);
+        this.preferenceLogRecorder.warn("获取下一页失败", e);
       });
       return;
     }
@@ -457,7 +457,7 @@ export class BossPlatform extends AbsPlatform {
       simulateScrollToEnd().then(() => {
         logger$1.info("获取下一页成功");
       }).catch((e) => {
-        this.logRecorder.warn("获取下一页失败", e);
+        this.preferenceLogRecorder.warn("获取下一页失败", e);
       });
       return;
     }
@@ -467,7 +467,7 @@ export class BossPlatform extends AbsPlatform {
       simulateScrollToEnd().then(() => {
         logger$1.info("获取下一页成功");
       }).catch((e) => {
-        this.logRecorder.warn("获取下一页失败", e);
+        this.preferenceLogRecorder.warn("获取下一页失败", e);
       });
       return;
     }
@@ -481,7 +481,7 @@ export class BossPlatform extends AbsPlatform {
     const jobTitle = this.getJobKey(jobDetail);
 
     if (jobDetail.contact) {
-      throw new NotMatchException(jobTitle, jobDetail.contact, "已经沟通过");
+      throw new NotMatchError(jobTitle, jobDetail.contact, "已经沟通过");
     }
 
     const aiFilterModeEnabled = this.shouldEnableAiDeliveryJudge();
@@ -499,12 +499,12 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (this.isCommunication(jobDetailExt)) {
-      throw new NotMatchException(jobTitle, jobDetailExt.friendStatus, "已经沟通过");
+      throw new NotMatchError(jobTitle, jobDetailExt.friendStatus, "已经沟通过");
     }
 
     if (aiFilterModeEnabled) {
-      const aiConfig = Tools.getAiDeliveryJudgeConfig(userStore$2?.user?.preference || {});
-      const user = userStore$2?.user || {};
+      const aiConfig = Tools.getAiDeliveryJudgeConfig(runtimeUserStore?.user?.preference || {});
+      const user = runtimeUserStore?.user || {};
       await this.ensureRuntimeResumeNarrative(user);
       const preference = user.preference || {};
       const userProfile = buildAiDeliveryUserProfile(user, preference);
@@ -518,8 +518,8 @@ export class BossPlatform extends AbsPlatform {
       const filterPath = AiPower.getFilterPath();
       const aiJudgeStartedAt = Date.now();
       const maskedUserProfile = this.maskAiDeliveryUserProfile(userProfile);
-      this.logRecorder.info(`工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${AI_DELIVERY_JUDGE_TIMEOUT_MS} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`);
-      this.logRecorder.info(`工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} includeTraditionalSnapshot=${aiConfig.includeTraditionalSnapshot} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(",")} extKeys=${Object.keys(extInfo).join(",")}`);
+      this.preferenceLogRecorder.info(`工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${AI_DELIVERY_JUDGE_TIMEOUT_MS} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`);
+      this.preferenceLogRecorder.info(`工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} includeTraditionalSnapshot=${aiConfig.includeTraditionalSnapshot} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(",")} extKeys=${Object.keys(extInfo).join(",")}`);
       try {
         const filterStartedAt = Date.now();
         const filterResp = await AiPower.filter(
@@ -534,19 +534,19 @@ export class BossPlatform extends AbsPlatform {
         const parseElapsed = Date.now() - parseStartedAt;
         const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
         const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
-        this.logRecorder.info(`工作【${jobTitle}】AI投递判断完成 trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`);
+        this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断完成 trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`);
       } catch (error: any) {
         const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
         const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
         const aiErrorMessage = `${error?.message || "AI请求失败"}`;
-        this.logRecorder.warn(`工作【${jobTitle}】AI投递判断失败 trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) onAiError=${aiConfig.onAiError} 原因：${aiErrorMessage}`);
+        this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) onAiError=${aiConfig.onAiError} 原因：${aiErrorMessage}`);
         const aiErrorFallback = resolveAiDeliveryFallback(aiConfig.onAiError, "ai-error");
         if (aiErrorFallback.enabled) {
           const fallbackReason = this.normalizeAiJudgeReason(
             `[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则：${aiErrorMessage}`,
             "[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则"
           );
-          this.logRecorder.warn(`工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`);
+          this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`);
           this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
           jobDetail.aiDeliveryJudge = {
             traceId: judgeTraceId,
@@ -557,10 +557,10 @@ export class BossPlatform extends AbsPlatform {
             parseMode: aiErrorFallback.parseMode,
             judgedAt: new Date().toISOString()
           };
-          this.logRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
+          this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
           return true;
         }
-        throw new NotMatchException(jobTitle, aiErrorMessage, "AI投递判断异常");
+        throw new NotMatchError(jobTitle, aiErrorMessage, "AI投递判断异常");
       }
 
       jobDetail.aiDeliveryJudge = {
@@ -580,7 +580,7 @@ export class BossPlatform extends AbsPlatform {
             `[FALLBACK_TRADITIONAL] AI结果不可解析，回退传统规则：${judgeResult.reason}`,
             "[FALLBACK_TRADITIONAL] AI结果不可解析，回退传统规则"
           );
-          this.logRecorder.warn(`工作【${jobTitle}】AI结果不可解析触发传统规则回退 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} reason=${fallbackReason}`);
+          this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI结果不可解析触发传统规则回退 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} reason=${fallbackReason}`);
           this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
           jobDetail.aiDeliveryJudge = {
             traceId: judgeTraceId,
@@ -591,19 +591,19 @@ export class BossPlatform extends AbsPlatform {
             parseMode: invalidResultFallback.parseMode,
             judgedAt: new Date().toISOString()
           };
-          this.logRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
+          this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
           return true;
         }
-        this.logRecorder.warn(`工作【${jobTitle}】AI判定结果不可解析 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} onInvalidResult=${aiConfig.onInvalidResult} reason=${judgeResult.reason}`);
-        throw new NotMatchException(jobTitle, judgeResult.reason, "AI投递判断结果不可解析");
+        this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI判定结果不可解析 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} onInvalidResult=${aiConfig.onInvalidResult} reason=${judgeResult.reason}`);
+        throw new NotMatchError(jobTitle, judgeResult.reason, "AI投递判断结果不可解析");
       }
 
       if (!judgeResult.match) {
-        this.logRecorder.info(`工作【${jobTitle}】AI投递判断不通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
-        throw new NotMatchException(jobTitle, judgeResult.reason, "AI投递判断不通过");
+        this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断不通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
+        throw new NotMatchError(jobTitle, judgeResult.reason, "AI投递判断不通过");
       }
 
-      this.logRecorder.info(`工作【${jobTitle}】AI投递判断通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
+      this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
     }
 
     return true;
@@ -658,7 +658,9 @@ export class BossPlatform extends AbsPlatform {
     const publishUrl = `https://www.zhipin.com/wapi/zpgeek/friend/add.json?securityId=${jobDetail.securityId}&jobId=${jobDetail.encryptJobId}&lid=${jobDetail.lid}`;
     let pushResp: any = { code: PushResultStatus.NOT_START, message: "" };
     try {
-      await Tools.sleep(userStore$2.user.preference.pi * 1000);
+      const preference = runtimeUserStore?.user?.preference || {};
+      const pushIntervalSec = Number(getPreferenceValue(preference, "pushIntervalSec", "pi")) || 3;
+      await Tools.sleep(pushIntervalSec * 1000);
       pushResp = await axios.post(publishUrl, null, { headers: { Zp_token: Tools.getCookieValue("bst") } });
     } catch (error: any) {
       logger$1.debug(`工作【${jobTitle}】投递失败; 原因：${error.message}`);
@@ -668,7 +670,7 @@ export class BossPlatform extends AbsPlatform {
     if (pushResp.data.code === PushResultStatus.FAIL && pushResp.data?.zpData?.bizData?.chatRemindDialog?.content) {
       const remindContent = `${pushResp.data?.zpData?.bizData?.chatRemindDialog?.content || ""}`;
       if (this.isManualVerificationText(remindContent)) {
-        throw new PublishStopExp(`命中人工验证提示：${remindContent.slice(0, 40)}`);
+        throw new PushStopError(`命中人工验证提示：${remindContent.slice(0, 40)}`);
       }
 
       if (pushResp.data?.zpData?.bizData?.chatRemindDialog?.content.includes("您今天已与120位BOSS沟通")) {
@@ -985,7 +987,7 @@ export class BossPlatform extends AbsPlatform {
   async doCollect(jobDetail: any, errorMsg = "", retries = 2): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
-      throw new CollectReqException(jobTitle, errorMsg || "收藏重试多次失败");
+      throw new FavoriteRequestError(jobTitle, errorMsg || "收藏重试多次失败");
     }
 
     let latestError = errorMsg;
@@ -1016,7 +1018,9 @@ export class BossPlatform extends AbsPlatform {
         return await this.doCollect(jobDetail, latestError, retries - 1);
       }
 
-      await Tools.sleep(Math.max(500, ((userStore$2?.user.preference.pi) || 3) * 600));
+      const preference = runtimeUserStore?.user?.preference || {};
+      const pushIntervalSec = Number(getPreferenceValue(preference, "pushIntervalSec", "pi")) || 3;
+      await Tools.sleep(Math.max(500, pushIntervalSec * 600));
       const token = Tools.getCookieValue("bst");
       if (token) {
         const headers = { Zp_token: token };
@@ -1077,13 +1081,13 @@ export class BossPlatform extends AbsPlatform {
   async requestBossData(jobDetail: any, errorMsg = "", retries = 3): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
-      throw new FetchJobBossFailExp(jobTitle, errorMsg || "获取boss数据重试多次失败");
+      throw new FetchJobDetailError(jobTitle, errorMsg || "获取boss数据重试多次失败");
     }
 
     const url = "https://www.zhipin.com/wapi/zpchat/geek/getBossData";
     const token = Tools.getCookieValue("bst");
     if (!token) {
-      throw new FetchJobBossFailExp(jobTitle, "未获取到zp-token");
+      throw new FetchJobDetailError(jobTitle, "未获取到zp-token");
     }
 
     const data = new FormData();
@@ -1099,7 +1103,7 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (resp.data.code !== 0) {
-      throw new FetchJobBossFailExp(jobTitle, resp.data.message);
+      throw new FetchJobDetailError(jobTitle, resp.data.message);
     }
 
     return resp.data.zpData;
@@ -1260,20 +1264,20 @@ export class BossPlatform extends AbsPlatform {
       pushResultCounter.successIncr();
       const aiJudgeReason = `${jobDetail?.aiDeliveryJudge?.reason || ""}`.trim();
       if (aiJudgeReason) {
-        this.logRecorder.info(`工作【${jobTitle}】 投递成功 AI理由：${aiJudgeReason}`);
+        this.preferenceLogRecorder.info(`工作【${jobTitle}】 投递成功 AI理由：${aiJudgeReason}`);
       } else {
-        this.logRecorder.info(`工作【${jobTitle}】 投递成功`);
+        this.preferenceLogRecorder.info(`工作【${jobTitle}】 投递成功`);
       }
       try {
         await this.pushAfterSendImage(jobDetail);
       } catch (e: any) {
-        this.logRecorder.warn(`工作【${jobTitle}】发送图片简历失败 原因：${e?.message || e}`);
+        this.preferenceLogRecorder.warn(`工作【${jobTitle}】发送图片简历失败 原因：${e?.message || e}`);
       }
 
       try {
         await this.pushAfterSendMsg(jobDetail);
       } catch (e: any) {
-        this.logRecorder.warn(`工作【${jobTitle}】发送自定义消息失败 原因：${e?.message || e}`);
+        this.preferenceLogRecorder.warn(`工作【${jobTitle}】发送自定义消息失败 原因：${e?.message || e}`);
       }
 
       jobDetail.contact = true;
@@ -1281,14 +1285,16 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (pushResult.message.includes("今日沟通人数已达上限")) {
-      throw new PublishLimitExp(pushResult.message);
+      throw new PushLimitError(pushResult.message);
     }
 
-    throw new PushReqException(jobTitle, pushResult.message);
+    throw new PushRequestError(jobTitle, pushResult.message);
   }
 
   async pushAfterSendMsg(jobDetail: any): Promise<void> {
-    if (!userStore$2.user.preference.cgE || this._pushMock) {
+    const preference = runtimeUserStore?.user?.preference || {};
+    const customGreetingEnabled = normalizePreferenceBoolean(getPreferenceValue(preference, "customGreetingEnabled", "cgE"), false);
+    if (!customGreetingEnabled || this._pushMock) {
       return;
     }
 
@@ -1301,7 +1307,10 @@ export class BossPlatform extends AbsPlatform {
     }
 
     const bossData = await this.requestBossDataByCache(jobDetail);
-    const customGreeting = userStore$2.user.preference.cg;
+    const customGreetingRaw = getPreferenceValue(preference, "customGreeting", "cg");
+    const customGreeting = typeof customGreetingRaw === "string"
+      ? customGreetingRaw
+      : (customGreetingRaw == null ? void 0 : `${customGreetingRaw}`);
     const message = new Message({
       form_uid: this.getPageUidString(),
       to_uid: bossData.data.bossId.toString(),
@@ -1323,14 +1332,16 @@ export class BossPlatform extends AbsPlatform {
   }
 
   async pushAfterSendImage(jobDetail: any): Promise<void> {
-    if (!userStore$2.user.preference.cIE || this._pushMock) {
+    const preference = runtimeUserStore?.user?.preference || {};
+    const customImageEnabled = normalizePreferenceBoolean(getPreferenceValue(preference, "customImageEnabled", "cIE"), false);
+    if (!customImageEnabled || this._pushMock) {
       return;
     }
 
     await Tools.sleep(Tools.getRandomNumber(900, 2400));
     this.enforceAutoContactSafety("image");
 
-    const customerImageSet = userStore$2.user.preference.cI;
+    const customerImageSet = `${getPreferenceValue(preference, "customImageSet", "cI") || ""}`;
     if (!customerImageSet) {
       return;
     }
@@ -1376,7 +1387,7 @@ export class BossPlatform extends AbsPlatform {
   async obtainBossJobDetailExt(jobDetail: any, message = "", retries = 3): Promise<any> {
     if (retries === 0) {
       logger$1.warn(`获取工作详情扩展信息异常,用于活跃度过滤以及工作内容过滤; 原因：${message}`);
-      throw new NotMatchException(this.getJobKey(jobDetail), message, "获取工作详情扩展信息异常");
+      throw new NotMatchError(this.getJobKey(jobDetail), message, "获取工作详情扩展信息异常");
     }
 
     const params = `lid=${jobDetail.lid}&securityId=${jobDetail.securityId}&sessionId=`;
@@ -1454,8 +1465,8 @@ export class BossPlatform extends AbsPlatform {
       resumeTextSource,
       importedAt: new Date().toISOString()
     };
-    if (userStore$2?.user) {
-      Tools.saveStoredUserProfile(userStore$2.user);
+    if (runtimeUserStore?.user) {
+      Tools.saveStoredUserProfile(runtimeUserStore.user);
     }
   }
 
@@ -1570,12 +1581,12 @@ export class BossPlatform extends AbsPlatform {
   }
 
   private shouldEnableAiDeliveryJudge(): boolean {
-    const preference = userStore$2?.user?.preference || {};
+    const preference = runtimeUserStore?.user?.preference || {};
     return Tools.getAiDeliveryJudgeConfig(preference).enabled;
   }
 
   private isTraditionalDeliveryEnabled(): boolean {
-    const preference = userStore$2?.user?.preference || {};
+    const preference = runtimeUserStore?.user?.preference || {};
     return normalizePreferenceBoolean(preference.traditionalDeliveryE, true);
   }
 
@@ -1587,78 +1598,78 @@ export class BossPlatform extends AbsPlatform {
     fallbackReason: string
   ): void {
     if (!traditionalDeliveryEnabled) {
-      throw new NotMatchException(jobTitle, fallbackReason, "AI回退传统投递失败：未开启传统投递规则");
+      throw new NotMatchError(jobTitle, fallbackReason, "AI回退传统投递失败：未开启传统投递规则");
     }
     this.applyTraditionalBaseChecks(jobDetail, jobTitle);
     this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
   }
 
   private applyTraditionalBaseChecks(jobDetail: any, jobTitle: string): void {
-    const preference = userStore$2?.user?.preference || {};
+    const preference = runtimeUserStore?.user?.preference || {};
     if (preference.fhE && jobDetail.goldHunter === 1) {
-      throw new NotMatchException(jobTitle, jobDetail.goldHunter, "过滤猎头");
+      throw new NotMatchError(jobTitle, jobDetail.goldHunter, "过滤猎头");
     }
 
     if (preference.polE && !jobDetail.bossOnline) {
-      throw new NotMatchException(jobTitle, jobDetail.bossOnline, "仅投递在线boss");
+      throw new NotMatchError(jobTitle, jobDetail.bossOnline, "仅投递在线boss");
     }
 
     const companyNameInclude = preference.cni;
     if (preference.cniE && !Tools.fuzzyMatch(companyNameInclude, jobDetail.brandName, true)) {
-      throw new NotMatchException(jobTitle, jobDetail.brandName, "不满足配置公司名");
+      throw new NotMatchError(jobTitle, jobDetail.brandName, "不满足配置公司名");
     }
 
     const companyNameExclude = preference.cne;
     if (preference.cneE && Tools.fuzzyMatch(companyNameExclude, jobDetail.brandName, false)) {
-      throw new NotMatchException(jobTitle, jobDetail.brandName, "满足排除公司名");
+      throw new NotMatchError(jobTitle, jobDetail.brandName, "满足排除公司名");
     }
 
     const jobNameInclude = preference.jni;
     if (preference.jniE && !Tools.fuzzyMatch(jobNameInclude, jobDetail.jobName, true)) {
-      throw new NotMatchException(jobTitle, jobDetail.jobName, "不满足配置工作名");
+      throw new NotMatchError(jobTitle, jobDetail.jobName, "不满足配置工作名");
     }
 
     const jobNameExclude = preference.jne;
     if (preference.jneE && Tools.fuzzyMatch(jobNameExclude, jobDetail.jobName, false)) {
-      throw new NotMatchException(jobTitle, jobDetail.jobName, "满足排除工作名");
+      throw new NotMatchError(jobTitle, jobDetail.jobName, "满足排除工作名");
     }
 
     const pageSalaryRange = `${jobDetail.salaryDesc || ""}`.split(".")[0];
     if (preference.srE) {
       const salaryFilterType = `${preference.srT || "1"}`;
       if (!Tools.isSalaryTypeSupportedForFilter(pageSalaryRange, salaryFilterType)) {
-        throw new NotMatchException(jobTitle, pageSalaryRange, "薪资类型不匹配");
+        throw new NotMatchError(jobTitle, pageSalaryRange, "薪资类型不匹配");
       }
 
       const comparableSalaryRange = Tools.getComparableSalaryRange(pageSalaryRange, salaryFilterType);
       if (!Tools.isSalaryRangeMatched(preference.sr, comparableSalaryRange)) {
-        throw new NotMatchException(jobTitle, pageSalaryRange, "不满足薪资范围");
+        throw new NotMatchError(jobTitle, pageSalaryRange, "不满足薪资范围");
       }
     }
 
     const pageCompanyScaleRange = preference.csr;
     if (preference.csrE && !Tools.isRangeOverlap(pageCompanyScaleRange, jobDetail.brandScaleName)) {
-      throw new NotMatchException(jobTitle, jobDetail.brandScaleName, "不满足公司规模范围");
+      throw new NotMatchError(jobTitle, jobDetail.brandScaleName, "不满足公司规模范围");
     }
   }
 
   private applyTraditionalExtChecks(jobDetailExt: any, jobTitle: string): void {
-    const preference = userStore$2?.user?.preference || {};
+    const preference = runtimeUserStore?.user?.preference || {};
     const activeTimeDesc = jobDetailExt.activeTimeDesc;
     const isActiveFilterEnabled = normalizePreferenceBoolean(preference.acE, false);
     if (isActiveFilterEnabled && !this.bossIsActive(activeTimeDesc, preference)) {
-      throw new NotMatchException(jobTitle, activeTimeDesc, "不满足活跃度检查");
+      throw new NotMatchError(jobTitle, activeTimeDesc, "不满足活跃度检查");
     }
 
     const jobContent = jobDetailExt.postDescription;
     const jobContentExclude = preference.jce;
     if (preference.jceE && Tools.fuzzyMatch(jobContentExclude, jobContent, false)) {
-      throw new NotMatchException(jobTitle, jobContent, "满足排除工作内容");
+      throw new NotMatchError(jobTitle, jobContent, "满足排除工作内容");
     }
 
     const jobContentInclude = preference.jci;
     if (preference.jciE && !Tools.fuzzyMatch(jobContentInclude, jobContent, true)) {
-      throw new NotMatchException(jobTitle, jobContent, "不满足工作内容");
+      throw new NotMatchError(jobTitle, jobContent, "不满足工作内容");
     }
   }
 

@@ -3,15 +3,16 @@
 import axios from "axios";
 import { ElNotification } from "element-plus";
 import { AiPower } from "@/core/ai/ai-power";
-import { ElMessage } from "@/core/http/request";
+import { showAppMessage } from "@/core/http/request";
 import { Message, MessageRead } from "@/core/protocol/message";
 import { LogRecorder } from "@/core/engine/push-engine";
-import { UserStore } from "@/state/user";
+import { useUserStore } from "@/state/user";
 import { MessageCache } from "@/shared/utils/message-cache";
+import { getPreferenceValue, normalizePreferenceBoolean } from "@/shared/utils/preference";
 import { Tools } from "@/shared/utils/tools";
 import { Logger } from "@/shared/utils/logger";
 
-const logger$1 = Logger.rootLogger;
+const logger = Logger.rootLogger;
 
 enum JobSeekerClonedAnswerTypeEnum {
   MSG_TEXT = 1,
@@ -24,11 +25,11 @@ enum BossOperationTypeEnum {
   SEND_RESUME = 1
 }
 
-let userStore$1: ReturnType<typeof UserStore> | null = null;
+let runtimeUserStore: ReturnType<typeof useUserStore> | null = null;
 
 export class BossOption {
   static bossUserInfoMap = /* @__PURE__ */ new Map();
-  static logRecorder = new LogRecorder("recorder");
+  static preferenceLogRecorder = new LogRecorder("recorder");
   static messageCache = new MessageCache();
   static autoReplyRecentTs: number[] = [];
   static autoReplySessionCount = 0;
@@ -141,12 +142,12 @@ export class BossOption {
 `;
 
         constructor() {
-          if (!userStore$1) {
-            userStore$1 = UserStore();
+          if (!runtimeUserStore) {
+            runtimeUserStore = UserStore();
           }
         }
         getAutoReplySafetyConfig() {
-          const preference = (userStore$1 == null ? void 0 : userStore$1.user.preference) || {};
+          const preference = (runtimeUserStore == null ? void 0 : runtimeUserStore.user.preference) || {};
           const toNumberOr = (value, fallback) => {
             const n = Number(value);
             return Number.isFinite(n) ? n : fallback;
@@ -238,14 +239,14 @@ export class BossOption {
           } else if (text.includes("您对本职位的求职过程满意吗")) {
             return;
           } else {
-            logger$1.info("【处理Boss消息-失败】未知类型消息", text);
+            logger.info("【处理Boss消息-失败】未知类型消息", text);
           }
           let mid = msgObj.messages[0].mid;
           axios.post("https://www.zhipin.com/wapi/zpchat/exchange/accept", {
             securityId: bossUserInfo.securityId,
             type,
             mid: mid.toString(),
-            ...type === 4 ? { encryptResumeId: userStore$1.user.resumeId } : {}
+            ...type === 4 ? { encryptResumeId: runtimeUserStore.user.resumeId } : {}
           }, {
             headers: {
               "Zp_token": Tools.getCookieValue("bst"),
@@ -259,22 +260,22 @@ export class BossOption {
           const bodyType = msgObj.messages[0].body.type;
           switch (bodyType) {
             case 7:
-              logger$1.debug("【处理Boss消息】boss索要简历，联系方式，微信", text, msgObj);
+              logger.debug("【处理Boss消息】boss索要简历，联系方式，微信", text, msgObj);
               this.preReplyMsg(msgObj, bossUserInfo, text).then();
               return false;
             case 12:
             case 4:
             case 8:
             case 14:
-              logger$1.debug("【处理Boss消息】系统消息", text, msgObj);
+              logger.debug("【处理Boss消息】系统消息", text, msgObj);
               return false;
             case 1:
               if (text.includes("&lt;/phone&gt;") || text.includes("&lt;/copy&gt;")) {
-                logger$1.debug("【处理Boss消息】过滤处理过的索要联系方式消息", text, msgObj);
+                logger.debug("【处理Boss消息】过滤处理过的索要联系方式消息", text, msgObj);
                 return false;
               }
               if (text.includes("对方拒绝了您的发送请求")) {
-                logger$1.debug("【处理Boss消息】hr拒绝简历的普通消息", text, msgObj);
+                logger.debug("【处理Boss消息】hr拒绝简历的普通消息", text, msgObj);
                 return false;
               }
               if (text === "方便发一份简历过来吗？") {
@@ -291,7 +292,7 @@ export class BossOption {
             case 3:
               return true;
             case 4:
-              logger$1.debug("【处理Boss消息-忽略】boss系统提示消息", text);
+              logger.debug("【处理Boss消息-忽略】boss系统提示消息", text);
               return false;
             default:
               return true;
@@ -312,24 +313,27 @@ export class BossOption {
         }
         async handleBossMessage(msgObj, bossId, text) {
           if (!Tools.isBossDomainHost(Tools.getCurrentHostname())) {
-            logger$1.warn("当前域名不受信任，已跳过AI对话自动回复");
+            logger.warn("当前域名不受信任，已跳过AI对话自动回复");
             return;
           }
           const verifyReason = Tools.getManualVerificationReason();
           if (verifyReason) {
-            logger$1.warn("检测到人工验证，已跳过AI对话自动回复", verifyReason);
+            logger.warn("检测到人工验证，已跳过AI对话自动回复", verifyReason);
             return;
           }
-          if (userStore$1.user.preference.drE && userStore$1.user.preference.dr > 0) {
-            await Tools.sleep(userStore$1.user.preference.dr * 1e3 + Tools.getRandomNumber(0, 300));
+          const preference = (runtimeUserStore == null ? void 0 : runtimeUserStore.user.preference) || {};
+          const dialogReplyDelayEnabled = normalizePreferenceBoolean(getPreferenceValue(preference, "dialogReplyDelayEnabled", "drE"), false);
+          const dialogReplyDelaySec = Number(getPreferenceValue(preference, "dialogReplyDelaySec", "dr")) || 0;
+          if (dialogReplyDelayEnabled && dialogReplyDelaySec > 0) {
+            await Tools.sleep(dialogReplyDelaySec * 1e3 + Tools.getRandomNumber(0, 300));
           }
           if (BossOption.messageCache.isMessageProcessed(bossId, text)) {
-            logger$1.trace("【跳过重复消息】:", bossId, text);
+            logger.trace("【跳过重复消息】:", bossId, text);
             return;
           }
           BossOption.messageCache.markMessageAsProcessed(bossId, text);
-          if (!userStore$1.user.aiSeatStatus) {
-            logger$1.info("AI对话未开启，不处理消息");
+          if (!runtimeUserStore.user.aiSeatStatus) {
+            logger.info("AI对话未开启，不处理消息");
             return;
           }
           if (!this.preHandlerMsgByMsgType(msgObj, text)) {
@@ -341,25 +345,25 @@ export class BossOption {
             if (bodyType === 15) {
               return;
             }
-            BossOption.logRecorder.error("【处理Boss消息-失败】无法获取联系人信息", text);
+            BossOption.preferenceLogRecorder.error("【处理Boss消息-失败】无法获取联系人信息", text);
             return;
           }
           if (!this.preHandlerMsgByBodyType(msgObj, bossUserInfo, text)) {
             return;
           }
-          logger$1.debug("接收消息解码内容：", text);
+          logger.debug("接收消息解码内容：", text);
           const jobKey = BossOption.buildJobKey(bossUserInfo);
           return AiPower.ask(text, jobKey, bossUserInfo).then((resp) => {
             var _a2, _b, _c, _d, _e;
             let data = resp.data.data;
             let answerTypeList = data == null ? void 0 : data.answerTypeList;
             if (answerTypeList.includes(JobSeekerClonedAnswerTypeEnum.STOP)) {
-              logger$1.info("【处理Boss消息-忽略】停止交互");
+              logger.info("【处理Boss消息-忽略】停止交互");
               return Promise.resolve();
             }
             if (answerTypeList.includes(JobSeekerClonedAnswerTypeEnum.AI_SERVICE_EXCEPTION)) {
-              logger$1.info("AI服务异常，暂时无法处理消息");
-              ElMessage({
+              logger.info("AI服务异常，暂时无法处理消息");
+              showAppMessage({
                 type: "error",
                 message: "AI服务异常，暂时无法处理消息（请联系管理员处理）"
               });
@@ -368,7 +372,7 @@ export class BossOption {
             if (answerTypeList.includes(JobSeekerClonedAnswerTypeEnum.MSG_TEXT)) {
               const replySafety = this.checkAutoReplySafety("reply", true);
               if (!replySafety.ok) {
-                logger$1.warn("AI对话自动回复触发安全限制", replySafety.reason);
+                logger.warn("AI对话自动回复触发安全限制", replySafety.reason);
                 return Promise.resolve();
               }
               const html = this.renderChatBubble((_b = (_a2 = msgObj.messages[0]) == null ? void 0 : _a2.from) == null ? void 0 : _b.name, (_d = (_c = msgObj.messages[0]) == null ? void 0 : _c.from) == null ? void 0 : _d.avatar, text, data.answerContent);
@@ -378,7 +382,7 @@ export class BossOption {
               if ((_e = data == null ? void 0 : data.operationTypeList) == null ? void 0 : _e.includes(BossOperationTypeEnum.SEND_RESUME)) {
                 const resumeSafety = this.checkAutoReplySafety("resume", true);
                 if (!resumeSafety.ok) {
-                  logger$1.warn("AI对话自动发简历触发安全限制", resumeSafety.reason);
+                  logger.warn("AI对话自动发简历触发安全限制", resumeSafety.reason);
                 } else {
                   this.sendResumeFile(bossId).then((_2) => {
                   });
@@ -403,28 +407,28 @@ export class BossOption {
             }, 500);
           }).catch((error) => {
             const message = `${(error == null ? void 0 : error.message) || error || ""}`;
-            logger$1.warn("AI对话处理消息失败", message);
+            logger.warn("AI对话处理消息失败", message);
             return Promise.resolve();
           });
         }
         sendMsg(bossId, msg, image, html) {
           if (!Tools.isBossDomainHost(Tools.getCurrentHostname())) {
-            logger$1.warn("当前域名不受信任，已跳过自动发送消息");
+            logger.warn("当前域名不受信任，已跳过自动发送消息");
             return;
           }
           const verifyReason = Tools.getManualVerificationReason();
           if (verifyReason) {
-            logger$1.warn("检测到人工验证，已跳过自动发送消息", verifyReason);
+            logger.warn("检测到人工验证，已跳过自动发送消息", verifyReason);
             return;
           }
           this.getBossUserInfoByBossId(bossId).then((bossUserInfo) => {
             if (!bossUserInfo) {
-              BossOption.logRecorder.error("发送消息失败，联系人信息获取失败");
+              BossOption.preferenceLogRecorder.error("发送消息失败，联系人信息获取失败");
               return;
             }
             const formUid = Tools.getPageUidString();
             if (!formUid) {
-              BossOption.logRecorder.error("发送消息失败，无法获取当前用户uid");
+              BossOption.preferenceLogRecorder.error("发送消息失败，无法获取当前用户uid");
               return;
             }
             let message = new Message({
@@ -449,21 +453,21 @@ export class BossOption {
         }
         async sendResumeFile(bossId) {
           if (!Tools.isBossDomainHost(Tools.getCurrentHostname())) {
-            logger$1.warn("当前域名不受信任，已跳过自动发送简历");
+            logger.warn("当前域名不受信任，已跳过自动发送简历");
             return;
           }
           const verifyReason = Tools.getManualVerificationReason();
           if (verifyReason) {
-            logger$1.warn("检测到人工验证，已跳过自动发送简历", verifyReason);
+            logger.warn("检测到人工验证，已跳过自动发送简历", verifyReason);
             return;
           }
-          let resumeId = userStore$1.user.resumeId;
+          let resumeId = runtimeUserStore.user.resumeId;
           if (!resumeId) {
             return;
           }
           return this.getBossUserInfoByBossId(bossId).then((bossUserInfo) => {
             if (!bossUserInfo) {
-              BossOption.logRecorder.error("发送简历失败，联系人信息获取失败");
+              BossOption.preferenceLogRecorder.error("发送简历失败，联系人信息获取失败");
               return;
             }
             axios.post("https://www.zhipin.com/wapi/zpchat/exchange/request", {
@@ -503,7 +507,7 @@ export class BossOption {
               this.bossUserInfoMap.set(bossUserInfo.bossId, bossUserInfo);
             });
           }).catch((e) => {
-            logger$1.error("加载最近联系人失败", e);
+            logger.error("加载最近联系人失败", e);
           });
         }
         async getBossUserInfoByBossId(bossId) {

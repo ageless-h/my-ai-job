@@ -1,37 +1,38 @@
 // -*- coding: utf-8 -*-
-import { pushResultCount } from "@/state/push-result";
-import { UserStore } from "@/state/user";
+import { usePushResultStore } from "@/state/push-result";
+import { useUserStore } from "@/state/user";
+import { getPreferenceValue } from "@/shared/utils/preference";
 import { Logger, LogLevel } from "@/shared/utils/logger";
 import { TampermonkeyApi } from "@/shared/utils/tampermonkey";
 import { Tools } from "@/shared/utils/tools";
 import {
-  NotMatchException,
-  PushReqException,
-  CollectReqException,
-  FetchJobBossFailExp,
-  PublishStopExp,
-  PublishLimitExp
+  NotMatchError,
+  PushRequestError,
+  FavoriteRequestError,
+  FetchJobDetailError,
+  PushStopError,
+  PushLimitError
 } from "@/shared/errors";
 
-const logger$1 = Logger.rootLogger;
+const logger = Logger.rootLogger;
 
-export type PushResultCounterStore = ReturnType<typeof pushResultCount>;
-export type UserStoreType = ReturnType<typeof UserStore>;
+export type PushResultCounterStore = ReturnType<typeof usePushResultStore>;
+export type UserStoreType = ReturnType<typeof useUserStore>;
 
 export let pushResultCounter: any = {};
-export let userStore$2: any = {};
+export let runtimeUserStore: any = {};
 
 export function bindPlatformRuntime(counter: PushResultCounterStore, userStore: UserStoreType): void {
   pushResultCounter = counter;
-  userStore$2 = userStore;
+  runtimeUserStore = userStore;
 }
 
 function runtimeCounter(): any {
   return pushResultCounter as any;
 }
 
-function runtimeUserStore(): any {
-  return userStore$2 as any;
+function runtimeUserStoreRef(): any {
+  return runtimeUserStore as any;
 }
 
 function formatLogTimestamp(date: Date): string {
@@ -146,7 +147,7 @@ export class LogRecorder extends Logger {
 }
 
 export abstract class AbsPlatform {
-  logRecorder = new LogRecorder("recorder");
+  preferenceLogRecorder = new LogRecorder("recorder");
   pushStatus = PushStatus.NOT_START;
   protected _pushMock = false;
   protected _selfDefPushCountLimit = -1;
@@ -176,13 +177,13 @@ export abstract class AbsPlatform {
     allowedStartHour: number;
     allowedEndHour: number;
   } {
-    const preference = runtimeUserStore()?.user?.preference || {};
+    const preference = runtimeUserStoreRef()?.user?.preference || {};
     const toNumberOr = (value: unknown, fallback: number): number => {
       const n = Number(value);
       return Number.isFinite(n) ? n : fallback;
     };
 
-    const minActionIntervalSec = Math.max(8, toNumberOr(preference.pi, 8));
+    const minActionIntervalSec = Math.max(8, toNumberOr(getPreferenceValue(preference, "pushIntervalSec", "pi"), 8));
     const maxSessionActions = Math.max(1, toNumberOr(preference.maxSessionActions, 60));
     const maxDailyActions = Math.max(1, toNumberOr(preference.maxDailyActions, 120));
     const maxActionsPerMinute = Math.max(1, toNumberOr(preference.maxActionsPerMinute, 9));
@@ -230,7 +231,7 @@ export abstract class AbsPlatform {
     this.pushStatus = PushStatus.LIMIT;
     const reason = `当前不在安全时段(${safety.allowedStartHour}:00-${safety.allowedEndHour}:00)，暂停${actionName}`;
     this.setLastStopReason(reason);
-    this.logRecorder.warn(reason);
+    this.preferenceLogRecorder.warn(reason);
     return false;
   }
 
@@ -243,7 +244,7 @@ export abstract class AbsPlatform {
     this.pushStatus = PushStatus.PAUSE;
     const stopReason = `检测到人工验证，已暂停${actionName}：${reason}`;
     this.setLastStopReason(stopReason);
-    this.logRecorder.warn(stopReason);
+    this.preferenceLogRecorder.warn(stopReason);
     return false;
   }
 
@@ -259,7 +260,7 @@ export abstract class AbsPlatform {
   next = async (): Promise<boolean> => {
     const next = this.hasNext();
     if (!next) {
-      this.logRecorder.info("无下一页数据");
+      this.preferenceLogRecorder.info("无下一页数据");
       return false;
     }
 
@@ -271,7 +272,7 @@ export abstract class AbsPlatform {
       return false;
     }
 
-    await Tools.sleep(runtimeUserStore().user.preference.npi * 1000);
+    await Tools.sleep(runtimeUserStoreRef().user.preference.npi * 1000);
     this.acquireDataPre();
     await Tools.sleep(3000);
     return next;
@@ -306,7 +307,7 @@ export abstract class AbsPlatform {
       this.pushStatus = PushStatus.LIMIT;
       const reason = `当前域名(${currentHost || "unknown"})不受信任，已阻止自动${actionName}`;
       this.setLastStopReason(reason);
-      this.logRecorder.warn(reason);
+      this.preferenceLogRecorder.warn(reason);
       return;
     }
 
@@ -316,7 +317,7 @@ export abstract class AbsPlatform {
       this.pushStatus = PushStatus.LIMIT;
       const reason = `处于安全冷却期，${waitMinutes} 分钟后可继续${actionName}`;
       this.setLastStopReason(reason);
-      this.logRecorder.warn(reason);
+      this.preferenceLogRecorder.warn(reason);
       return;
     }
 
@@ -327,7 +328,7 @@ export abstract class AbsPlatform {
       return;
     }
 
-    this.logRecorder.info(`开始${actionName}`);
+    this.preferenceLogRecorder.info(`开始${actionName}`);
     runtimeCounter().clearOnceSuccessCount();
     this.pushStatus = PushStatus.PUSHING;
     this.startPreHandler();
@@ -346,12 +347,12 @@ export abstract class AbsPlatform {
         }
 
         if (sessionActionAttempts >= safety.maxSessionActions) {
-          throw new PublishLimitExp(`触发安全阈值：单轮最多${safety.maxSessionActions}次${actionName}`);
+          throw new PushLimitError(`触发安全阈值：单轮最多${safety.maxSessionActions}次${actionName}`);
         }
 
         const dailySuccess = Number(runtimeCounter().successCount || 0);
         if (dailySuccess >= safety.maxDailyActions) {
-          throw new PublishLimitExp(`触发安全阈值：今日最多${safety.maxDailyActions}次成功${actionName}`);
+          throw new PushLimitError(`触发安全阈值：今日最多${safety.maxDailyActions}次成功${actionName}`);
         }
 
         const now = Date.now();
@@ -359,7 +360,7 @@ export abstract class AbsPlatform {
           recentActionTs.shift();
         }
         if (recentActionTs.length >= safety.maxActionsPerMinute) {
-          throw new PublishLimitExp(`触发安全阈值：每分钟最多${safety.maxActionsPerMinute}次${actionName}`);
+          throw new PushLimitError(`触发安全阈值：每分钟最多${safety.maxActionsPerMinute}次${actionName}`);
         }
 
         recentActionTs.push(now);
@@ -382,18 +383,18 @@ export abstract class AbsPlatform {
           consecutiveFailures = 0;
         } catch (error: any) {
           switch (true) {
-            case error instanceof NotMatchException:
-              if (this.logRecorder.getLogLevel() === LogLevel.Debug) {
-                this.logRecorder.info(`工作【${error.jobTitle}】被过滤 原因：${error.message} 当前值:${error.data}`);
+            case error instanceof NotMatchError:
+              if (this.preferenceLogRecorder.getLogLevel() === LogLevel.Debug) {
+                this.preferenceLogRecorder.info(`工作【${error.jobTitle}】被过滤 原因：${error.message} 当前值:${error.data}`);
               } else {
-                this.logRecorder.info(`工作【${error.jobTitle}】被过滤 原因：${error.message}`);
+                this.preferenceLogRecorder.info(`工作【${error.jobTitle}】被过滤 原因：${error.message}`);
               }
               runtimeCounter().notMatchIncr();
               consecutiveFailures = 0;
               break;
-            case error instanceof PushReqException:
-            case error instanceof CollectReqException:
-              this.logRecorder.warn(`工作【${error.jobTitle}】${actionName}失败 原因：${error.message}`);
+            case error instanceof PushRequestError:
+            case error instanceof FavoriteRequestError:
+              this.preferenceLogRecorder.warn(`工作【${error.jobTitle}】${actionName}失败 原因：${error.message}`);
               runtimeCounter().failIncr();
               consecutiveFailures++;
               if (consecutiveFailures >= safety.maxConsecutiveFailures) {
@@ -401,22 +402,22 @@ export abstract class AbsPlatform {
                 this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
                 const reason = `连续失败达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
                 this.setLastStopReason(reason);
-                this.logRecorder.error(reason);
+                this.preferenceLogRecorder.error(reason);
                 return;
               }
               break;
-            case error instanceof FetchJobBossFailExp:
-              this.logRecorder.warn(`工作【${error.jobTitle}】发送自定义招呼语失败 原因：${error.message}`);
+            case error instanceof FetchJobDetailError:
+              this.preferenceLogRecorder.warn(`工作【${error.jobTitle}】发送自定义招呼语失败 原因：${error.message}`);
               break;
-            case error instanceof PublishStopExp:
+            case error instanceof PushStopError:
               this.setLastStopReason(`手动暂停${actionName} ${error.message}`);
-              this.logRecorder.info(`手动暂停${actionName} ${error.message}`);
+              this.preferenceLogRecorder.info(`手动暂停${actionName} ${error.message}`);
               return;
-            case error instanceof PublishLimitExp:
+            case error instanceof PushLimitError:
               this.pushStatus = PushStatus.LIMIT;
               this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
               this.setLastStopReason(`停止${actionName} ${error.message}`);
-              this.logRecorder.info(`停止${actionName} ${error.message}`);
+              this.preferenceLogRecorder.info(`停止${actionName} ${error.message}`);
               return;
             default: {
               const isNetwork = this.isNetworkError(error);
@@ -425,10 +426,10 @@ export abstract class AbsPlatform {
                 let retried = false;
                 for (let attempt = 1; attempt <= maxRetries; attempt++) {
                   const delayMs = Math.pow(2, attempt) * 1000;
-                  this.logRecorder.warn(`网络异常，${delayMs / 1000}s 后第 ${attempt}/${maxRetries} 次重试... 原因：${error?.message || error}`);
+                  this.preferenceLogRecorder.warn(`网络异常，${delayMs / 1000}s 后第 ${attempt}/${maxRetries} 次重试... 原因：${error?.message || error}`);
                   await Tools.sleep(delayMs);
                   if (Number(this.pushStatus) === PushStatus.PAUSE) {
-                    this.logRecorder.info(`重试期间手动暂停`);
+                    this.preferenceLogRecorder.info(`重试期间手动暂停`);
                     return;
                   }
                   if (!this.ensureNoManualVerification(actionName)) {
@@ -451,13 +452,13 @@ export abstract class AbsPlatform {
                     break;
                   } catch (retryError: any) {
                     if (!this.isNetworkError(retryError)) {
-                      logger$1.error("重试后非网络异常--->", retryError);
+                      logger.error("重试后非网络异常--->", retryError);
                       break;
                     }
                     if (attempt === maxRetries) {
                       const reason = `网络异常重试 ${maxRetries} 次后仍失败，暂停${actionName}`;
                       this.setLastStopReason(reason);
-                      this.logRecorder.error(reason);
+                      this.preferenceLogRecorder.error(reason);
                       this.pushStatus = PushStatus.PAUSE;
                       return;
                     }
@@ -470,19 +471,19 @@ export abstract class AbsPlatform {
                     this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
                     const reason = `连续网络失败达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
                     this.setLastStopReason(reason);
-                    this.logRecorder.error(reason);
+                    this.preferenceLogRecorder.error(reason);
                     return;
                   }
                 }
               } else {
-                logger$1.error("未捕获异常--->", error);
+                logger.error("未捕获异常--->", error);
                 consecutiveFailures++;
                 if (consecutiveFailures >= safety.maxConsecutiveFailures) {
                   this.pushStatus = PushStatus.LIMIT;
                   this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
                   const reason = `连续异常达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
                   this.setLastStopReason(reason);
-                  this.logRecorder.error(reason);
+                  this.preferenceLogRecorder.error(reason);
                   return;
                 }
               }
@@ -494,7 +495,7 @@ export abstract class AbsPlatform {
       }
     } while (await this.next());
 
-    this.logRecorder.info(`结束${actionName}`);
+    this.preferenceLogRecorder.info(`结束${actionName}`);
   }
 
   pausePush(): void {
@@ -511,31 +512,31 @@ export abstract class AbsPlatform {
 
   preMatchJob(): void {
     if (this._selfDefPushCountLimit !== -1 && runtimeCounter().onceSuccessCount >= this._selfDefPushCountLimit) {
-      throw new PublishLimitExp("自定义投递次数限制");
+      throw new PushLimitError("自定义投递次数限制");
     }
 
     if (this.pushStatus === PushStatus.PAUSE) {
-      throw new PublishStopExp("手动暂停投递");
+      throw new PushStopError("手动暂停投递");
     }
   }
 
   async push(jobDetail: any): Promise<any> {
     if (this.pushStatus === PushStatus.PAUSE) {
-      throw new PublishStopExp("手动暂停投递");
+      throw new PushStopError("手动暂停投递");
     }
 
     if (this._selfDefPushCountLimit !== -1 && runtimeCounter().onceSuccessCount >= this._selfDefPushCountLimit) {
-      throw new PublishLimitExp("自定义投递次数限制");
+      throw new PushLimitError("自定义投递次数限制");
     }
 
     const limitResult = this.isLimit(jobDetail);
     if (limitResult.limit) {
-      throw new PublishLimitExp(limitResult.msg);
+      throw new PushLimitError(limitResult.msg);
     }
 
     if (this._pushMock) {
       const jobTitle = this.getJobKey(jobDetail);
-      logger$1.debug("mock投递 ", jobTitle);
+      logger.debug("mock投递 ", jobTitle);
       return {
         message: "Success",
         code: 0
@@ -551,16 +552,16 @@ export abstract class AbsPlatform {
 
   async collect(jobDetail: any): Promise<any> {
     if (this.pushStatus === PushStatus.PAUSE) {
-      throw new PublishStopExp("手动暂停收藏");
+      throw new PushStopError("手动暂停收藏");
     }
 
     if (this._selfDefPushCountLimit !== -1 && runtimeCounter().onceSuccessCount >= this._selfDefPushCountLimit) {
-      throw new PublishLimitExp("自定义收藏次数限制");
+      throw new PushLimitError("自定义收藏次数限制");
     }
 
     if (this._pushMock) {
       const jobTitle = this.getJobKey(jobDetail);
-      logger$1.debug("mock收藏 ", jobTitle);
+      logger.debug("mock收藏 ", jobTitle);
       return {
         message: "Success",
         code: 0
@@ -574,11 +575,11 @@ export abstract class AbsPlatform {
     const jobTitle = this.getJobKey(jobDetail);
     if (collectResult.message === "Success" && collectResult.code === 0 && collectResult.verified !== false) {
       runtimeCounter().successIncr();
-      this.logRecorder.info(`工作【${jobTitle}】 收藏成功`);
+      this.preferenceLogRecorder.info(`工作【${jobTitle}】 收藏成功`);
       return jobDetail;
     }
 
-    throw new CollectReqException(jobTitle, collectResult.message || "收藏未确认成功");
+    throw new FavoriteRequestError(jobTitle, collectResult.message || "收藏未确认成功");
   }
 
   async doCollect(_jobDetail: any): Promise<{ message: string; code: number }> {

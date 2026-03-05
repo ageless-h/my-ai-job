@@ -1,462 +1,429 @@
-<script setup lang="ts">
-// @ts-nocheck
-import * as Vue from "vue";
-import * as ElementPlus from "element-plus";
-import * as Icons from "@element-plus/icons-vue";
-import axios from "axios";
-import { request, ElMessage, isProdEnv } from "@/core/http/request";
-import { Tools } from "@/shared/utils/tools";
-import { UserStore } from "@/state/user";
-import { LoginStore } from "@/state/login";
-import { pushResultCount } from "@/state/push-result";
-import { LogRecorder, PushStatus } from "@/core/engine/push-engine";
-import { loginInterceptor, silentlyLogin, fetchWithGM_request } from "@/core/auth/auth";
-import { AiPower } from "@/core/ai/ai-power";
-import { Message } from "@/core/protocol/message";
-
-const VueAny = Vue as any;
-const ElementAny = ElementPlus as any;
-const IconsAny = Icons as any;
-
-const {
-  defineComponent,
-  computed,
-  watch,
-  provide,
-  reactive,
-  toRefs,
-  openBlock,
-  createElementBlock,
-  normalizeClass,
-  unref,
-  renderSlot,
-  inject,
-  ref,
-  onMounted,
-  onBeforeUnmount,
-  onUpdated,
-  createVNode,
-  Fragment,
-  useSlots,
-  withCtx,
-  createBlock,
-  resolveDynamicComponent,
-  normalizeStyle,
-  createTextVNode,
-  toDisplayString,
-  createCommentVNode,
-  createElementVNode,
-  TransitionGroup,
-  useAttrs,
-  nextTick,
-  mergeProps,
-  withModifiers,
-  Transition,
-  toHandlers,
-  withKeys,
-  withDirectives,
-  vShow,
-  getCurrentInstance,
-  h,
-  watchEffect,
-  toRef,
-  renderList,
-  shallowRef,
-  createSlots,
-  toRaw,
-  resolveComponent,
-  resolveDirective,
-  vModelText,
-  onUnmounted,
-  isRef
-} = VueAny;
-
-const pushScopeId = VueAny.pushScopeId || (() => undefined);
-const popScopeId = VueAny.popScopeId || (() => undefined);
-
-const {
-  ElMenu,
-  ElMenuItem,
-  ElText,
-  ElIcon,
-  ElButton,
-  ElTableColumn,
-  ElTag,
-  ElTable,
-  ElInput,
-  ElLink,
-  ElImage,
-  ElDialog,
-  ElInputNumber,
-  ElSwitch,
-  ElTooltip,
-  ElEmpty,
-  ElForm,
-  ElFormItem,
-  ElCheckbox,
-  ElOption,
-  ElSelect,
-  ElUpload,
-  ElRow,
-  ElCol,
-  ElTimePicker,
-  ElPagination,
-  ElCollapse,
-  ElCollapseItem,
-  ElMessageBox,
-  ElNotification,
-  vLoading
-} = ElementAny;
-
-const {
-  CircleCloseFilled,
-  Upload,
-  Promotion,
-  Collection,
-  Service,
-  Shop,
-  Wallet,
-  PriceTag
-} = IconsAny;
-
-const GlobalAny = globalThis as any;
-const logger$1 = GlobalAny.logger$1 || console;
-const SSEClient =
-  GlobalAny.SSEClient ||
-  class {
-    constructor(..._args: any[]) {}
-    addOnMsgCallback(..._args: any[]) {}
-    addEventListener(..._args: any[]) {}
-    start(..._args: any[]) {}
-    close(..._args: any[]) {}
-    eventSource: any;
-  };
-const BossOption = GlobalAny.BossOption || { buildJobKey: (_data: any) => "" };
-
-const _sfc_main$6 = /* @__PURE__ */ defineComponent({
-        __name: "RunRecord",
-        setup(__props) {
-          const logRecorder = new LogRecorder();
-          const logs = ref([]);
-          const currentPage = ref(1);
-          const pageSize = ref(10);
-          const totalLogs = ref(0);
-          const runRecordRoot = ref(null);
-          const isCompactPagination = ref(false);
-          let paginationResizeObserver = null;
-          const filter = ref({
-            timeRange: [],
-            // 时间范围，数组：[开始时间, 结束时间]
-            level: "",
-            // 日志级别
-            keyword: ""
-            // 日志内容关键字
-          });
-          const fetchLogs = () => {
-            var _a;
-            let allLogs = logRecorder.getLogs(1, logRecorder.getLogCount());
-            if (((_a = filter.value.timeRange) == null ? void 0 : _a.length) === 2) {
-              const [start, end] = filter.value.timeRange.map(
-                (time) => time.toTimeString().slice(0, 6) + "00"
-                // 转为 'HH:mm' 格式字符串
-              );
-              allLogs = allLogs.filter((log) => {
-                const logTime = log.timestamp;
-                return logTime >= start && logTime <= end;
-              });
-            }
-            if (filter.value.level) {
-              allLogs = allLogs.filter((log) => log.level === filter.value.level);
-            }
-            if (filter.value.keyword) {
-              const keyword = filter.value.keyword.toLowerCase();
-              allLogs = allLogs.filter((log) => log.message.toLowerCase().includes(keyword));
-            }
-            totalLogs.value = allLogs.length;
-            const startIndex = (currentPage.value - 1) * pageSize.value;
-            logs.value = allLogs.slice(startIndex, startIndex + pageSize.value).map((log) => {
-              const aiInfo = parseAiJudgeInfo(log.message);
-              return {
-                ...log,
-                aiDecision: aiInfo.decision,
-                aiReason: aiInfo.reason
-              };
-            });
-          };
-          const parseAiJudgeInfo = (message) => {
-            const text = `${message || ""}`;
-            const normalizedText = text.replace(/\s+/g, " ").trim();
-            if (!normalizedText) {
-              return { decision: "", reason: "" };
-            }
-
-            let decision = "";
-            if (normalizedText.includes("AI投递判断通过")) {
-              decision = "通过";
-            } else if (normalizedText.includes("AI投递判断不通过")) {
-              decision = "不通过";
-            } else if (normalizedText.includes("AI判定结果不可解析")) {
-              decision = "不可解析";
-            } else if (normalizedText.includes("AI投递判断失败")) {
-              decision = "失败";
-            } else if (normalizedText.includes("投递成功") && normalizedText.includes("AI理由")) {
-              decision = "已投递";
-            }
-
-            let reason = "";
-            const reasonWithLabel = normalizedText.match(/AI理由[:：]\s*(.+)$/);
-            if (reasonWithLabel && reasonWithLabel[1]) {
-              reason = reasonWithLabel[1].trim();
-            }
-
-            if (!reason) {
-              const reasonWithKey = normalizedText.match(/\breason=\s*(.+)$/i);
-              if (reasonWithKey && reasonWithKey[1]) {
-                reason = reasonWithKey[1].trim();
-              }
-            }
-
-            if (reason.length > 180) {
-              reason = `${reason.slice(0, 180)}...`;
-            }
-
-            return { decision, reason };
-          };
-          const handlePageChange = (page) => {
-            currentPage.value = page;
-            fetchLogs();
-          };
-          watch(filter, () => {
-            currentPage.value = 1;
-            fetchLogs();
-          }, { deep: true });
-          const clearLogs = () => {
-            logRecorder.clearLogs();
-            fetchLogs();
-          };
-          const updatePaginationMode = () => {
-            const width = runRecordRoot.value?.clientWidth || 0;
-            isCompactPagination.value = width > 0 && width < 440;
-          };
-          onMounted(() => {
-            fetchLogs();
-            nextTick(() => {
-              updatePaginationMode();
-              if (typeof ResizeObserver === "undefined" || !runRecordRoot.value) {
-                return;
-              }
-              paginationResizeObserver = new ResizeObserver(() => {
-                updatePaginationMode();
-              });
-              paginationResizeObserver.observe(runRecordRoot.value);
-            });
-          });
-          onBeforeUnmount(() => {
-            if (!paginationResizeObserver) {
-              return;
-            }
-            paginationResizeObserver.disconnect();
-            paginationResizeObserver = null;
-          });
-          return (_ctx, _cache) => {
-            const _component_el_button = ElButton;
-            const _component_el_col = ElCol;
-            const _component_el_time_picker = ElTimePicker;
-            const _component_el_option = ElOption;
-            const _component_el_select = ElSelect;
-            const _component_el_input = ElInput;
-            const _component_el_row = ElRow;
-            const _component_el_table_column = ElTableColumn;
-            const _component_el_empty = ElEmpty;
-            const _component_el_table = ElTable;
-            const _component_el_pagination = ElPagination;
-            return openBlock(), createElementBlock("div", {
-              ref_key: "runRecordRoot",
-              ref: runRecordRoot,
-              class: "run-record-root"
-            }, [
-              createVNode(_component_el_row, {
-                gutter: 20,
-                class: "filter-bar"
-              }, {
-                default: withCtx(() => [
-                  createVNode(_component_el_col, { span: 2 }, {
-                    default: withCtx(() => [
-                      createVNode(_component_el_button, {
-                        type: "warning",
-                        onClick: clearLogs
-                      }, {
-                        default: withCtx(() => [
-                          createTextVNode("清空日志")
-                        ]),
-                        _: 1
-                      })
-                    ]),
-                    _: 1
-                  }),
-                  createVNode(_component_el_col, { span: 8 }, {
-                    default: withCtx(() => [
-                      createVNode(_component_el_time_picker, {
-                        modelValue: filter.value.timeRange,
-                        "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => filter.value.timeRange = $event),
-                        "is-range": "",
-                        "start-placeholder": "开始时间",
-                        "end-placeholder": "结束时间",
-                        format: "HH:mm",
-                        clearable: "",
-                        style: { "width": "100%" }
-                      }, null, 8, ["modelValue"])
-                    ]),
-                    _: 1
-                  }),
-                  createVNode(_component_el_col, { span: 6 }, {
-                    default: withCtx(() => [
-                      createVNode(_component_el_select, {
-                        modelValue: filter.value.level,
-                        "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => filter.value.level = $event),
-                        placeholder: "请选择日志级别",
-                        style: { "width": "100%" }
-                      }, {
-                        default: withCtx(() => [
-                          createVNode(_component_el_option, {
-                            label: "全部",
-                            value: ""
-                          }),
-                          createVNode(_component_el_option, {
-                            label: "Error",
-                            value: "error"
-                          }),
-                          createVNode(_component_el_option, {
-                            label: "Warn",
-                            value: "warn"
-                          }),
-                          createVNode(_component_el_option, {
-                            label: "Info",
-                            value: "info"
-                          }),
-                          createVNode(_component_el_option, {
-                            label: "Debug",
-                            value: "debug"
-                          }),
-                          createVNode(_component_el_option, {
-                            label: "Trace",
-                            value: "trace"
-                          })
-                        ]),
-                        _: 1
-                      }, 8, ["modelValue"])
-                    ]),
-                    _: 1
-                  }),
-                  createVNode(_component_el_col, { span: 8 }, {
-                    default: withCtx(() => [
-                      createVNode(_component_el_input, {
-                        modelValue: filter.value.keyword,
-                        "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => filter.value.keyword = $event),
-                        placeholder: "请输入日志内容",
-                        clearable: "",
-                        style: { "width": "100%" }
-                      }, null, 8, ["modelValue"])
-                    ]),
-                    _: 1
-                  })
-                ]),
-                _: 1
-              }),
-              createVNode(_component_el_table, {
-                data: logs.value,
-                style: { "width": "100%", "min-height": "440px" }
-              }, {
-                empty: withCtx(() => [
-                  createVNode(_component_el_empty, { description: "暂无日志数据" })
-                ]),
-                default: withCtx(() => [
-                  createVNode(_component_el_table_column, {
-                    prop: "timestamp",
-                    label: "时间",
-                    width: "140"
-                  }),
-                  createVNode(_component_el_table_column, {
-                    prop: "level",
-                    label: "级别",
-                    width: "100"
-                  }),
-                  createVNode(_component_el_table_column, {
-                    prop: "aiDecision",
-                    label: "AI判定",
-                    width: "110"
-                  }),
-                  createVNode(_component_el_table_column, {
-                    prop: "aiReason",
-                    label: "AI理由",
-                    width: "220",
-                    "show-overflow-tooltip": ""
-                  }),
-                  createVNode(_component_el_table_column, {
-                    prop: "message",
-                    label: "内容"
-                  })
-                ]),
-                _: 1
-              }, 8, ["data"]),
-              createVNode(_component_el_pagination, {
-                onCurrentChange: handlePageChange,
-                "current-page": currentPage.value,
-                "page-size": pageSize.value,
-                total: totalLogs.value,
-                class: normalizeClass(["run-record-pagination", { "is-compact": isCompactPagination.value }]),
-                small: "",
-                "pager-count": 5,
-                background: "",
-                layout: isCompactPagination.value ? "prev, next" : "prev, pager, next"
-              }, null, 8, ["current-page", "page-size", "total", "class", "layout"])
-            ], 512);
-          };
-        }
-      });
-
-const RenderComponent = _sfc_main$6;
-</script>
-
 <template>
-  <RenderComponent />
+  <div class="run-record-tab">
+    <div class="header-title">运行日志与投递记录</div>
+
+    <div class="boss-card">
+      <div class="filter-bar">
+        <el-time-picker
+          v-model="filter.timeRange"
+          is-range
+          start-placeholder="开始时间"
+          end-placeholder="结束时间"
+          format="HH:mm"
+          clearable
+          class="filter-item time-picker"
+        />
+
+        <el-select
+          v-model="filter.level"
+          placeholder="日志级别"
+          clearable
+          class="filter-item level-select"
+        >
+          <el-option label="全部级别" value="" />
+          <el-option label="Error (错误)" value="error" />
+          <el-option label="Warn (警告)" value="warn" />
+          <el-option label="Info (信息)" value="info" />
+          <el-option label="Debug (调试)" value="debug" />
+        </el-select>
+
+        <el-input
+          v-model="filter.keyword"
+          placeholder="搜索日志内容关键词..."
+          clearable
+          class="filter-item search-input"
+          :prefix-icon="Search"
+        />
+
+        <div class="spacer"></div>
+
+        <el-button type="danger" plain @click="clearLogs">
+          <el-icon class="mr-4"><Delete /></el-icon>清空日志
+        </el-button>
+      </div>
+
+      <div class="table-container">
+        <el-table
+          :data="logs"
+          style="width: 100%"
+          height="100%"
+          :row-class-name="tableRowClassName"
+          class="boss-table"
+        >
+          <template #empty>
+            <el-empty description="暂无日志数据" :image-size="80" />
+          </template>
+
+          <el-table-column prop="timestamp" label="记录时间" width="160" />
+
+          <el-table-column prop="level" label="级别" width="100">
+            <template #default="scope">
+              <el-tag :type="getLevelTagType(scope.row.level)" size="small" effect="plain" class="level-tag">
+                {{ String(scope.row.level || '').toUpperCase() }}
+              </el-tag>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="aiDecision" label="AI 判定" width="120">
+            <template #default="scope">
+              <span v-if="scope.row.aiDecision" :class="['decision-text', getDecisionClass(scope.row.aiDecision)]">
+                {{ scope.row.aiDecision }}
+              </span>
+              <span v-else class="text-muted">-</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="aiReason" label="判定理由 / 提示" width="240" show-overflow-tooltip>
+            <template #default="scope">
+              <span class="reason-text" v-if="scope.row.aiReason">{{ scope.row.aiReason }}</span>
+              <span v-else class="text-muted">-</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="message" label="详细内容" min-width="300" />
+        </el-table>
+      </div>
+
+      <div class="pagination-footer">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="totalLogs"
+          background
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </div>
+    </div>
+  </div>
 </template>
 
+<script setup lang="ts">
+import { onMounted, reactive, ref, watch } from 'vue';
+import { Delete, Search } from '@element-plus/icons-vue';
+import { LogRecorder } from '@/core/engine/push-engine';
+
+interface LogItem {
+  timestamp: string;
+  level: string;
+  message: string;
+  aiDecision?: string;
+  aiReason?: string;
+}
+
+const logRecorder = new LogRecorder();
+
+const logs = ref<LogItem[]>([]);
+const currentPage = ref(1);
+const pageSize = ref(20);
+const totalLogs = ref(0);
+
+const filter = reactive<{
+  timeRange: Date[];
+  level: string;
+  keyword: string;
+}>({
+  timeRange: [],
+  level: '',
+  keyword: ''
+});
+
+const parseAiJudgeInfo = (message: string) => {
+  const text = `${message || ''}`;
+  const normalizedText = text.replace(/\s+/g, ' ').trim();
+  if (!normalizedText) {
+    return { decision: '', reason: '' };
+  }
+
+  let decision = '';
+  if (normalizedText.includes('AI投递判断通过')) {
+    decision = '通过';
+  } else if (normalizedText.includes('AI投递判断不通过')) {
+    decision = '不通过';
+  } else if (normalizedText.includes('AI判定结果不可解析')) {
+    decision = '不可解析';
+  } else if (normalizedText.includes('AI投递判断失败')) {
+    decision = '失败';
+  } else if (normalizedText.includes('投递成功') && normalizedText.includes('AI理由')) {
+    decision = '已投递';
+  }
+
+  let reason = '';
+  const reasonWithLabel = normalizedText.match(/AI理由[:：]\s*(.+)$/);
+  if (reasonWithLabel && reasonWithLabel[1]) {
+    reason = reasonWithLabel[1].trim();
+  }
+
+  if (!reason) {
+    const reasonWithKey = normalizedText.match(/\breason=\s*(.+)$/i);
+    if (reasonWithKey && reasonWithKey[1]) {
+      reason = reasonWithKey[1].trim();
+    }
+  }
+
+  if (reason.length > 180) {
+    reason = `${reason.slice(0, 180)}...`;
+  }
+
+  return { decision, reason };
+};
+
+const parseTimestampToMs = (timestamp: string): number | null => {
+  const match = `${timestamp || ''}`.trim().match(/^(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/);
+  if (!match) {
+    return null;
+  }
+
+  const hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  const seconds = Number.parseInt(match[3], 10);
+  const milliseconds = Number.parseInt((match[4] || '0').padEnd(3, '0'), 10);
+
+  return ((hours * 60 + minutes) * 60 + seconds) * 1000 + milliseconds;
+};
+
+const minuteStartMs = (date: Date): number => ((date.getHours() * 60 + date.getMinutes()) * 60) * 1000;
+const minuteEndMs = (date: Date): number => minuteStartMs(date) + 59 * 1000 + 999;
+
+const fetchLogs = () => {
+  let allLogs: LogItem[] = logRecorder.getLogs(1, logRecorder.getLogCount());
+
+  if (filter.timeRange.length === 2) {
+    const [startDate, endDate] = filter.timeRange;
+    const hasValidRange = startDate instanceof Date
+      && !Number.isNaN(startDate.getTime())
+      && endDate instanceof Date
+      && !Number.isNaN(endDate.getTime());
+
+    if (hasValidRange) {
+      const startMs = minuteStartMs(startDate);
+      const endMs = minuteEndMs(endDate);
+      const [rangeStart, rangeEnd] = startMs <= endMs ? [startMs, endMs] : [endMs, startMs];
+      allLogs = allLogs.filter((log) => {
+        const logMs = parseTimestampToMs(log.timestamp);
+        return logMs !== null && logMs >= rangeStart && logMs <= rangeEnd;
+      });
+    }
+  }
+
+  if (filter.level) {
+    allLogs = allLogs.filter((log) => `${log.level || ''}`.toLowerCase() === filter.level);
+  }
+
+  if (filter.keyword) {
+    const keyword = filter.keyword.toLowerCase();
+    allLogs = allLogs.filter((log) => `${log.message || ''}`.toLowerCase().includes(keyword));
+  }
+
+  totalLogs.value = allLogs.length;
+  const startIndex = (currentPage.value - 1) * pageSize.value;
+  logs.value = allLogs.slice(startIndex, startIndex + pageSize.value).map((log) => {
+    const aiInfo = parseAiJudgeInfo(log.message);
+    return {
+      ...log,
+      aiDecision: aiInfo.decision,
+      aiReason: aiInfo.reason
+    };
+  });
+};
+
+const handlePageChange = (page: number) => {
+  currentPage.value = page;
+  fetchLogs();
+};
+
+const handleSizeChange = (size: number) => {
+  pageSize.value = size;
+  currentPage.value = 1;
+  fetchLogs();
+};
+
+const clearLogs = () => {
+  logRecorder.clearLogs();
+  currentPage.value = 1;
+  fetchLogs();
+};
+
+const getLevelTagType = (level: string) => {
+  const normalized = `${level || ''}`.toLowerCase();
+  if (normalized === 'error') return 'danger';
+  if (normalized === 'warn') return 'warning';
+  if (normalized === 'info') return 'primary';
+  return 'info';
+};
+
+const getDecisionClass = (decision: string) => {
+  if (decision === '通过' || decision === '已投递') return 'is-success';
+  if (decision === '不通过') return 'is-danger';
+  if (decision === '失败' || decision === '不可解析') return 'is-warning';
+  return '';
+};
+
+const tableRowClassName = ({ row }: { row: LogItem }) => {
+  const normalized = `${row.level || ''}`.toLowerCase();
+  if (normalized === 'error') return 'row-error';
+  if (normalized === 'warn') return 'row-warn';
+  return '';
+};
+
+watch(
+  filter,
+  () => {
+    currentPage.value = 1;
+    fetchLogs();
+  },
+  { deep: true }
+);
+
+onMounted(() => {
+  fetchLogs();
+});
+</script>
+
 <style scoped>
-.run-record-root{
-  width:100%;
-  min-width:0;
+.run-record-tab {
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background-color: #f8f9fa;
 }
-:deep(.filter-bar){margin-bottom:20px}
-:deep(.run-record-pagination){
-  display:flex !important;
-  width:100%;
-  box-sizing:border-box;
-  padding:0 4px;
-  justify-content:center;
-  align-items:center;
-  flex-wrap:wrap;
-  column-gap:6px;
-  row-gap:8px;
-  margin-top:12px;
-  white-space:normal;
-  height:auto;
+
+.header-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 16px;
+  border-left: 3px solid var(--boss-primary, #00bebd);
+  padding-left: 8px;
+  line-height: 1;
+  flex-shrink: 0;
 }
-:deep(.run-record-pagination .el-pager){
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  gap:4px;
-  margin:0;
-  max-width:100%;
+
+.boss-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eef0f5;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
-:deep(.run-record-pagination .btn-prev),
-:deep(.run-record-pagination .btn-next),
-:deep(.run-record-pagination .el-pager li){
-  min-width:24px;
-  margin:0 !important;
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
-:deep(.run-record-pagination.is-compact){
-  justify-content:space-between;
+
+.filter-item {
+  margin-bottom: 0;
+}
+
+.time-picker {
+  width: 220px;
+}
+
+.level-select {
+  width: 140px;
+}
+
+.search-input {
+  width: 260px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.mr-4 {
+  margin-right: 4px;
+}
+
+.table-container {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.boss-table {
+  --el-table-border-color: #ebeef5;
+  --el-table-header-bg-color: #f8f9fa;
+  --el-table-header-text-color: #333;
+}
+
+:deep(.boss-table th.el-table__cell) {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 0;
+}
+
+:deep(.boss-table td.el-table__cell) {
+  font-size: 13px;
+  color: #555;
+  padding: 8px 0;
+}
+
+.level-tag {
+  font-weight: bold;
+  border-color: transparent;
+}
+
+.decision-text {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.decision-text.is-success {
+  color: #00bebd;
+}
+
+.decision-text.is-danger {
+  color: #f56c6c;
+}
+
+.decision-text.is-warning {
+  color: #e6a23c;
+}
+
+.reason-text {
+  color: #666;
+}
+
+.text-muted {
+  color: #c0c4cc;
+}
+
+:deep(.el-table .row-error) {
+  background-color: #fef0f0 !important;
+}
+
+:deep(.el-table .row-warn) {
+  background-color: #fdf6ec !important;
+}
+
+.pagination-footer {
+  margin-top: 16px;
+  display: flex;
+  flex-shrink: 0;
+  padding-top: 4px;
+  overflow-x: auto;
+}
+
+:deep(.pagination-footer .el-pagination) {
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-left: auto;
+  gap: 8px 0;
 }
 </style>

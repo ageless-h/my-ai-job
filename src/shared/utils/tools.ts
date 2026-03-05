@@ -504,30 +504,37 @@ export class Tools {
     const enabled =
       typeof extCfg.enabled === "boolean"
         ? extCfg.enabled
-        : typeof pref.aiDeliverJudgeE === "boolean"
-          ? (pref.aiDeliverJudgeE as boolean)
+        : typeof pref.aiDeliveryJudgeEnabled === "boolean"
+          ? (pref.aiDeliveryJudgeEnabled as boolean)
+          : typeof pref.aiDeliverJudgeE === "boolean"
+            ? (pref.aiDeliverJudgeE as boolean)
           : DEFAULT_AI_DELIVERY_JUDGE_CONFIG.enabled;
 
-    const prompt = `${extCfg.prompt || pref.aiDeliverJudgePrompt || ""}`.trim() || DEFAULT_AI_DELIVERY_JUDGE_CONFIG.prompt;
-    const extraPrompt = `${extCfg.extraPrompt || pref.aiDeliverJudgeExtraPrompt || ""}`.trim();
+    const prompt = `${extCfg.prompt || pref.aiDeliveryJudgePrompt || pref.aiDeliverJudgePrompt || ""}`.trim()
+      || DEFAULT_AI_DELIVERY_JUDGE_CONFIG.prompt;
+    const extraPrompt = `${extCfg.extraPrompt || pref.aiDeliveryJudgeExtraPrompt || pref.aiDeliverJudgeExtraPrompt || ""}`.trim();
     const includeUserProfile =
       typeof extCfg.includeUserProfile === "boolean"
         ? extCfg.includeUserProfile
-        : typeof pref.aiDeliverJudgeIncludeUserProfile === "boolean"
-          ? (pref.aiDeliverJudgeIncludeUserProfile as boolean)
+        : typeof pref.aiDeliveryJudgeIncludeUserProfile === "boolean"
+          ? (pref.aiDeliveryJudgeIncludeUserProfile as boolean)
+          : typeof pref.aiDeliverJudgeIncludeUserProfile === "boolean"
+            ? (pref.aiDeliverJudgeIncludeUserProfile as boolean)
           : DEFAULT_AI_DELIVERY_JUDGE_CONFIG.includeUserProfile;
     const includeTraditionalSnapshot =
       typeof extCfg.includeTraditionalSnapshot === "boolean"
         ? extCfg.includeTraditionalSnapshot
-        : typeof pref.aiDeliverJudgeIncludeTraditionalSnapshot === "boolean"
-          ? (pref.aiDeliverJudgeIncludeTraditionalSnapshot as boolean)
+        : typeof pref.aiDeliveryJudgeIncludeTraditionalSnapshot === "boolean"
+          ? (pref.aiDeliveryJudgeIncludeTraditionalSnapshot as boolean)
+          : typeof pref.aiDeliverJudgeIncludeTraditionalSnapshot === "boolean"
+            ? (pref.aiDeliverJudgeIncludeTraditionalSnapshot as boolean)
           : DEFAULT_AI_DELIVERY_JUDGE_CONFIG.includeTraditionalSnapshot;
     const onAiError = normalizeFallbackPolicy(
-      extCfg.onAiError || pref.aiDeliverJudgeOnAiError,
+      extCfg.onAiError || pref.aiDeliveryJudgeOnAiError || pref.aiDeliverJudgeOnAiError,
       DEFAULT_AI_DELIVERY_JUDGE_CONFIG.onAiError
     );
     const onInvalidResult = normalizeFallbackPolicy(
-      extCfg.onInvalidResult || pref.aiDeliverJudgeOnInvalidResult,
+      extCfg.onInvalidResult || pref.aiDeliveryJudgeOnInvalidResult || pref.aiDeliverJudgeOnInvalidResult,
       DEFAULT_AI_DELIVERY_JUDGE_CONFIG.onInvalidResult
     );
 

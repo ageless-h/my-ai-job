@@ -63,6 +63,14 @@ const toText = (value: unknown, fallback = ""): string => {
   return `${value ?? fallback}`;
 };
 
+const getPreferenceValue = (
+  preference: PlainRecord,
+  canonicalKey: string,
+  legacyKey: string
+): unknown => {
+  return preference[canonicalKey] ?? preference[legacyKey];
+};
+
 const normalizeInlineText = (value: unknown, fallback = "未提供"): string => {
   const normalized = toText(value)
     .replace(/\s+/g, " ")
@@ -645,7 +653,7 @@ export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInp
     importedResumeTextSource: importedResumeSnippet.source,
     resumeNarrative,
     hasImportedResume,
-    hasImageResume: !!toText(preference.cI),
+    hasImageResume: !!toText(getPreferenceValue(preference, "customImageSet", "cI")),
     resumeIdentity,
     expectedJobInclude,
     expectedCompanyInclude,

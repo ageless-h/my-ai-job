@@ -15,9 +15,9 @@ export class PlatformError extends AIJobHuntingError {
   }
 }
 
-export class PushException extends AIJobHuntingError {}
+export class PushError extends AIJobHuntingError {}
 
-export class NotMatchException<TData = unknown> extends PushException {
+export class NotMatchError<TData = unknown> extends PushError {
   jobTitle: string;
   data: TData;
 
@@ -28,7 +28,7 @@ export class NotMatchException<TData = unknown> extends PushException {
   }
 }
 
-export class PushReqException extends PushException {
+export class PushRequestError extends PushError {
   jobTitle: string;
 
   constructor(jobTitle: string, message = "") {
@@ -37,7 +37,7 @@ export class PushReqException extends PushException {
   }
 }
 
-export class CollectReqException extends PushException {
+export class FavoriteRequestError extends PushError {
   jobTitle: string;
 
   constructor(jobTitle: string, message = "") {
@@ -46,7 +46,7 @@ export class CollectReqException extends PushException {
   }
 }
 
-export class FetchJobBossFailExp extends PushException {
+export class FetchJobDetailError extends PushError {
   jobTitle: string;
 
   constructor(jobTitle: string, message = "") {
@@ -55,6 +55,6 @@ export class FetchJobBossFailExp extends PushException {
   }
 }
 
-export class PublishStopExp extends PushException {}
+export class PushStopError extends PushError {}
 
-export class PublishLimitExp extends PushException {}
+export class PushLimitError extends PushError {}

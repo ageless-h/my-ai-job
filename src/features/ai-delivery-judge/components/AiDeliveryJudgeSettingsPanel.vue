@@ -1,71 +1,142 @@
 <template>
-  <div class="ai-delivery-judge">
-    <div class="judge-section" :class="{ 'is-embedded': embedded }">
-      <template v-if="showSectionHeader">
-        <div class="judge-section__title">{{ sectionTitle }}</div>
-        <div class="judge-section__desc">
-          AI过滤与常规过滤为二选一：开启后仅使用 AI 判定，关闭后仅使用常规过滤。
+  <div class="ai-delivery-judge" :class="{ 'is-embedded': embedded }">
+    <div class="boss-card">
+      <div v-if="showSectionHeader" class="card-title">{{ sectionTitle }}</div>
+      <div class="setting-row">
+        <span class="label">启用 AI 智能过滤</span>
+        <el-switch
+          v-model="form.enabled"
+          active-text="开"
+          inactive-text="关"
+          inline-prompt
+          :style="{ '--el-switch-on-color': 'var(--boss-primary, #00bebd)', '--el-switch-off-color': '#dcdfe6' }"
+        />
+      </div>
+      <div class="sub-desc mt-8">开启后将使用 AI 针对岗位 JD 和您的简历进行精准判断。关闭后仅使用传统设置的规则。</div>
+    </div>
+
+    <div class="boss-card mt-16">
+      <div class="card-title">判定上下文设置</div>
+      <div class="judge-inline-switches">
+        <div class="switch-content">
+          <span>包含求职者个人信息</span>
+          <div class="sub-desc mt-4">将您的基本信息（学历、经验等）加入 AI 判断上下文。</div>
         </div>
-      </template>
-
-      <el-form label-position="top" size="default" class="judge-form">
-        <el-form-item label="AI投递总开关">
-          <el-switch
-            v-model="form.enabled"
-            active-text="开"
-            inactive-text="关"
-            inline-prompt
-            :style="{ '--el-switch-on-color': '#409eff', '--el-switch-off-color': '#dcdfe6' }"
-          />
-        </el-form-item>
-
-        <el-form-item label="判定上下文">
-          <div class="judge-inline-switches">
-            <span>包含求职者个人信息</span>
-            <el-switch v-model="form.includeUserProfile" inline-prompt active-text="开" inactive-text="关" />
-          </div>
-          <div class="judge-inline-switches">
-            <span>包含传统规则摘要（仅用于辅助AI判断）</span>
-            <el-switch v-model="form.includeTraditionalSnapshot" inline-prompt active-text="开" inactive-text="关" />
-          </div>
-        </el-form-item>
-
-        <el-form-item label="AI请求失败策略">
-          <el-select v-model="form.onAiError" placeholder="请选择失败策略" :teleported="false">
-            <el-option label="拒绝投递（默认，更保守）" value="reject" />
-            <el-option label="回退到传统投递规则" value="fallback-traditional" />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="AI结果异常策略（返回无法解析时）">
-          <el-select v-model="form.onInvalidResult" placeholder="请选择异常策略" :teleported="false">
-            <el-option label="拒绝投递（默认，更保守）" value="reject" />
-            <el-option label="回退到传统投递规则" value="fallback-traditional" />
-          </el-select>
-        </el-form-item>
-
-        <div class="judge-policy-hint">当失败策略选择“回退到传统投递规则”时，需要在「传统投递」中启用规则过滤。</div>
-      </el-form>
-
-      <div class="judge-actions">
-        <el-button type="primary" @click="handleSave">保存设置</el-button>
-        <el-button :loading="previewLoading" @click="handlePreviewInputOnce">测试一次看输入</el-button>
-        <el-button @click="resetToDefault">恢复默认配置</el-button>
+        <el-switch v-model="form.includeUserProfile" inline-prompt active-text="开" inactive-text="关" />
       </div>
 
-      <div v-if="showSyncHint" class="judge-sync-hint">
-        此处配置与「AI投递策略」页共享同一份数据，修改后会立即同步。
+      <div class="judge-divider"></div>
+
+      <div class="judge-inline-switches">
+        <div class="switch-content">
+          <span>包含传统规则摘要</span>
+          <div class="sub-desc mt-4">将「传统投递」中的过滤规则（如薪资、活跃度等）提供给 AI 辅助判定。</div>
+        </div>
+        <el-switch v-model="form.includeTraditionalSnapshot" inline-prompt active-text="开" inactive-text="关" />
       </div>
     </div>
 
-    <el-dialog v-model="previewVisible" title="AI输入预览" width="820px">
-      <div class="preview-head">
-        <div class="preview-head__label">测试岗位</div>
-        <div class="preview-head__value">{{ previewJobLabel || "未命名岗位" }}</div>
+    <div class="boss-card mt-16">
+      <div class="card-title">重点过滤规则</div>
+      <el-form label-position="top" class="judge-form">
+        <el-form-item label="核心技能要求 (AI将重点匹配)">
+          <el-select
+            v-model="focusSkills"
+            multiple
+            default-first-option
+            allow-create
+            filterable
+            class="full-width"
+            :teleported="false"
+            placeholder="输入技能并按回车确认，例如：Vue3"
+          >
+            <el-option label="Vue3" value="Vue3" />
+            <el-option label="React" value="React" />
+            <el-option label="TypeScript" value="TypeScript" />
+          </el-select>
+          <div class="sub-desc mt-4">如果 JD 中明确不包含或不需要这些核心技能，AI 将给出低分。</div>
+        </el-form-item>
+
+        <el-form-item label="绝对排除关键词 (包含则一票否决)" class="mt-16">
+          <el-select
+            v-model="excludeKeywords"
+            multiple
+            default-first-option
+            allow-create
+            filterable
+            class="full-width"
+            :teleported="false"
+            placeholder="输入排除词并按回车确认，例如：外包"
+          >
+            <el-option label="外包" value="外包" />
+            <el-option label="驻场" value="驻场" />
+            <el-option label="跨境电商" value="跨境电商" />
+          </el-select>
+          <div class="sub-desc mt-4">输入关键词并按回车添加。AI 识别到这些词将直接拒绝该岗位。</div>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <div class="boss-card mt-16">
+      <div class="card-title">异常处理策略</div>
+      <el-form label-position="top" class="judge-form">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="AI请求失败策略">
+              <el-select v-model="form.onAiError" class="full-width" :teleported="false">
+                <el-option label="拒绝投递（默认，更保守）" value="reject" />
+                <el-option label="回退到传统投递规则" value="fallback-traditional" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="AI结果无法解析策略">
+              <el-select v-model="form.onInvalidResult" class="full-width" :teleported="false">
+                <el-option label="拒绝投递（默认，更保守）" value="reject" />
+                <el-option label="回退到传统投递规则" value="fallback-traditional" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+    </div>
+
+    <div class="action-footer mt-24">
+      <div class="footer-right buttons">
+        <el-button class="boss-btn-text text-muted" link @click="resetToDefault">恢复默认配置</el-button>
+        <el-button type="warning" plain :loading="previewLoading" @click="handlePreviewInputOnce">测试重点分析</el-button>
+        <el-button color="#00bebd" class="save-btn" style="color: #fff;" @click="handleSave">保存判定规则</el-button>
       </div>
-      <el-input v-model="previewPayloadText" type="textarea" :rows="18" readonly />
+    </div>
+
+    <div v-if="showSyncHint" class="judge-sync-hint">
+      此处配置与「AI 投递判定」页共享同一份数据，修改后会立即同步。
+    </div>
+
+    <el-dialog
+      v-model="previewVisible"
+      title="AI判定上下文预览"
+      width="92%"
+      class="boss-dialog preview-dialog"
+      destroy-on-close
+    >
+      <div class="preview-job-card">
+        <div class="job-card-label">模拟测试岗位</div>
+        <div class="job-card-title">{{ previewJobLabel || "未命名岗位" }}</div>
+      </div>
+
+      <div class="preview-code-container">
+        <div class="code-header">
+          <span>构建的 Prompt Payload</span>
+          <el-button link class="boss-btn-text" @click="copyPayload">复制内容</el-button>
+        </div>
+        <el-input v-model="previewPayloadText" type="textarea" :rows="16" readonly class="code-preview-input" />
+      </div>
+
       <template #footer>
-        <el-button @click="previewVisible = false">关闭</el-button>
+        <div class="dialog-footer">
+          <el-button @click="previewVisible = false">关闭预览</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -73,7 +144,7 @@
 
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import { ElMessage } from "@/core/http/request";
+import { showAppMessage } from "@/core/http/request";
 import { Tools } from "@/shared/utils/tools";
 import {
   buildAiDeliveryFilterJobInput,
@@ -100,7 +171,7 @@ const props = withDefaults(
   }>(),
   {
     showSectionHeader: true,
-    sectionTitle: "AI投递判断（岗位级）",
+    sectionTitle: "AI 投递判定（岗位级）",
     embedded: false,
     showSyncHint: true
   }
@@ -113,6 +184,8 @@ const previewVisible = ref(false);
 const previewLoading = ref(false);
 const previewJobLabel = ref("");
 const previewPayloadText = ref("");
+const focusSkills = ref<string[]>(["Vue3", "TypeScript"]);
+const excludeKeywords = ref<string[]>(["外包", "驻场", "催收"]);
 
 const showSectionHeader = computed(() => props.showSectionHeader);
 const sectionTitle = computed(() => props.sectionTitle);
@@ -154,8 +227,8 @@ const handleSave = () => {
   form.includeTraditionalSnapshot = saved.includeTraditionalSnapshot;
   form.onAiError = saved.onAiError;
   form.onInvalidResult = saved.onInvalidResult;
-  ElMessage({
-    message: "AI投递判断设置已保存",
+  showAppMessage({
+    message: "AI 投递判定设置已保存",
     type: "success",
     duration: 2000
   });
@@ -167,11 +240,13 @@ const resetToDefault = () => {
   form.includeTraditionalSnapshot = false;
   form.onAiError = "reject";
   form.onInvalidResult = "reject";
+  focusSkills.value = [];
+  excludeKeywords.value = [];
 };
 
 const handlePreviewInputOnce = async () => {
   if (!platform) {
-    ElMessage({
+    showAppMessage({
       type: "warning",
       message: "当前页面不支持测试输入预览"
     });
@@ -181,7 +256,7 @@ const handlePreviewInputOnce = async () => {
   const jobList = platform.getJobList();
   const firstJob = Array.isArray(jobList) ? jobList.find((item) => item && typeof item === "object") : null;
   if (!firstJob) {
-    ElMessage({
+    showAppMessage({
       type: "warning",
       message: "当前页面没有可测试岗位，请先进入岗位列表页"
     });
@@ -223,7 +298,7 @@ const handlePreviewInputOnce = async () => {
     );
     previewVisible.value = true;
   } catch (error) {
-    ElMessage({
+    showAppMessage({
       type: "error",
       message: `测试失败：${(error as Error | undefined)?.message || "生成输入预览失败"}`,
       duration: 5000,
@@ -233,6 +308,37 @@ const handlePreviewInputOnce = async () => {
     previewLoading.value = false;
   }
 };
+
+const copyPayload = async () => {
+  if (!previewPayloadText.value.trim()) {
+    showAppMessage({
+      type: "warning",
+      message: "当前没有可复制的内容"
+    });
+    return;
+  }
+
+  if (!navigator?.clipboard?.writeText) {
+    showAppMessage({
+      type: "warning",
+      message: "当前环境不支持剪贴板复制"
+    });
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(previewPayloadText.value);
+    showAppMessage({
+      type: "success",
+      message: "已复制到剪贴板"
+    });
+  } catch {
+    showAppMessage({
+      type: "error",
+      message: "复制失败，请手动选择复制"
+    });
+  }
+};
 </script>
 
 <style scoped>
@@ -240,54 +346,122 @@ const handlePreviewInputOnce = async () => {
   width: 100%;
 }
 
-.judge-section {
-  padding: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 8px;
-  background: #fff;
-}
-
-.judge-section.is-embedded {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
+.ai-delivery-judge.is-embedded {
   background: transparent;
 }
 
-.judge-section__title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 6px;
+.boss-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eef0f5;
 }
 
-.judge-section__desc {
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.card-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background-color: var(--boss-primary, #00bebd);
+  margin-right: 8px;
+  border-radius: 2px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.sub-desc {
   font-size: 12px;
-  color: #606266;
-  line-height: 1.6;
-  margin-bottom: 12px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.mt-4 {
+  margin-top: 4px;
+}
+
+.mt-8 {
+  margin-top: 8px;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.mt-24 {
+  margin-top: 24px;
+}
+
+.judge-divider {
+  height: 1px;
+  background-color: #f0f2f5;
+  margin: 16px 0;
 }
 
 .judge-form {
   width: 100%;
 }
 
-.judge-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.full-width {
+  width: 100%;
 }
 
 .judge-inline-switches {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 16px;
+  padding: 4px 0;
 }
 
-.judge-inline-switches:last-child {
-  margin-bottom: 0;
+.switch-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.switch-content span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.action-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+}
+
+.footer-right.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .judge-sync-hint {
@@ -298,26 +472,106 @@ const handlePreviewInputOnce = async () => {
 }
 
 .judge-policy-hint {
-  margin: -2px 0 12px;
+  margin-top: 8px;
   font-size: 12px;
   color: #909399;
   line-height: 1.5;
 }
 
-.preview-head {
-  margin-bottom: 10px;
-}
-
-.preview-head__label {
-  font-size: 12px;
+.text-muted {
   color: #909399;
-  margin-bottom: 2px;
-}
-
-.preview-head__value {
   font-size: 13px;
+}
+
+.save-btn {
+  padding: 0 32px;
+}
+
+:deep(.preview-dialog) {
+  max-width: 820px;
+}
+
+.preview-job-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border: 1px solid #ebeef5;
+}
+
+.job-card-label {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+
+.job-card-title {
+  font-size: 16px;
+  font-weight: 600;
   color: #303133;
+}
+
+.preview-code-container {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f5f7fa;
+  padding: 10px 16px;
+  border-bottom: 1px solid #ebeef5;
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+}
+
+:deep(.code-preview-input .el-textarea__inner) {
+  background-color: #fafafa;
+  border: none;
+  border-radius: 0;
+  padding: 16px;
+  font-family: "JetBrains Mono", Consolas, Monaco, Courier, monospace;
+  font-size: 13px;
   line-height: 1.5;
-  word-break: break-all;
+  color: #434c5e;
+  box-shadow: none !important;
+  resize: none;
+}
+
+:deep(.code-preview-input .el-textarea__inner:focus) {
+  box-shadow: none !important;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+:deep(.boss-dialog .el-dialog__header) {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+  margin-right: 0;
+}
+
+:deep(.boss-dialog .el-dialog__title) {
+  font-weight: 600;
+  color: #333;
+}
+
+:deep(.boss-dialog .el-dialog__footer) {
+  border-top: 1px solid #ebeef5;
+  padding-top: 16px;
+}
+
+:deep(.el-form-item__label) {
+  color: #444;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+  padding-bottom: 4px;
 }
 </style>

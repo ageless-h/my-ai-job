@@ -4,7 +4,7 @@ import * as Vue from "vue";
 import * as ElementPlus from "element-plus";
 import * as Icons from "@element-plus/icons-vue";
 import axios from "axios";
-import { request, ElMessage, isProdEnv } from "@/core/http/request";
+import { request, showAppMessage, isProdEnv } from "@/core/http/request";
 import { Tools } from "@/shared/utils/tools";
 import { UserStore } from "@/state/user";
 import { LoginStore } from "@/state/login";
@@ -62,7 +62,30 @@ const WIDTH_STORAGE_KEY = "ai-job-panel-width";
 // Optimized SVG Icons
 const SVG_OPEN = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/></svg>';
 const SVG_CLOSE = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-const SVG_MINIMIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+const SVG_MINIMIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+
+const FAB_SIZE = 46;
+const FAB_SAFE_GAP = 14;
+const FAB_BASE_DESKTOP = { right: 24, bottom: 108 };
+const FAB_BASE_MOBILE = { right: 16, bottom: 88 };
+const FAB_ANCHOR_RIGHT_SHIFT_PX = 15;
+const FAB_ANCHOR_TOP_OFFSET_PX = 70;
+const FAB_COLLISION_SELECTORS = [
+  ".zp-side-entry-jobs",
+  ".zp-side-entry-question",
+  ".side-entry.side-entry-jobs",
+  ".side-entry.side-entry-question",
+  ".c-job-tools.job-tools",
+  ".vip-guide.sider-box",
+  ".job-tools-banners",
+  ".banner-item.template-banner"
+];
+const FAB_ANCHOR_SELECTORS = [
+  ".zp-side-entry-jobs",
+  ".zp-side-entry-question",
+  ".side-entry.side-entry-jobs",
+  ".side-entry.side-entry-question"
+];
 
 // Tab Icons
 const SVG_TAB_AI = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>';
@@ -81,6 +104,138 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
     const collapsed = ref(false);
     const panelWidth = ref(480);
     const isResizing = ref(false);
+    const fabDynamicStyle = ref({
+      right: `${FAB_BASE_DESKTOP.right}px`,
+      bottom: `${FAB_BASE_DESKTOP.bottom}px`
+    });
+    let fabRepositionRaf = 0;
+    const fabRecheckTimers: number[] = [];
+
+    const getFabBasePosition = () => {
+      if (window.innerWidth <= 900) return { ...FAB_BASE_MOBILE };
+      return { ...FAB_BASE_DESKTOP };
+    };
+
+    const hasIntersection = (a, b, gap = 0) => {
+      return !(
+        a.right < b.left - gap ||
+        b.right < a.left - gap ||
+        a.bottom < b.top - gap ||
+        b.bottom < a.top - gap
+      );
+    };
+
+    const getFabRect = (position) => {
+      const left = window.innerWidth - position.right - FAB_SIZE;
+      const top = window.innerHeight - position.bottom - FAB_SIZE;
+      return {
+        left,
+        top,
+        right: left + FAB_SIZE,
+        bottom: top + FAB_SIZE
+      };
+    };
+
+    const clampFabPosition = (position) => {
+      const minInset = 12;
+      const maxRight = Math.max(minInset, window.innerWidth - FAB_SIZE - minInset);
+      const maxBottom = Math.max(minInset, window.innerHeight - FAB_SIZE - minInset);
+      return {
+        right: Math.max(minInset, Math.min(position.right, maxRight)),
+        bottom: Math.max(minInset, Math.min(position.bottom, maxBottom))
+      };
+    };
+
+    const getRectsBySelectors = (selectors) => {
+      return selectors
+        .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+        .map((element) => element.getBoundingClientRect())
+        .filter((rect) => (
+          rect.width > 0 &&
+          rect.height > 0 &&
+          rect.bottom > 0 &&
+          rect.right > 0 &&
+          rect.top < window.innerHeight &&
+          rect.left < window.innerWidth
+        ));
+    };
+
+    const getCollisionRects = () => getRectsBySelectors(FAB_COLLISION_SELECTORS);
+
+    const getAnchorRects = () => getRectsBySelectors(FAB_ANCHOR_SELECTORS);
+
+    const resolveFabCollisionPosition = () => {
+      const base = getFabBasePosition();
+
+      const collisionRects = getCollisionRects();
+      if (!collisionRects.length) {
+        return clampFabPosition(base);
+      }
+
+      const sideEntryRect = getAnchorRects()
+        .slice()
+        .sort((a, b) => (b.top + b.height / 2) - (a.top + a.height / 2))[0];
+
+      if (sideEntryRect) {
+        const right = window.innerWidth - sideEntryRect.right + Math.max(0, (sideEntryRect.width - FAB_SIZE) / 2) - FAB_ANCHOR_RIGHT_SHIFT_PX;
+        const bottom = window.innerHeight - sideEntryRect.top + FAB_ANCHOR_TOP_OFFSET_PX;
+        return clampFabPosition({ right, bottom });
+      }
+
+      let raisedBottom = base.bottom;
+      let rounds = 0;
+
+      while (rounds < 6) {
+        rounds += 1;
+        const currentRect = getFabRect({ right: base.right, bottom: raisedBottom });
+        let nextBottom = raisedBottom;
+
+        collisionRects.forEach((rect) => {
+          if (!hasIntersection(currentRect, rect, FAB_SAFE_GAP)) return;
+          nextBottom = Math.max(nextBottom, window.innerHeight - rect.top + FAB_SAFE_GAP);
+        });
+
+        if (nextBottom === raisedBottom) break;
+        raisedBottom = nextBottom;
+      }
+
+      const candidates = [
+        { right: base.right, bottom: raisedBottom },
+        { right: base.right + 220, bottom: raisedBottom }
+      ].map(clampFabPosition);
+
+      const best = candidates.find((position) => {
+        const fabRect = getFabRect(position);
+        return !collisionRects.some((rect) => hasIntersection(fabRect, rect, FAB_SAFE_GAP));
+      });
+
+      return best || clampFabPosition({ right: base.right + 220, bottom: raisedBottom });
+    };
+
+    const applyFabPosition = () => {
+      const resolved = resolveFabCollisionPosition();
+      fabDynamicStyle.value = {
+        right: `${Math.round(resolved.right)}px`,
+        bottom: `${Math.round(resolved.bottom)}px`
+      };
+    };
+
+    const scheduleFabPosition = () => {
+      if (fabRepositionRaf) return;
+      fabRepositionRaf = requestAnimationFrame(() => {
+        fabRepositionRaf = 0;
+        applyFabPosition();
+      });
+    };
+
+    const queueFabRechecks = () => {
+      [400, 1200, 2400].forEach((delay) => {
+        const timer = window.setTimeout(() => {
+          scheduleFabPosition();
+        }, delay);
+        fabRecheckTimers.push(timer);
+      });
+    };
 
     onMounted(() => {
       try {
@@ -92,19 +247,51 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
           if (w >= 380 && w <= 800) panelWidth.value = w;
         }
       } catch (_e) {}
+
+      nextTick(() => {
+        applyFabPosition();
+        queueFabRechecks();
+      });
+
+      window.addEventListener("resize", scheduleFabPosition);
+      window.addEventListener("scroll", scheduleFabPosition, true);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener("resize", scheduleFabPosition);
+      window.removeEventListener("scroll", scheduleFabPosition, true);
+      if (fabRepositionRaf) {
+        cancelAnimationFrame(fabRepositionRaf);
+        fabRepositionRaf = 0;
+      }
+      fabRecheckTimers.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      fabRecheckTimers.length = 0;
     });
 
     const toggleCollapse = () => {
       collapsed.value = !collapsed.value;
       try { localStorage.setItem(STORAGE_KEY, String(collapsed.value)); } catch (_e) {}
+      nextTick(() => {
+        scheduleFabPosition();
+      });
     };
+
+    watch([collapsed, panelWidth], () => {
+      scheduleFabPosition();
+    });
+
+    onUpdated(() => {
+      scheduleFabPosition();
+    });
 
     const componentMap = /* @__PURE__ */ new Map();
     componentMap.set("1", { component: AiJob, name: "工作台", icon: SVG_TAB_AI });
-    componentMap.set("2", { component: AiConfig, name: "AI中心", icon: SVG_TAB_CONFIG });
-    componentMap.set("3", { component: AiDeliveryJudge, name: "AI投递策略", icon: SVG_TAB_JUDGE });
+    componentMap.set("2", { component: AiConfig, name: "AI 配置", icon: SVG_TAB_CONFIG });
+    componentMap.set("3", { component: AiDeliveryJudge, name: "投递判定", icon: SVG_TAB_JUDGE });
     componentMap.set("4", { component: Preference, name: "传统投递", icon: SVG_TAB_PREF });
-    componentMap.set("5", { component: MemorySession, name: "记忆与会话", icon: SVG_TAB_MEMORY });
+    componentMap.set("5", { component: MemorySession, name: "对话通知", icon: SVG_TAB_MEMORY });
     componentMap.set("6", { component: RunRecord, name: "运行记录", icon: SVG_TAB_RECORD });
     componentMap.set("7", { component: Account, name: "账户", icon: SVG_TAB_ACCOUNT });
 
@@ -159,10 +346,11 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
         // FAB Button
         createElementVNode("div", {
           class: normalizeClass(["ai-fab", { "ai-fab--close": !collapsed.value }]),
+          style: normalizeStyle(fabDynamicStyle.value),
           onClick: toggleCollapse,
           title: collapsed.value ? "展开 AI 助手面板" : "收起面板",
           innerHTML: collapsed.value ? SVG_OPEN : SVG_CLOSE
-        }, null, 10 /* CLASS, PROPS */, ["title", "innerHTML"]),
+        }, null, 14 /* CLASS, STYLE, PROPS */, ["title", "innerHTML"]),
 
         // Sidebar (CSS class controls visibility, no vShow/Transition)
         createElementVNode("div", {
@@ -188,7 +376,7 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
             })
           ]),
           // Nav Tabs (plain HTML, no ElMenu)
-          createElementVNode("div", { class: "ai-sidebar-nav" },
+          createElementVNode("div", { class: "ai-sidebar-nav ai-sidebar-nav-vertical" },
             renderList(Array.from(componentMap.entries()), ([key, value]) => {
               return createElementVNode("div", {
                 class: normalizeClass(["ai-nav-tab", { "is-active": activeMenuKey.value === key }]),
@@ -198,7 +386,9 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
             })
           ),
           // Body
-          createElementVNode("div", { class: "ai-sidebar-body" }, [
+          createElementVNode("div", {
+            class: "ai-sidebar-body boss-panel-body"
+          }, [
             (openBlock(), createBlock(Vue.KeepAlive, null, { default: () => [(openBlock(), createBlock(resolveDynamicComponent(showComponent.value)))], _: 1 }))
           ])
         ], 6 /* CLASS, STYLE */)
@@ -216,9 +406,11 @@ const RenderComponent = _sfc_main$1;
 
 <style scoped>
 .ai-job-root {
-  --ai-primary: #409eff;
-  --ai-primary-light: rgba(64, 158, 255, 0.1);
-  --ai-primary-hover: #337ecc;
+  --ai-primary: var(--boss-primary, #00bebd);
+  --ai-primary-light: var(--boss-primary-light, rgba(0, 190, 189, 0.12));
+  --ai-primary-hover: var(--boss-primary-hover, #00a8a7);
+  --ai-header-height: 54px;
+  --ai-nav-width: 96px;
   --ai-text-main: #303133;
   --ai-text-sub: #909399;
   --ai-text-muted: #c0c4cc;
@@ -250,8 +442,8 @@ const RenderComponent = _sfc_main$1;
   display: flex;
   flex-direction: column;
   border-left: 1px solid rgba(255, 255, 255, 0.5);
-  border-top-left-radius: var(--ai-radius-lg);
-  border-bottom-left-radius: var(--ai-radius-lg);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
   overflow: hidden;
   transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1), width 0.3s ease;
   will-change: transform, width;
@@ -297,11 +489,11 @@ const RenderComponent = _sfc_main$1;
 
 /* Header */
 :deep(.ai-sidebar-header) {
-  height: 64px;
+  height: var(--ai-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--ai-border);
   flex-shrink: 0;
   background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
@@ -309,52 +501,68 @@ const RenderComponent = _sfc_main$1;
 }
 
 :deep(.ai-sidebar-title) {
-  font-size: 19px;
-  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--ai-text-main);
-  letter-spacing: -0.02em;
-  background: linear-gradient(120deg, var(--ai-primary), #67c23a);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+
+:deep(.ai-sidebar-title::before) {
+  content: "";
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: url("https://z.zhipin.com/web/v2/favicon.ico") center / cover no-repeat;
 }
 
 :deep(.ai-sidebar-minimize) {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: 6px;
   color: var(--ai-text-sub);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s;
 }
 
 :deep(.ai-sidebar-minimize:hover) {
-  background: #fff1f0;
-  color: #ff4d4f;
-  transform: rotate(90deg);
+  background: var(--ai-bg-subtle);
+  color: var(--ai-text-main);
 }
 
 /* Navigation Tabs */
 :deep(.ai-sidebar-nav) {
+  position: absolute;
+  top: var(--ai-header-height);
+  bottom: 0;
+  left: 0;
+  width: var(--ai-nav-width);
   display: flex;
+  flex-direction: column;
   align-items: stretch;
-  height: 48px;
-  border-bottom: 1px solid var(--ai-border);
-  flex-shrink: 0;
-  background: transparent;
-  overflow: hidden;
+  border-right: 1px solid var(--ai-border);
+  background: var(--boss-bg-color, #f8f8f8);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 8px;
 }
 
 :deep(.ai-nav-tab) {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 42px;
-  min-width: 42px;
-  max-width: 42px;
-  height: 48px;
+  flex: 0 0 64px;
+  min-width: 0;
+  max-width: none;
+  height: 64px;
+  flex-direction: column;
   font-size: 14px;
   font-weight: 500;
   color: var(--ai-text-sub);
@@ -362,25 +570,31 @@ const RenderComponent = _sfc_main$1;
   position: relative;
   transition: all 0.3s;
   user-select: none;
-  gap: 0;
+  gap: 6px;
   overflow: hidden;
-  padding: 0 8px;
+  padding: 8px 6px;
+  text-align: center;
+  border-left: 3px solid transparent;
 }
 
 :deep(.ai-nav-tab span) {
-  display: none;
+  display: block;
   position: relative;
   z-index: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
+  font-size: 12px;
 }
 
 :deep(.ai-nav-tab.is-active) {
-  flex: 1 1 auto;
+  flex: 0 0 64px;
   max-width: none;
   gap: 6px;
+  background: #ffffff;
+  border-left-color: var(--ai-primary);
 }
 
 :deep(.ai-nav-tab.is-active span) {
@@ -388,8 +602,8 @@ const RenderComponent = _sfc_main$1;
 }
 
 :deep(.ai-nav-tab:hover) {
-  background-color: var(--ai-primary-light);
-  color: var(--ai-primary);
+  background-color: #f0f2f5;
+  color: var(--ai-text-main);
 }
 
 :deep(.ai-nav-tab.is-active) {
@@ -398,32 +612,29 @@ const RenderComponent = _sfc_main$1;
 }
 
 :deep(.ai-nav-tab::after) {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  height: 3px;
-  background: var(--ai-primary);
-  border-radius: 3px 3px 0 0;
-  transition: all 0.3s ease;
-  transform: translateX(-50%);
+  display: none;
 }
 
 :deep(.ai-nav-tab.is-active::after) {
-  width: 40%;
+  width: 0;
 }
 
 :deep(.ai-nav-tab svg) {
   flex-shrink: 0;
   margin-right: 0 !important;
+  margin-bottom: 2px;
 }
 
 /* Content Body */
 :deep(.ai-sidebar-body) {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
+  position: absolute;
+  top: var(--ai-header-height);
+  left: var(--ai-nav-width);
+  right: 0;
+  bottom: 0;
+  width: auto;
+  overflow: hidden;
+  padding: 0;
   animation: ai-fade-in 0.4s ease-out;
 }
 
@@ -451,121 +662,11 @@ const RenderComponent = _sfc_main$1;
   background: transparent;
 }
 
-/* ===== Layout: AI助手 Tab (flat elements, no wrapper) ===== */
-
-/* Body as flex-wrap container for flat content */
-:deep(.ai-sidebar-body) {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Form/div containers take full width (偏好设置/运行记录/AI配置) */
-:deep(.ai-sidebar-body > form),
-:deep(.ai-sidebar-body > div),
-:deep(.ai-sidebar-body > .ai-config) {
-  width: 100%;
-  flex-shrink: 0;
-}
-
-/* Hide br tags */
-:deep(.ai-sidebar-body > br) {
-  display: none;
-}
-
-/* ===== Stats Row: 投递成功/失败 as inline cards ===== */
-:deep(.ai-sidebar-body > .el-text) {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 14px;
-  background: #f8fafc;
-  border-radius: var(--ai-radius);
-  border: 1px solid var(--ai-border);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  margin: 0;
-}
-
-:deep(.ai-sidebar-body > .el-text.el-text--primary) {
-  background: rgba(64, 158, 255, 0.06);
-  border-color: rgba(64, 158, 255, 0.15);
-  color: var(--ai-primary);
-}
-
-:deep(.ai-sidebar-body > .el-text.el-text--danger) {
-  background: rgba(245, 108, 108, 0.06);
-  border-color: rgba(245, 108, 108, 0.15);
-  color: #f56c6c;
-}
-
-/* 清理投递记录 button - same row as stats */
-:deep(.ai-sidebar-body > .el-button--info.el-button--small) {
-  margin: 0 !important;
-  height: 32px;
-}
-
-/* ===== Control Row: 单次处理限制 + input-number on SAME row ===== */
-/* Label "单次处理限制数量" — inline, NOT full width */
-:deep(.ai-sidebar-body > .el-text.el-text--large:not(.el-text--primary):not(.el-text--danger)) {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: var(--ai-radius);
-  border: 1px solid var(--ai-border);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ai-text-main);
-  margin-top: 4px;
-  white-space: nowrap;
-}
-
-/* Input number — shares row with label, fills remaining space */
-:deep(.ai-sidebar-body > .el-input-number) {
-  margin: 0;
-  flex: 1;
-  min-width: 100px;
-}
-
-/* 按条件收藏 span with switch — own row */
-:deep(.ai-sidebar-body > span:not(.el-text)) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: var(--ai-text-main);
-  margin: 0 !important;
-  width: 100%;
-  padding: 6px 0;
-}
-
-/* ===== Action Buttons Row ===== */
-/* Full-width separator before action buttons */
-:deep(.ai-sidebar-body > .el-button--primary.el-tooltip__trigger:first-of-type) {
-  margin-top: 6px;
-}
-
-:deep(.ai-sidebar-body > .el-button) {
-  margin: 0 !important;
-  height: 36px;
-  font-size: 14px;
-}
-
 /* Button内的p标签 */
 :deep(.el-button p) {
   margin: 0;
   font-size: 14px !important;
   line-height: 1;
-}
-
-/* Link */
-:deep(.ai-sidebar-body > .el-link) {
-  width: 100%;
-  justify-content: flex-start;
-  margin: 0 !important;
-  font-size: 13px;
 }
 
 /* ===== Sub-component Styles (Element Plus) ===== */
@@ -575,12 +676,12 @@ const RenderComponent = _sfc_main$1;
   font-weight: 500;
 }
 
-:deep(.el-button--primary) {
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
+:deep(.el-button--primary:not(.is-plain):not(.is-link):not(.is-text)) {
+  box-shadow: 0 4px 12px rgba(0, 190, 189, 0.2);
 }
 
-:deep(.el-button--primary:hover) {
-  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.3);
+:deep(.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):hover) {
+  box-shadow: 0 6px 16px rgba(0, 190, 189, 0.3);
   transform: translateY(-1px);
 }
 
@@ -597,7 +698,7 @@ const RenderComponent = _sfc_main$1;
   background-color: var(--ai-primary);
 }
 
-/* ===== 偏好设置 Tab: Form layout ===== */
+/* ===== 传统投递 Tab: Form layout ===== */
 /* Section titles */
 :deep(.form-preference .top-title) {
   display: block !important;
@@ -613,7 +714,7 @@ const RenderComponent = _sfc_main$1;
 :deep(.form-preference .top-title:first-child) {
   margin-top: 0;
 }
-/* ===== 偏好设置 Tab: Top-label layout ===== */
+/* ===== 传统投递 Tab: Top-label layout ===== */
 
 /* --- Core: all flex pair containers wrap --- */
 :deep(.form-preference > div > div[style*="display: flex"]) {
@@ -717,7 +818,7 @@ const RenderComponent = _sfc_main$1;
   gap: 8px;
 }
 
-/* ===== 偏好设置: 投递间隔/翻页间隔排版 ===== */
+/* ===== 传统投递: 投递间隔/翻页间隔排版 ===== */
 /* 间隔组元素保持 inline，与前面的 checkbox 分开 */
 :deep(.form-preference > div > div[style*="margin-bottom"] > p.time-interval) {
   font-size: 13px;
@@ -732,7 +833,7 @@ const RenderComponent = _sfc_main$1;
 }
 
 
-/* ===== 偏好设置: 图片简历按钮UI统一 ===== */
+/* ===== 传统投递: 图片简历按钮 UI 统一 ===== */
 :deep(.form-preference .form-item-upload .el-upload .el-button) {
   border-radius: var(--ai-radius) !important;
   height: 36px !important;
@@ -750,72 +851,7 @@ const RenderComponent = _sfc_main$1;
   margin-left: 8px !important;
 }
 
-/* ===== 运行记录 Tab ===== */
-/* Filter bar: vertical stack */
-:deep(.filter-bar.el-row) {
-  flex-direction: column !important;
-  flex-wrap: nowrap !important;
-  gap: 10px;
-  margin: 0 !important;
-}
-:deep(.filter-bar .el-col) {
-  max-width: 100% !important;
-  flex: none !important;
-  width: 100% !important;
-  padding: 0 !important;
-}
-/* Filter bar button full width */
-:deep(.filter-bar .el-button) {
-  width: 100%;
-}
-/* Time range picker */
-:deep(.filter-bar .el-date-editor) {
-  width: 100% !important;
-}
-/* Table: full width, auto layout */
-:deep(.el-table) {
-  width: 100% !important;
-  border-radius: var(--ai-radius);
-  overflow: hidden;
-  border: 1px solid var(--ai-border);
-  margin-top: 12px;
-}
-:deep(.el-table__header),
-:deep(.el-table__body) {
-  width: 100% !important;
-  table-layout: auto !important;
-}
-:deep(.el-table th.el-table__cell) {
-  background-color: #f8fafc;
-  color: var(--ai-text-main);
-  font-weight: 600;
-  font-size: 13px;
-  padding: 8px 6px;
-}
-:deep(.el-table td.el-table__cell) {
-  font-size: 12px;
-  padding: 6px;
-  word-break: break-all;
-}
-/* Pagination */
-:deep(.el-pagination) {
-  display: flex;
-  justify-content: center;
-  margin-top: 12px;
-  flex-wrap: wrap;
-  row-gap: 8px;
-  white-space: normal;
-  height: auto;
-}
-
-:deep(.el-pagination .el-pager) {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: 100%;
-}
-
-/* ===== AI配置 Tab: Collapse ===== */
+/* ===== AI 配置 Tab: Collapse ===== */
 :deep(.ai-config) {
   width: 100%;
 }
@@ -910,59 +946,54 @@ const RenderComponent = _sfc_main$1;
 /* FAB Button Styles */
 :deep(.ai-fab) {
   position: fixed;
-  bottom: 24px;
+  bottom: 108px;
   right: 24px;
-  width: 56px;
-  height: 56px;
-  background: var(--ai-primary);
-  border-radius: 50%;
+  width: 46px;
+  height: 46px;
+  background: #ffffff;
+  border: none;
+  border-radius: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.4);
+  box-shadow: none;
   z-index: 99999;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.22s ease;
   user-select: none;
-  color: #fff;
-  animation: ai-pulse 2s ease-out 3;
-}
-
-@keyframes ai-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(64, 158, 255, 0.7); }
-  70% { box-shadow: 0 0 0 15px rgba(64, 158, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(64, 158, 255, 0); }
+  color: var(--ai-primary);
 }
 
 :deep(.ai-fab:hover) {
-  transform: scale(1.1) rotate(15deg);
-  box-shadow: 0 12px 32px rgba(64, 158, 255, 0.5);
-  animation: none;
+  transform: translateY(-1px) scale(1.02);
+  background-color: #f5fffe;
+  box-shadow: none;
 }
 
 :deep(.ai-fab--close) {
-  bottom: 30px;
-  right: 20px;
-  width: 44px;
-  height: 44px;
-  background: #303133;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  animation: none;
+  bottom: 108px;
+  right: 24px;
+  width: 46px;
+  height: 46px;
+  background: #ffffff;
+  border: none;
+  border-radius: 100%;
+  box-shadow: none;
 }
 
 :deep(.ai-fab--close:hover) {
-  background: #000;
-  transform: scale(1.1) rotate(-90deg);
+  background: #f5fffe;
+  transform: translateY(-1px) scale(1.02);
 }
 
 /* Tooltip Label */
 :deep(.ai-fab::after) {
   content: attr(title);
   position: absolute;
-  right: 70px;
-  background: rgba(0, 0, 0, 0.8);
+  right: 64px;
+  background: rgba(17, 24, 39, 0.92);
   color: white;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 6px;
   font-size: 12px;
   white-space: nowrap;
@@ -978,8 +1009,8 @@ const RenderComponent = _sfc_main$1;
 }
 
 :deep(.ai-fab svg) {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   stroke: currentColor;
 }
 
@@ -995,13 +1026,20 @@ const RenderComponent = _sfc_main$1;
     width: 100% !important;
     border-radius: 0;
   }
+  .ai-job-root {
+    --ai-nav-width: 82px;
+  }
+  :deep(.ai-nav-tab) {
+    height: 58px;
+    flex-basis: 58px;
+    padding: 6px 4px;
+  }
   :deep(.ai-fab) {
-    right: 50%;
-    transform: translateX(50%);
-    bottom: 20px;
+    right: 16px;
+    bottom: 88px;
   }
   :deep(.ai-fab:hover) {
-    transform: translateX(50%) scale(1.1);
+    transform: translateY(-1px);
   }
 }
 </style>

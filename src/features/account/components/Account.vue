@@ -1,83 +1,122 @@
 <template>
-  <div class="account-page">
-    <!-- 账号信息 -->
-    <div class="acc-section">
-      <div class="acc-section__title">账号信息</div>
-      <div class="acc-section__body">
-        <el-form label-width="auto" label-position="top" size="default">
-          <el-form-item label="手机号" prop="phone">
-            <el-input v-model="userStore.user.phone" placeholder="请输入手机号" />
-          </el-form-item>
-          <el-form-item label="通知邮箱" prop="email">
-            <el-input v-model="userStore.user.email" placeholder="请输入邮箱" />
-          </el-form-item>
-        </el-form>
-      </div>
+  <div class="account-tab">
+    <div class="header-title">账户与数据</div>
+
+    <div class="boss-card">
+      <div class="card-title">基本信息</div>
+      <el-form class="boss-form mt-16" label-width="80px" label-position="left">
+        <el-row :gutter="40">
+          <el-col :span="12">
+            <el-form-item label="手机号码" prop="phone">
+              <el-input v-model="userStore.user.phone" placeholder="用于异常通知短信提醒" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="通知邮箱" prop="email">
+              <el-input v-model="userStore.user.email" placeholder="用于接收每日总结及高意向提醒" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
     </div>
 
-    <!-- 简历管理 -->
-    <div class="acc-section">
-      <div class="acc-section__title">简历管理</div>
-      <div class="acc-section__body">
-        <div class="acc-resume-row">
-          <el-tooltip
-            effect="dark"
-            raw-content
-            content="导入BOSS个人简历主页信息（非PDF附件）<p/>- 用于AI对话定制化回复"
-            placement="bottom"
-          >
-            <el-button type="primary" :loading="importResumeLoading" @click="handlerImportResume">
-              导入个人页简历
+    <div class="boss-card mt-16">
+      <div class="card-title">
+        在线简历库
+        <el-tag size="small" type="primary" class="ml-8" effect="plain" v-if="hasResume">已就绪</el-tag>
+      </div>
+
+      <div class="resume-manage-box">
+        <div class="resume-type-group">
+          <div class="group-header">
+            <div class="group-title">个人主页简历 (文本)</div>
+            <div class="group-desc">导入在线个人主页简历信息，用于 AI 职位匹配与定制化对话回复。</div>
+          </div>
+
+          <div class="resume-actions">
+            <el-tooltip content="将前往 BOSS 个人主页后台抓取最新的简历数据" placement="top" :show-after="300">
+              <el-button type="primary" :loading="importResumeLoading" @click="handlerImportResume">
+                <el-icon class="mr-4"><Refresh /></el-icon>直接从 BOSS 导入
+              </el-button>
+            </el-tooltip>
+
+            <el-button plain @click="handleViewResumeContent" :disabled="!hasResume">
+              <el-icon class="mr-4"><View /></el-icon>查看内容文本
             </el-button>
-          </el-tooltip>
-          <el-button @click="handleViewResumeContent">查看简历内容</el-button>
-          <el-button @click="handleViewResumeImage">查看简历图像</el-button>
+          </div>
         </div>
-        <div class="acc-resume-row">
-          <el-checkbox v-model="userStore.user.preference.cIE" label="" size="large" />
-          <span class="acc-label">发送图片简历</span>
-          <el-upload
-            action="https://www.zhipin.com/wapi/zpupload/image/uploadSingle"
-            :before-upload="beforeUpload"
-            :on-success="handleUploadSuccess"
-            :show-file-list="false"
-            :data="uploadData"
-            :headers="{ Zp_token: Tools.getCookieValue('bst') }"
-          >
-            <el-button size="small" type="primary">选择图片简历</el-button>
-          </el-upload>
-          <el-tag v-if="userStore.user.preference.cI" type="success" size="small" style="margin-left: 5px">
-            已上传
-          </el-tag>
+
+        <div class="judge-divider"></div>
+
+        <div class="resume-type-group">
+          <div class="group-header">
+            <div class="group-title">附件简历 (图像)</div>
+            <div class="group-desc">部分 HR 要求直接发送图片附件简历，上传后可作为快捷项发送。</div>
+          </div>
+
+          <div class="resume-actions-col">
+            <el-checkbox v-model="userStore.user.preference.cIE" border>启用图片简历发送</el-checkbox>
+
+            <div class="resume-btn-row">
+              <el-upload
+                action="https://www.zhipin.com/wapi/zpupload/image/uploadSingle"
+                :before-upload="beforeUpload"
+                :on-success="handleUploadSuccess"
+                :show-file-list="false"
+                :data="uploadData"
+                :headers="{ Zp_token: Tools.getCookieValue('bst') }"
+              >
+                <el-button type="primary" plain size="small" :disabled="!userStore.user.preference.cIE">
+                  <el-icon class="mr-4"><Upload /></el-icon>上传简历图片
+                </el-button>
+              </el-upload>
+
+              <el-button plain size="small" @click="handleViewResumeImage" :disabled="!hasImageResume">
+                <el-icon class="mr-4"><Picture /></el-icon>预览当前图片
+              </el-button>
+
+              <el-tag v-if="hasImageResume" type="success" effect="light" size="small" class="border-none">已有图片记录</el-tag>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 导入导出 -->
-    <div class="acc-section">
-      <div class="acc-section__title">偏好数据</div>
-      <div class="acc-section__body acc-action-row">
-        <el-button @click="exportSetting">导出偏好设置</el-button>
-        <el-button @click="importSetting">导入偏好设置</el-button>
+    <div class="boss-card mt-16 mb-24">
+      <div class="card-title">投递配置备份</div>
+      <div class="sub-desc mb-16">可以导出您多年精心调教的投递偏好设置、提示词和参数，随时更换设备或分享给朋友。</div>
+
+      <div class="data-actions">
+        <el-button type="warning" plain size="small" class="shadow-sm" @click="exportSetting">
+          <el-icon class="mr-4"><Download /></el-icon>导出所有配置文件
+        </el-button>
+        <el-button type="info" plain size="small" class="shadow-sm" @click="importSetting">
+          <el-icon class="mr-4"><UploadFilled /></el-icon>导入外部设置
+        </el-button>
       </div>
     </div>
 
-    <!-- 保存 -->
-    <div class="acc-section">
-      <el-button type="primary" @click="handleSave">保存账户信息</el-button>
+    <div class="action-footer">
+      <div class="buttons">
+        <el-button type="primary" class="save-btn shadow-sm" @click="handleSave">保存变更</el-button>
+      </div>
     </div>
 
-    <el-dialog v-model="resumeTextPreviewVisible" title="个人简历内容" width="760px">
-      <el-input v-model="resumeTextPreviewContent" type="textarea" :rows="18" readonly />
+    <el-dialog v-model="resumeTextPreviewVisible" title="简历全量文本预览" width="760px" class="boss-dialog">
+      <el-input v-model="resumeTextPreviewContent" type="textarea" :rows="18" readonly class="preview-textarea" />
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="resumeTextPreviewVisible = false">关闭预览</el-button>
+        </div>
+      </template>
     </el-dialog>
-
   </div>
 </template>
 
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, inject } from 'vue';
-import { ElMessage } from '@/core/http/request';
+import { computed, ref, inject } from 'vue';
+import { showAppMessage } from '@/core/http/request';
 import { Tools } from '@/shared/utils/tools';
 import {
   extractResumeTextFromHtml,
@@ -88,6 +127,7 @@ import {
 import { UserStore } from '@/state/user';
 import { loginInterceptor } from '@/core/auth/auth';
 import { ElNotification, ElMessageBox } from 'element-plus';
+import { Refresh, View, Upload, Picture, Download, UploadFilled } from '@element-plus/icons-vue';
 import axios from 'axios';
 
 const userStore = UserStore();
@@ -102,6 +142,10 @@ const importResumeLoading = ref(false);
 const resumeTextPreviewVisible = ref(false);
 const resumeTextPreviewContent = ref('');
 const viewResumeContentLoading = ref(false);
+const hasResume = computed(() => {
+  return Boolean(`${userStore.user?.resumeId || ''}`.trim() || getResumeTextForPreview());
+});
+const hasImageResume = computed(() => Boolean(`${userStore.user?.preference?.cI || ''}`.trim()));
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -508,7 +552,7 @@ const handleViewResumeContent = async () => {
       const reason = !token
         ? `未获取到登录 token（来源：${tokenDetail.source}）`
         : (isBossResumePage() ? '简历页未识别到正文内容' : '当前不在简历页，且在线拉取未返回正文');
-      ElMessage({ type: 'warning', message: `[AI助理] 暂无可查看的个人简历内容：${reason}` });
+      showAppMessage({ type: 'warning', message: `[AI助理] 暂无可查看的个人简历内容：${reason}` });
       return;
     }
     resumeTextPreviewContent.value = resumeText;
@@ -522,12 +566,12 @@ const handleViewResumeImage = () => {
   const { originImage, tinyImage } = getResumeImagePreview();
   const targetUrl = originImage || tinyImage;
   if (!targetUrl) {
-    ElMessage({ type: 'warning', message: '暂无可查看的图片简历，请先上传图片简历' });
+    showAppMessage({ type: 'warning', message: '暂无可查看的图片简历，请先上传图片简历' });
     return;
   }
   const opened = window.open(targetUrl, '_blank');
   if (!opened) {
-    ElMessage({ type: 'warning', message: '浏览器拦截了新窗口，请允许弹窗后重试' });
+    showAppMessage({ type: 'warning', message: '浏览器拦截了新窗口，请允许弹窗后重试' });
   }
 };
 
@@ -586,7 +630,7 @@ const handlerImportResume = async () => {
   const token = tokenDetail.token;
   const bossUserId = getBossUid();
   if (!token) {
-    ElMessage({ type: 'error', message: `未获取到 Boss 登录 token（来源：${tokenDetail.source}），请刷新页面后重试` });
+    showAppMessage({ type: 'error', message: `未获取到 Boss 登录 token（来源：${tokenDetail.source}），请刷新页面后重试` });
     return;
   }
   importResumeLoading.value = true;
@@ -623,7 +667,7 @@ const handlerImportResume = async () => {
         reasons.push('简历页HTML未识别到正文');
       }
       const reasonText = reasons.filter(Boolean).join('；');
-      ElMessage({ type: 'error', message: reasonText ? `未识别到BOSS个人简历页内容（${reasonText}）` : '未识别到BOSS个人简历页内容，请稍后重试' });
+      showAppMessage({ type: 'error', message: reasonText ? `未识别到BOSS个人简历页内容（${reasonText}）` : '未识别到BOSS个人简历页内容，请稍后重试' });
       return;
     }
 
@@ -651,12 +695,12 @@ const handlerImportResume = async () => {
     };
     writeImportedResumeToUser(resumeId, importData, resumePageText);
 
-    ElMessage({ type: 'success', message: '导入个人简历主页信息成功' });
+    showAppMessage({ type: 'success', message: '导入个人简历主页信息成功' });
   } catch (e: any) {
     const msg = isRetryableNetworkError(e)
       ? '网络超时，请稍后重试（已自动重试）'
       : getResumeFetchFailureReason(e);
-    ElMessage({ type: 'error', message: `导入简历失败: ${msg}` });
+    showAppMessage({ type: 'error', message: `导入简历失败: ${msg}` });
   } finally {
     importResumeLoading.value = false;
   }
@@ -675,7 +719,7 @@ const beforeUpload = (file: any) => {
 };
 const handleUploadSuccess = async (response: any) => {
   userStore.user.preference.cI = response.zpData.url + '===' + response.zpData.tinyUrl;
-  ElMessage({ message: '图片简历上传成功；点击保存账户信息可持久保存', type: 'success', duration: 3000 });
+  showAppMessage({ message: '图片简历上传成功；点击保存账户信息可持久保存', type: 'success', duration: 3000 });
 };
 
 // ---- Export / Import settings (migrated from Preference) ----
@@ -684,14 +728,14 @@ const exportSetting = async () => {
   const exportData = JSON.stringify(preference, null, 2);
   try {
     await navigator.clipboard.writeText(exportData);
-    ElNotification({ title: '导出成功', message: '偏好设置已复制到剪贴板', type: 'success', duration: 2000 });
+    ElNotification({ title: '导出成功', message: '投递设置已复制到剪贴板', type: 'success', duration: 2000 });
   } catch {
     ElNotification({ title: '导出失败', message: '复制到剪贴板时出错', type: 'error', duration: 2000 });
   }
 };
 
 const importSetting = async () => {
-  ElMessageBox.prompt('请粘贴导出的偏好设置配置', '导入偏好设置', {
+  ElMessageBox.prompt('请粘贴导出的投递设置', '导入投递设置', {
     confirmButtonText: '确认',
     cancelButtonText: '取消',
     inputType: 'textarea',
@@ -703,7 +747,7 @@ const importSetting = async () => {
         userStore.user.preference = { ...importedPreference };
         ElNotification({
           title: '导入成功',
-          message: '偏好设置已导入，请点击保存以持久化保存',
+          message: '投递设置已导入，请点击保存以持久化保存',
           type: 'success',
           duration: 3000,
         });
@@ -718,7 +762,7 @@ const importSetting = async () => {
 const handleSave = async () => {
   if (!loginInterceptor()) return;
   if (!userStore.user.phone || !userStore.user.email) {
-    ElMessage({ message: '请填写手机号或邮箱', type: 'error', duration: 2000 });
+    showAppMessage({ message: '请填写手机号或邮箱', type: 'error', duration: 2000 });
     return;
   }
   await axios2
@@ -729,55 +773,238 @@ const handleSave = async () => {
       timeout: PREFERENCE_SAVE_TIMEOUT_MS,
     })
     .then(() => {
-      ElMessage({ message: '账户信息保存成功', type: 'success', duration: 2000 });
+      showAppMessage({ message: '账户信息保存成功', type: 'success', duration: 2000 });
     });
 };
 </script>
 
 <style scoped>
-.account-page {
-  width: 100%;
+.account-tab {
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+  background-color: #f8f9fa;
+  padding-bottom: 80px;
 }
-.acc-section {
-  margin-bottom: 12px;
-  padding: 10px 12px;
+
+.header-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 16px;
+  border-left: 3px solid var(--boss-primary, #00bebd);
+  padding-left: 8px;
+  line-height: 1;
+}
+
+.boss-card {
   background: #fff;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eef0f5;
 }
-.acc-section__title {
-  font-size: 13px;
+
+.card-title {
+  font-size: 15px;
   font-weight: 600;
-  color: #303133;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #ebeef5;
-}
-.acc-section__body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.acc-resume-row {
+  color: #333;
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
-.acc-label {
+
+.card-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background-color: var(--boss-primary, #00bebd);
+  margin-right: 8px;
+  border-radius: 2px;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.mb-24 {
+  margin-bottom: 24px;
+}
+
+.ml-8 {
+  margin-left: 8px;
+}
+
+.mr-4 {
+  margin-right: 4px;
+}
+
+.sub-desc {
   font-size: 13px;
-  color: #606266;
+  color: #666;
+  line-height: 1.5;
 }
-.acc-action-row {
-  flex-direction: row;
-  flex-wrap: wrap;
+
+.border-none {
+  border: none !important;
 }
-:deep(.el-form-item) {
+
+:deep(.boss-form .el-form-item__label) {
+  font-weight: 500;
+  color: #555;
+}
+
+.resume-manage-box {
+  background: #fdfdfd;
+  border: 1px dashed #dcdfe6;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.judge-divider {
+  height: 1px;
+  background-color: #ebeef5;
+  margin: 16px 0;
+}
+
+.group-header {
   margin-bottom: 12px;
 }
-:deep(.el-form-item__label) {
-  font-size: 13px;
+
+.group-title {
+  font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.group-desc {
+  font-size: 12px;
+  color: #888;
+}
+
+.resume-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.resume-actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resume-btn-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.data-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.data-actions .el-button {
+  width: 100% !important;
+  margin-left: 0 !important;
+}
+
+.shadow-sm {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.action-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  margin-bottom: 40px;
+}
+
+.buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.save-btn {
+  padding: 0 40px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+:deep(.boss-dialog .el-dialog__header) {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+  margin-right: 0;
+}
+
+:deep(.boss-dialog .el-dialog__title) {
+  font-weight: 600;
+  color: #333;
+}
+
+:deep(.boss-dialog .el-dialog__footer) {
+  border-top: 1px solid #ebeef5;
+  padding-top: 16px;
+}
+
+:deep(.preview-textarea .el-textarea__inner) {
+  background-color: #f8f9fa;
+  border-color: #ebeef5;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+:deep(.el-button--primary:not(.is-plain):not(.is-link):not(.is-text)) {
+  --el-button-bg-color: var(--boss-primary, #00bebd);
+  --el-button-border-color: var(--boss-primary, #00bebd);
+  --el-button-hover-bg-color: var(--boss-primary-hover, #00a8a7);
+  --el-button-hover-border-color: var(--boss-primary-hover, #00a8a7);
+}
+
+@media (max-width: 860px) {
+  .data-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .action-footer {
+    position: static;
+    padding-top: 12px;
+  }
+
+  .save-btn {
+    width: 100%;
+  }
+
+  :deep(.el-row) {
+    display: block;
+  }
+
+  :deep(.el-col) {
+    max-width: 100%;
+    width: 100%;
+  }
 }
 </style>
