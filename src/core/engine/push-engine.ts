@@ -258,13 +258,35 @@ export abstract class AbsPlatform {
   }
 
   next = async (): Promise<boolean> => {
-    const next = this.hasNext();
-    if (!next) {
-      this.preferenceLogRecorder.info("无下一页数据");
-      return false;
+    const actionName = this._collectMode ? "收藏" : "投递";
+    const waitSecRaw = Number(runtimeUserStoreRef()?.user?.preference?.npi);
+    const waitSec = Number.isFinite(waitSecRaw) ? Math.max(0, waitSecRaw) : 0;
+
+    const hasProgress = this.hasNext();
+    if (!hasProgress) {
+      this.preferenceLogRecorder.info("未检测到下一页进展，执行兜底滚动重试");
+      if (!this.ensureNoManualVerification(actionName)) {
+        return false;
+      }
+      if (!this.enforceSafetyWindowOrStop(actionName)) {
+        return false;
+      }
+
+      if (waitSec > 0) {
+        await Tools.sleep(waitSec * 1000);
+      }
+      await this.acquireDataPre();
+      await Tools.sleep(4000);
+
+      if (!this.hasNext()) {
+        this.preferenceLogRecorder.info("无下一页数据");
+        return false;
+      }
+
+      this.preferenceLogRecorder.info("兜底滚动后检测到新岗位，继续执行");
+      return true;
     }
 
-    const actionName = this._collectMode ? "收藏" : "投递";
     if (!this.ensureNoManualVerification(actionName)) {
       return false;
     }
@@ -272,10 +294,12 @@ export abstract class AbsPlatform {
       return false;
     }
 
-    await Tools.sleep(runtimeUserStoreRef().user.preference.npi * 1000);
-    this.acquireDataPre();
+    if (waitSec > 0) {
+      await Tools.sleep(waitSec * 1000);
+    }
+    await this.acquireDataPre();
     await Tools.sleep(3000);
-    return next;
+    return true;
   };
 
   set pushMock(value: boolean) {
@@ -606,7 +630,7 @@ export abstract class AbsPlatform {
 
   abstract getJobList(): any[];
   abstract hasNext(): boolean;
-  abstract acquireDataPre(): void;
+  abstract acquireDataPre(): Promise<void> | void;
   abstract startPreHandler(): void;
   abstract matchJob(jobDetail: any): Promise<any>;
   abstract pushAfterHandler(pushResult: any, jobDetail: any): Promise<any>;

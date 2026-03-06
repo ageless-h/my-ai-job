@@ -1,0 +1,99 @@
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:19] "HEAD /zhipin-static.html HTTP/1.1" 200 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:41] "GET /zhipin-static.html HTTP/1.1" 200 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:41] code 501, message Unsupported method ('POST')
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:41] "POST /wapi/zppassport/set/zpToken HTTP/1.1" 501 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:41] code 501, message Unsupported method ('POST')
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:42] "POST /wapi/zpCommon/toggle/all HTTP/1.1" 501 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:42] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:42] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:42] "GET /wapi/zpuser/wap/getUserInfo.json?_=1772715162013 HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:42] "GET /wapi/zpchat/notify/setting/get?_=1772715162013 HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:42] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:42] "GET /wapi/zpgeek/common/data/footer.json?_=1772715162014 HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:42] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 20:52:42] "GET /wapi/zpgeek/common/data/header.json?_=1772715162068 HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] "GET /zhipin-static.html HTTP/1.1" 200 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] code 501, message Unsupported method ('POST')
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] "POST /wapi/zppassport/set/zpToken HTTP/1.1" 501 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] code 501, message Unsupported method ('POST')
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] "POST /wapi/zpCommon/toggle/all HTTP/1.1" 501 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] "GET /wapi/zpuser/wap/getUserInfo.json?_=1772715197737 HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] "GET /wapi/zpchat/notify/setting/get?_=1772715197737 HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 20:53:17] "GET /wapi/zpgeek/common/data/footer.json?_=1772715197738 HTTP/1.1" 404 -
+----------------------------------------
+Exception occurred during processing of request from ('::ffff:127.0.0.1', 52201, 0, 0)
+Traceback (most recent call last):
+  File "C:\Python313\Lib\http\server.py", line 731, in send_head
+    f = open(path, 'rb')
+FileNotFoundError: [Errno 2] No such file or directory: 'temp\\wapi\\zpgeek\\common\\data\\footer.json'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Python313\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\http\server.py", line 1317, in finish_request
+    self.RequestHandlerClass(request, client_address, self,
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                             directory=args.directory)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\http\server.py", line 672, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Python313\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\http\server.py", line 424, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Python313\Lib\http\server.py", line 676, in do_GET
+    f = self.send_head()
+  File "C:\Python313\Lib\http\server.py", line 733, in send_head
+    self.send_error(HTTPStatus.NOT_FOUND, "File not found")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\http\server.py", line 491, in send_error
+    self.wfile.write(body)
+    ~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+----------------------------------------
+::ffff:127.0.0.1 - - [05/Mar/2026 20:54:27] "GET /zhipin-static-noscript.html HTTP/1.1" 200 -
+::ffff:127.0.0.1 - - [05/Mar/2026 20:56:50] "HEAD /zhipin-static-noscript.html HTTP/1.1" 200 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:10:52] "GET /zhipin-rendered-noscript.html HTTP/1.1" 200 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:10:52] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 21:10:52] "GET /web/common/header-tools.css HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:10:53] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 21:10:53] "GET /favicon.ico HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:14:53] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 21:14:53] "GET /web/common/header-tools.css HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:14:53] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 21:14:53] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:15:23] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 21:15:23] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:20:05] "GET /zhipin-rendered-noscript.html HTTP/1.1" 200 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:20:05] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 21:20:05] "HEAD /zhipin-rendered-noscript.html HTTP/1.1" 200 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:20:05] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 21:20:05] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 21:20:05] "GET /web/common/header-tools.css HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 22:00:24] "GET /zhipin-rendered-noscript.html HTTP/1.1" 304 -
+::ffff:127.0.0.1 - - [05/Mar/2026 22:00:24] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 22:00:24] "GET /web/common/header-tools.css HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 22:00:27] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 22:00:27] "GET /web/common/header-tools.css HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 22:00:27] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 22:00:27] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 23:23:05] "GET /zhipin-rendered-noscript.html HTTP/1.1" 304 -
+::ffff:127.0.0.1 - - [05/Mar/2026 23:23:05] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 23:23:05] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+::ffff:127.0.0.1 - - [05/Mar/2026 23:23:05] code 404, message File not found
+::ffff:127.0.0.1 - - [05/Mar/2026 23:23:05] "GET /web/common/header-tools.css HTTP/1.1" 404 -

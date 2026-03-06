@@ -11,6 +11,7 @@ import { request } from "@/core/http/request";
 declare global {
   interface Window {
     __AI_JOB_HUNTING_PREVIEW_MOUNTED__?: boolean;
+    __AI_JOB_HUNTING_PREVIEW_MOUNTING__?: boolean;
   }
 }
 
@@ -63,12 +64,21 @@ const mountPreviewApp = () => {
     return;
   }
 
-  const rootApp = document.createElement("div");
-  rootApp.id = ROOT_ID;
-  rootApp.classList.add("page-job-content");
-  document.body.appendChild(rootApp);
-  app.mount(rootApp);
-  window.__AI_JOB_HUNTING_PREVIEW_MOUNTED__ = true;
+  if (window.__AI_JOB_HUNTING_PREVIEW_MOUNTING__) {
+    return;
+  }
+
+  window.__AI_JOB_HUNTING_PREVIEW_MOUNTING__ = true;
+  try {
+    const rootApp = document.createElement("div");
+    rootApp.id = ROOT_ID;
+    rootApp.classList.add("page-job-content");
+    document.body.appendChild(rootApp);
+    app.mount(rootApp);
+    window.__AI_JOB_HUNTING_PREVIEW_MOUNTED__ = true;
+  } finally {
+    window.__AI_JOB_HUNTING_PREVIEW_MOUNTING__ = false;
+  }
 };
 
 mountPreviewApp();

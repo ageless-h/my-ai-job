@@ -182,9 +182,9 @@ const isRecommendSalaryLoopPage = () => {
   const href = String((Tools.window?.location ? Tools.window.location.href : location.href) || "");
   try {
     const url = new URL(href);
-    return url.pathname.includes("/web/geek/jobs") && url.searchParams.get("salary") === "406";
+    return url.pathname.includes("/web/geek/jobs");
   } catch (_error) {
-    return href.includes("/web/geek/jobs") && href.includes("salary=406");
+    return href.includes("/web/geek/jobs");
   }
 };
 
@@ -233,10 +233,13 @@ const triggerElementClick = (element: HTMLElement | null) => {
   if (!element) {
     return;
   }
+  const eventInit = { bubbles: true, cancelable: true, composed: true };
+  element.dispatchEvent(new MouseEvent("mousedown", eventInit));
+  element.dispatchEvent(new MouseEvent("mouseup", eventInit));
+  element.dispatchEvent(new MouseEvent("click", eventInit));
   if (typeof element.click === "function") {
     element.click();
   }
-  element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true }));
 };
 
 const alignOtherJobsShenzhen = async () => {
@@ -244,8 +247,10 @@ const alignOtherJobsShenzhen = async () => {
     return false;
   }
   const maxAttempts = 10;
+  logRecorder.info("推荐页无限循环：正在进入“其他职位(深圳)”");
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     if (isOtherJobsShenzhenLikelyActive()) {
+      logRecorder.info("推荐页无限循环：已进入“其他职位(深圳)”");
       return true;
     }
     const entry = getOtherJobsShenzhenEntry();
@@ -254,9 +259,20 @@ const alignOtherJobsShenzhen = async () => {
       continue;
     }
     triggerElementClick(entry);
+    await Tools.sleep(450);
+    if (!isOtherJobsShenzhenLikelyActive()) {
+      const textEntry = entry.querySelector(".text-content") as HTMLElement | null;
+      if (textEntry) {
+        triggerElementClick(textEntry);
+      }
+    }
     await Tools.sleep(900);
   }
-  return isOtherJobsShenzhenLikelyActive();
+  const aligned = isOtherJobsShenzhenLikelyActive();
+  if (!aligned) {
+    logRecorder.warn("推荐页无限循环：进入“其他职位(深圳)”失败，后续按当前列表继续");
+  }
+  return aligned;
 };
 
 const shouldEnableRecommendLoop = () => {
@@ -273,12 +289,19 @@ const getRecommendLoopTargetUrl = () => {
   }
 };
 
+const navigateToRecommendLoopTarget = (targetUrl = getRecommendLoopTargetUrl()) => {
+  if (Tools.window?.location && typeof Tools.window.location.assign === "function") {
+    Tools.window.location.assign(targetUrl);
+  } else {
+    window.location.href = targetUrl;
+  }
+};
+
 const markRecommendLoopReload = () => {
   const payload = {
     ts: Date.now(),
     mode: collectMode.value ? "collect" : "push",
-    targetUrl: getRecommendLoopTargetUrl(),
-    preferOtherShenzhen: true
+    targetUrl: getRecommendLoopTargetUrl()
   };
   localStorage.setItem(RECOMMEND_LOOP_RELOAD_KEY, JSON.stringify(payload));
 };
@@ -328,6 +351,42 @@ const clearRecommendLoopCooldownTimer = () => {
   }
 };
 
+const prepareRecommendLoopBeforeStart = async (enabled: boolean, silent = false) => {
+  if (!enabled) {
+    return true;
+  }
+
+  if (!isRecommendSalaryLoopPage()) {
+    const jumpUrl = getRecommendLoopTargetUrl();
+    markRecommendLoopReload();
+    if (!silent) {
+      showAppMessage({
+        message: "推荐页无限循环：当前不在目标页，正在跳转到推荐页",
+        type: "info",
+        duration: 2200
+      });
+    }
+    navigateToRecommendLoopTarget(jumpUrl);
+    return false;
+  }
+
+  const aligned = await alignOtherJobsShenzhen();
+  if (aligned) {
+    return true;
+  }
+
+  const warnMessage = "未定位到“其他职位(深圳)”入口，本轮按当前推荐列表继续";
+  logRecorder.warn(`推荐页无限循环：${warnMessage}`);
+  if (!silent) {
+    showAppMessage({
+      message: warnMessage,
+      type: "warning",
+      duration: 2500
+    });
+  }
+  return true;
+};
+
 const scheduleRecommendLoopCooldownRetry = (reason: string, forceEnabled = false) => {
   const waitMs = parseSafetyCooldownWaitMs(reason);
   if (waitMs <= 0 || (!forceEnabled && !shouldEnableRecommendLoop())) {
@@ -351,9 +410,24 @@ const scheduleRecommendLoopCooldownRetry = (reason: string, forceEnabled = false
 
 const updateLatestPushRecords = () => {
   const allLogs = logRecorder.getLogs(1, logRecorder.getLogCount());
+  const operationKeywords = [
+    "投递",
+    "收藏",
+    "下一页",
+    "工作",
+    "推荐",
+    "循环",
+    "暂停",
+    "停止",
+    "安全",
+    "冷却",
+    "验证",
+    "阈值",
+    "熔断"
+  ];
   const pushLogs = allLogs.filter((log) => {
     const message = String(log.message || "").toLowerCase();
-    return message.includes("投递") || message.includes("收藏") || message.includes("下一页") || message.includes("工作");
+    return operationKeywords.some((keyword) => message.includes(keyword));
   });
   latestPushRecords.value = pushLogs.slice(-10);
   nextTick(() => {
@@ -471,25 +545,9 @@ const startPush = async (options: StartPushOptions = {}) => {
     return false;
   }
 
-  if (recommendLoopEnabledForRun) {
-    const aligned = await alignOtherJobsShenzhen();
-    if (!aligned) {
-      if (!silent) {
-        showAppMessage({
-          message: "未定位到“其他职位(深圳)”入口，正在重新进入目标页",
-          type: "warning",
-          duration: 2500
-        });
-      }
-
-      const targetUrl = getRecommendLoopTargetUrl();
-      if (Tools.window?.location && typeof Tools.window.location.assign === "function") {
-        Tools.window.location.assign(targetUrl);
-      } else {
-        window.location.href = targetUrl;
-      }
-      return false;
-    }
+  const recommendLoopPrepared = await prepareRecommendLoopBeforeStart(recommendLoopEnabledForRun, silent);
+  if (!recommendLoopPrepared) {
+    return false;
   }
 
   platform.collectMode = collectMode.value;
@@ -502,6 +560,13 @@ const startPush = async (options: StartPushOptions = {}) => {
   const pushResultPromise = platform.startPush();
   pushResultPromise.then(() => {
     const stopReason = getPlatformLastStopReason();
+    const hasStopReason = !!stopReason;
+    const shouldShowPauseNotice = hasStopReason && [PushStatus.LIMIT, PushStatus.PAUSE].includes(platform.pushStatus);
+    if (shouldShowPauseNotice) {
+      logRecorder.warn(`暂停通知：${stopReason}`);
+      updateLatestPushRecords();
+    }
+
     if (platform.pushStatus === PushStatus.LIMIT) {
       pushStatus.value = PushStatus.LIMIT;
       pushBtnType.value = "primary";
@@ -510,6 +575,21 @@ const startPush = async (options: StartPushOptions = {}) => {
 
       const scheduled = recommendLoopEnabledForRun && scheduleRecommendLoopCooldownRetry(stopReason, true);
       if (!scheduled && stopReason) {
+        showAppMessage({
+          message: stopReason,
+          type: "warning",
+          duration: 2500
+        });
+      }
+      return;
+    }
+
+    if (platform.pushStatus === PushStatus.PAUSE) {
+      pushStatus.value = PushStatus.PAUSE;
+      pushBtnType.value = "primary";
+      pushBtnText.value = getStartButtonText();
+      stopRecordsUpdate();
+      if (stopReason) {
         showAppMessage({
           message: stopReason,
           type: "warning",
@@ -529,12 +609,7 @@ const startPush = async (options: StartPushOptions = {}) => {
       });
       stopRecordsUpdate();
       setTimeout(() => {
-        const targetUrl = getRecommendLoopTargetUrl();
-        if (Tools.window?.location && typeof Tools.window.location.assign === "function") {
-          Tools.window.location.assign(targetUrl);
-        } else {
-          window.location.href = targetUrl;
-        }
+        navigateToRecommendLoopTarget();
       }, 1200);
       return;
     }
@@ -613,24 +688,17 @@ const tryAutoResumeRecommendLoop = async () => {
     }
 
     if (!isRecommendSalaryLoopPage()) {
-      if (Tools.window?.location && typeof Tools.window.location.assign === "function") {
-        Tools.window.location.assign(jumpUrl);
-      } else {
-        window.location.href = jumpUrl;
-      }
+      navigateToRecommendLoopTarget(jumpUrl);
       return;
     }
 
     collectMode.value = latestPayload.mode === "collect";
-    if (latestPayload.preferOtherShenzhen) {
-      await alignOtherJobsShenzhen();
-    }
 
     if (pushStatus.value !== PushStatus.PUSHING) {
       const started = await startPush({ silent: true, forceRecommendLoop: true });
       if (started) {
         showAppMessage({
-          message: "推荐页无限循环：页面已刷新，已切换到其他职位(深圳)并继续运行",
+          message: "推荐页无限循环：页面已刷新，已继续自动运行",
           type: "info",
           duration: 2000
         });
@@ -646,11 +714,7 @@ const tryAutoResumeRecommendLoop = async () => {
     type: "warning",
     duration: 2500
   });
-  if (Tools.window?.location && typeof Tools.window.location.assign === "function") {
-    Tools.window.location.assign(jumpUrl);
-  } else {
-    window.location.href = jumpUrl;
-  }
+  navigateToRecommendLoopTarget(jumpUrl);
 };
 
 if (!loginStore.login && !loginStore.loginFailStatus) {

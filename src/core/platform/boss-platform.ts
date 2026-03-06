@@ -137,6 +137,8 @@ export class BossPlatform extends AbsPlatform {
   private lastJobsTailKey = "";
   private lastRecommendCardCount = 0;
   private lastRecommendTailKey = "";
+  private lastJobsListSignature = "";
+  private lastRecommendListSignature = "";
   private recommendNoProgressRounds = 0;
   private sessionProcessedJobKeys = new Set<string>();
   private lastRuntimeResumeRefreshTs = 0;
@@ -206,6 +208,8 @@ export class BossPlatform extends AbsPlatform {
     this.lastJobsTailKey = "";
     this.lastRecommendCardCount = 0;
     this.lastRecommendTailKey = "";
+    this.lastJobsListSignature = "";
+    this.lastRecommendListSignature = "";
     this.recommendNoProgressRounds = 0;
     this.sessionProcessedJobKeys.clear();
     this.sessionAutoMessageCount = 0;
@@ -237,31 +241,68 @@ export class BossPlatform extends AbsPlatform {
     return this.getJobKey(jobDetail);
   }
 
-  private getJobsPageMetrics(): { scrollHeight: number; cardCount: number; tailKey: string } {
+  private getCardRuntimeKey(cardElement: any): string {
+    const vueData = cardElement?.__vue__?.data || {};
+    const vueKey = this.getStableJobRuntimeKey(vueData);
+    if (vueKey && !vueKey.startsWith("undefined:")) {
+      return vueKey;
+    }
+
+    const href = `${cardElement?.querySelector("a.job-card-left,a.job-name,a")?.getAttribute("href") || ""}`.trim();
+    const jobName = `${cardElement?.querySelector(".job-name,.job-title,.job-info .job-name")?.textContent || ""}`
+      .replace(/\s+/g, " ")
+      .trim();
+    const companyName = `${cardElement?.querySelector(".boss-info,.company-name,.brand-name")?.textContent || ""}`
+      .replace(/\s+/g, " ")
+      .trim();
+    const location = `${cardElement?.querySelector(".company-location,.job-area")?.textContent || ""}`
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const keyParts = [href, jobName, companyName, location].filter(Boolean);
+    if (keyParts.length > 0) {
+      return keyParts.join("|");
+    }
+
+    return `${cardElement?.textContent || ""}`.replace(/\s+/g, " ").trim().slice(0, 80);
+  }
+
+  private buildListSignature(cardList: any[]): string {
+    if (!cardList.length) {
+      return "";
+    }
+
+    const first = cardList.slice(0, 3).map((card) => this.getCardRuntimeKey(card));
+    const last = cardList.slice(Math.max(cardList.length - 3, 0)).map((card) => this.getCardRuntimeKey(card));
+    return [...first, ...last].join("||");
+  }
+
+  private getJobsPageMetrics(): { scrollHeight: number; cardCount: number; tailKey: string; listSignature: string } {
     const listContainer = document.querySelector(".job-list-container") as HTMLElement | null;
     const cardList = Array.from(document.querySelectorAll(".job-list-container .job-card-wrap")) as any[];
     const fallbackCardList = cardList.length > 0 ? cardList : Array.from(document.querySelectorAll(".rec-job-list .job-card-wrap")) as any[];
     const tailCard = fallbackCardList[fallbackCardList.length - 1] as any;
-    const tailData = tailCard?.__vue__?.data || {};
-    const tailKey = this.getStableJobRuntimeKey(tailData);
+    const tailKey = this.getCardRuntimeKey(tailCard);
 
     return {
       scrollHeight: listContainer?.scrollHeight || 0,
       cardCount: fallbackCardList.length,
-      tailKey
+      tailKey,
+      listSignature: this.buildListSignature(fallbackCardList)
     };
   }
 
-  private getRecommendPageMetrics(): { scrollHeight: number; cardCount: number; tailKey: string } {
-    const cardList = Array.from(document.querySelectorAll(".job-card-wrap")) as any[];
+  private getRecommendPageMetrics(): { scrollHeight: number; cardCount: number; tailKey: string; listSignature: string } {
+    const scopedCards = Array.from(document.querySelectorAll(".job-list-container .job-card-wrap")) as any[];
+    const cardList = scopedCards.length > 0 ? scopedCards : Array.from(document.querySelectorAll(".job-card-wrap")) as any[];
     const tailCard = cardList[cardList.length - 1] as any;
-    const tailData = tailCard?.__vue__?.data || {};
-    const tailKey = this.getStableJobRuntimeKey(tailData);
+    const tailKey = this.getCardRuntimeKey(tailCard);
 
     return {
       scrollHeight: this.getRecommendPageScrollHeight(),
       cardCount: cardList.length,
-      tailKey
+      tailKey,
+      listSignature: this.buildListSignature(cardList)
     };
   }
 
@@ -391,6 +432,10 @@ export class BossPlatform extends AbsPlatform {
         return true;
       }
 
+      if (metrics.listSignature && metrics.listSignature !== this.lastJobsListSignature) {
+        return true;
+      }
+
       return metrics.scrollHeight > this.lastHeight + 120;
     }
 
@@ -407,6 +452,7 @@ export class BossPlatform extends AbsPlatform {
       const hasProgress =
         metrics.cardCount > this.lastRecommendCardCount
         || (!!metrics.tailKey && metrics.tailKey !== this.lastRecommendTailKey)
+        || (!!metrics.listSignature && metrics.listSignature !== this.lastRecommendListSignature)
         || (metrics.scrollHeight > this.lastHeight + 120 && metrics.cardCount > 0);
 
       if (hasProgress) {
@@ -416,7 +462,13 @@ export class BossPlatform extends AbsPlatform {
 
       this.recommendNoProgressRounds += 1;
       if (this.recommendNoProgressRounds < 2) {
-        logger$1.info(`推荐页未检测到新岗位，进行第${this.recommendNoProgressRounds}次重试滚动`);
+        logger$1.info(
+          `推荐页未检测到新岗位，进行第${this.recommendNoProgressRounds}次重试滚动 `
+          + `count=${metrics.cardCount}/${this.lastRecommendCardCount} `
+          + `tail=${metrics.tailKey === this.lastRecommendTailKey ? "same" : "changed"} `
+          + `signature=${metrics.listSignature === this.lastRecommendListSignature ? "same" : "changed"} `
+          + `height=${metrics.scrollHeight}/${this.lastHeight}`
+        );
         return true;
       }
 
@@ -441,6 +493,7 @@ export class BossPlatform extends AbsPlatform {
       this.lastHeight = metrics.scrollHeight;
       this.lastJobCardCount = metrics.cardCount;
       this.lastJobsTailKey = metrics.tailKey;
+      this.lastJobsListSignature = metrics.listSignature;
       this.scrollJobsListToEnd().then(() => {
         logger$1.info("获取下一页成功");
       }).catch((e) => {
@@ -454,7 +507,8 @@ export class BossPlatform extends AbsPlatform {
       this.lastHeight = metrics.scrollHeight;
       this.lastRecommendCardCount = metrics.cardCount;
       this.lastRecommendTailKey = metrics.tailKey;
-      simulateScrollToEnd().then(() => {
+      this.lastRecommendListSignature = metrics.listSignature;
+      this.scrollJobsListToEnd().then(() => {
         logger$1.info("获取下一页成功");
       }).catch((e) => {
         this.preferenceLogRecorder.warn("获取下一页失败", e);

@@ -13,6 +13,7 @@ import { PlatformFactory } from "@/core/platform/platform-factory";
 declare global {
   interface Window {
     __AI_JOB_HUNTING_MOUNTED__?: boolean;
+    __AI_JOB_HUNTING_MOUNTING__?: boolean;
   }
 }
 
@@ -41,15 +42,23 @@ const mountApp = () => {
     return;
   }
 
-  if (window.__AI_JOB_HUNTING_MOUNTED__) {
+  if (window.__AI_JOB_HUNTING_MOUNTED__ || window.__AI_JOB_HUNTING_MOUNTING__) {
     return;
   }
+
+  window.__AI_JOB_HUNTING_MOUNTING__ = true;
 
   const rootApp = document.createElement("div");
   rootApp.id = ROOT_ID;
   rootApp.classList.add("page-job-content");
 
   platform.getMountEle().then((elP) => {
+    const latestRoot = ensureSingleRoot();
+    if (latestRoot) {
+      window.__AI_JOB_HUNTING_MOUNTED__ = true;
+      return;
+    }
+
     const containerEle = elP.el;
     if (elP.p === "end") {
       containerEle.appendChild(rootApp);
@@ -59,6 +68,8 @@ const mountApp = () => {
 
     app.mount(rootApp);
     window.__AI_JOB_HUNTING_MOUNTED__ = true;
+  }).finally(() => {
+    window.__AI_JOB_HUNTING_MOUNTING__ = false;
   });
 };
 

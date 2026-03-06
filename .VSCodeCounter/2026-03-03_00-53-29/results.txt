@@ -1,0 +1,130 @@
+Date : 2026-03-03 00:53:29
+Directory : z:\8_code\ai-job-hunting
+Total : 62 files,  17266 codes, 133 comments, 1609 blanks, all 19008 lines
+
+Languages
++--------------------+------------+------------+------------+------------+------------+
+| language           | files      | code       | comment    | blank      | total      |
++--------------------+------------+------------+------------+------------+------------+
+| TypeScript         |         35 |      6,939 |        133 |        999 |      8,071 |
+| vue                |         15 |      5,960 |          0 |        500 |      6,460 |
+| JSON               |          3 |      4,077 |          0 |          3 |      4,080 |
+| Markdown           |          8 |        268 |          0 |        106 |        374 |
+| JSON with Comments |          1 |         22 |          0 |          1 |         23 |
++--------------------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                   |         62 |     17,266 |        133 |      1,609 |     19,008 |
+| . (Files)                                                                                           |          9 |      4,303 |          2 |         52 |      4,357 |
+| docs                                                                                                |          4 |        133 |          0 |         56 |        189 |
+| docs (Files)                                                                                        |          3 |        126 |          0 |         50 |        176 |
+| docs\plans                                                                                          |          1 |          7 |          0 |          6 |         13 |
+| src                                                                                                 |         49 |     12,830 |        131 |      1,501 |     14,462 |
+| src\app                                                                                             |          2 |         36 |          1 |         10 |         47 |
+| src\core                                                                                            |         15 |      4,041 |         77 |        606 |      4,724 |
+| src\core (Files)                                                                                    |          1 |         19 |          0 |          9 |         28 |
+| src\core\ai                                                                                         |          2 |        424 |         40 |         55 |        519 |
+| src\core\auth                                                                                       |          2 |        367 |          3 |         53 |        423 |
+| src\core\engine                                                                                     |          1 |        529 |          2 |         85 |        616 |
+| src\core\http                                                                                       |          2 |        227 |         18 |         48 |        293 |
+| src\core\platform                                                                                   |          3 |      2,047 |          8 |        285 |      2,340 |
+| src\core\protocol                                                                                   |          3 |        386 |          4 |         61 |        451 |
+| src\core\realtime                                                                                   |          1 |         42 |          2 |         10 |         54 |
+| src\features                                                                                        |         16 |      6,433 |         27 |        569 |      7,029 |
+| src\features (Files)                                                                                |          1 |         17 |          0 |          8 |         25 |
+| src\features\account                                                                                |          1 |        724 |          0 |         60 |        784 |
+| src\features\account\components                                                                     |          1 |        724 |          0 |         60 |        784 |
+| src\features\ai-config                                                                              |          4 |      1,665 |          0 |        179 |      1,844 |
+| src\features\ai-config\components                                                                   |          4 |      1,665 |          0 |        179 |      1,844 |
+| src\features\ai-delivery-judge                                                                      |          2 |        290 |          0 |         42 |        332 |
+| src\features\ai-delivery-judge\components                                                           |          2 |        290 |          0 |         42 |        332 |
+| src\features\conversation-cleaner                                                                   |          2 |        674 |         27 |         85 |        786 |
+| src\features\conversation-cleaner\components                                                        |          1 |        210 |          0 |         21 |        231 |
+| src\features\conversation-cleaner\services                                                          |          1 |        464 |         27 |         64 |        555 |
+| src\features\job-assistant                                                                          |          2 |      1,041 |          0 |         22 |      1,063 |
+| src\features\job-assistant\components                                                               |          2 |      1,041 |          0 |         22 |      1,063 |
+| src\features\memory-session                                                                         |          1 |        301 |          0 |         25 |        326 |
+| src\features\memory-session\components                                                              |          1 |        301 |          0 |         25 |        326 |
+| src\features\panel                                                                                  |          1 |        914 |          0 |         95 |      1,009 |
+| src\features\preference                                                                             |          1 |        360 |          0 |         37 |        397 |
+| src\features\preference\components                                                                  |          1 |        360 |          0 |         37 |        397 |
+| src\features\run-record                                                                             |          1 |        447 |          0 |         16 |        463 |
+| src\features\run-record\components                                                                  |          1 |        447 |          0 |         16 |        463 |
+| src\shared                                                                                          |         13 |      2,215 |         23 |        296 |      2,534 |
+| src\shared\errors                                                                                   |          1 |         45 |          1 |         15 |         61 |
+| src\shared\types                                                                                    |          2 |         17 |          1 |          4 |         22 |
+| src\shared\utils                                                                                    |         10 |      2,153 |         21 |        277 |      2,451 |
+| src\state                                                                                           |          3 |        105 |          3 |         20 |        128 |
++-----------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| filename                                                                                            | language           | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| z:\8_code\ai-job-hunting\AGENTS.md                                                                  | Markdown           |         35 |          0 |         13 |         48 |
+| z:\8_code\ai-job-hunting\README.md                                                                  | Markdown           |         64 |          0 |         20 |         84 |
+| z:\8_code\ai-job-hunting\docs\README.md                                                             | Markdown           |         11 |          0 |          8 |         19 |
+| z:\8_code\ai-job-hunting\docs\ai-delivery-regression-checklist.md                                   | Markdown           |         70 |          0 |         32 |        102 |
+| z:\8_code\ai-job-hunting\docs\plans\README.md                                                       | Markdown           |          7 |          0 |          6 |         13 |
+| z:\8_code\ai-job-hunting\docs\security-ban-risk-analysis.md                                         | Markdown           |         45 |          0 |         10 |         55 |
+| z:\8_code\ai-job-hunting\env.d.ts                                                                   | TypeScript         |          5 |          2 |          2 |          9 |
+| z:\8_code\ai-job-hunting\package-lock.json                                                          | JSON               |      4,037 |          0 |          1 |      4,038 |
+| z:\8_code\ai-job-hunting\package.json                                                               | JSON               |         30 |          0 |          1 |         31 |
+| z:\8_code\ai-job-hunting\src\app\App.vue                                                            | vue                |          8 |          0 |          3 |         11 |
+| z:\8_code\ai-job-hunting\src\app\main.ts                                                            | TypeScript         |         28 |          1 |          7 |         36 |
+| z:\8_code\ai-job-hunting\src\core\AGENTS.md                                                         | Markdown           |         19 |          0 |          9 |         28 |
+| z:\8_code\ai-job-hunting\src\core\ai\ai-power.ts                                                    | TypeScript         |         92 |          2 |         11 |        105 |
+| z:\8_code\ai-job-hunting\src\core\ai\direct-ai-client.ts                                            | TypeScript         |        332 |         38 |         44 |        414 |
+| z:\8_code\ai-job-hunting\src\core\auth\auth-session.ts                                              | TypeScript         |         97 |          2 |         19 |        118 |
+| z:\8_code\ai-job-hunting\src\core\auth\auth.ts                                                      | TypeScript         |        270 |          1 |         34 |        305 |
+| z:\8_code\ai-job-hunting\src\core\engine\push-engine.ts                                             | TypeScript         |        529 |          2 |         85 |        616 |
+| z:\8_code\ai-job-hunting\src\core\http\request-throttle.ts                                          | TypeScript         |         71 |         17 |         17 |        105 |
+| z:\8_code\ai-job-hunting\src\core\http\request.ts                                                   | TypeScript         |        156 |          1 |         31 |        188 |
+| z:\8_code\ai-job-hunting\src\core\platform\boss-option.ts                                           | TypeScript         |        533 |          6 |         20 |        559 |
+| z:\8_code\ai-job-hunting\src\core\platform\boss-platform.ts                                         | TypeScript         |      1,491 |          1 |        261 |      1,753 |
+| z:\8_code\ai-job-hunting\src\core\platform\platform-factory.ts                                      | TypeScript         |         23 |          1 |          4 |         28 |
+| z:\8_code\ai-job-hunting\src\core\protocol\message.ts                                               | TypeScript         |        168 |          1 |         23 |        192 |
+| z:\8_code\ai-job-hunting\src\core\protocol\mqtt.ts                                                  | TypeScript         |        139 |          2 |         23 |        164 |
+| z:\8_code\ai-job-hunting\src\core\protocol\types.ts                                                 | TypeScript         |         79 |          1 |         15 |         95 |
+| z:\8_code\ai-job-hunting\src\core\realtime\sse-client.ts                                            | TypeScript         |         42 |          2 |         10 |         54 |
+| z:\8_code\ai-job-hunting\src\features\AGENTS.md                                                     | Markdown           |         17 |          0 |          8 |         25 |
+| z:\8_code\ai-job-hunting\src\features\account\components\Account.vue                                | vue                |        724 |          0 |         60 |        784 |
+| z:\8_code\ai-job-hunting\src\features\ai-config\components\AiConfig.vue                             | vue                |        750 |          0 |         78 |        828 |
+| z:\8_code\ai-job-hunting\src\features\ai-config\components\ApiKeyManager.vue                        | vue                |        443 |          0 |         54 |        497 |
+| z:\8_code\ai-job-hunting\src\features\ai-config\components\DebugConsole.vue                         | vue                |        223 |          0 |         22 |        245 |
+| z:\8_code\ai-job-hunting\src\features\ai-config\components\PromptPresetManager.vue                  | vue                |        249 |          0 |         25 |        274 |
+| z:\8_code\ai-job-hunting\src\features\ai-delivery-judge\components\AiDeliveryJudge.vue              | vue                |          6 |          0 |          2 |          8 |
+| z:\8_code\ai-job-hunting\src\features\ai-delivery-judge\components\AiDeliveryJudgeSettingsPanel.vue | vue                |        284 |          0 |         40 |        324 |
+| z:\8_code\ai-job-hunting\src\features\conversation-cleaner\components\ConversationCleaner.vue       | vue                |        210 |          0 |         21 |        231 |
+| z:\8_code\ai-job-hunting\src\features\conversation-cleaner\services\conversation-cleaner.ts         | TypeScript         |        464 |         27 |         64 |        555 |
+| z:\8_code\ai-job-hunting\src\features\job-assistant\components\AiJob.vue                            | vue                |        713 |          0 |         11 |        724 |
+| z:\8_code\ai-job-hunting\src\features\job-assistant\components\BossMessage.vue                      | vue                |        328 |          0 |         11 |        339 |
+| z:\8_code\ai-job-hunting\src\features\memory-session\components\MemorySession.vue                   | vue                |        301 |          0 |         25 |        326 |
+| z:\8_code\ai-job-hunting\src\features\panel\Panel.vue                                               | vue                |        914 |          0 |         95 |      1,009 |
+| z:\8_code\ai-job-hunting\src\features\preference\components\Preference.vue                          | vue                |        360 |          0 |         37 |        397 |
+| z:\8_code\ai-job-hunting\src\features\run-record\components\RunRecord.vue                           | vue                |        447 |          0 |         16 |        463 |
+| z:\8_code\ai-job-hunting\src\shared\errors\index.ts                                                 | TypeScript         |         45 |          1 |         15 |         61 |
+| z:\8_code\ai-job-hunting\src\shared\types\axios-request-config.d.ts                                 | TypeScript         |          8 |          0 |          2 |         10 |
+| z:\8_code\ai-job-hunting\src\shared\types\event-source-polyfill.d.ts                                | TypeScript         |          9 |          1 |          2 |         12 |
+| z:\8_code\ai-job-hunting\src\shared\utils\ai-delivery.test.ts                                       | TypeScript         |         24 |          0 |          9 |         33 |
+| z:\8_code\ai-job-hunting\src\shared\utils\ai-delivery.ts                                            | TypeScript         |        823 |          1 |         95 |        919 |
+| z:\8_code\ai-job-hunting\src\shared\utils\fetch.ts                                                  | TypeScript         |         54 |          1 |          7 |         62 |
+| z:\8_code\ai-job-hunting\src\shared\utils\logger.ts                                                 | TypeScript         |         67 |          1 |         16 |         84 |
+| z:\8_code\ai-job-hunting\src\shared\utils\message-cache.ts                                          | TypeScript         |         52 |          1 |         12 |         65 |
+| z:\8_code\ai-job-hunting\src\shared\utils\preference.ts                                             | TypeScript         |         18 |          1 |          4 |         23 |
+| z:\8_code\ai-job-hunting\src\shared\utils\resume.ts                                                 | TypeScript         |        168 |          1 |         30 |        199 |
+| z:\8_code\ai-job-hunting\src\shared\utils\scroll.ts                                                 | TypeScript         |         45 |          1 |          2 |         48 |
+| z:\8_code\ai-job-hunting\src\shared\utils\tampermonkey.ts                                           | TypeScript         |         85 |          1 |         12 |         98 |
+| z:\8_code\ai-job-hunting\src\shared\utils\tools.ts                                                  | TypeScript         |        817 |         13 |         90 |        920 |
+| z:\8_code\ai-job-hunting\src\state\login.ts                                                         | TypeScript         |         20 |          1 |          5 |         26 |
+| z:\8_code\ai-job-hunting\src\state\push-result.ts                                                   | TypeScript         |         43 |          1 |          8 |         52 |
+| z:\8_code\ai-job-hunting\src\state\user.ts                                                          | TypeScript         |         42 |          1 |          7 |         50 |
+| z:\8_code\ai-job-hunting\tsconfig.json                                                              | JSON with Comments |         22 |          0 |          1 |         23 |
+| z:\8_code\ai-job-hunting\tsconfig.node.json                                                         | JSON               |         10 |          0 |          1 |         11 |
+| z:\8_code\ai-job-hunting\vite.config.ts                                                             | TypeScript         |         87 |          0 |         11 |         98 |
+| z:\8_code\ai-job-hunting\vitest.config.ts                                                           | TypeScript         |         13 |          0 |          2 |         15 |
+| Total                                                                                               |                    |     17,266 |        133 |      1,609 |     19,008 |
++-----------------------------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
