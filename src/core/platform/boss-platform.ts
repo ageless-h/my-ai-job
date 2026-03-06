@@ -647,7 +647,7 @@ export class BossPlatform extends AbsPlatform {
   isLimit(_jobDetail: any): { limit: boolean; msg: string } {
     return {
       limit: TampermonkeyApi.GmGetValue(TampermonkeyApi.PUSH_LIMIT, false),
-      msg: "Boss投递限制每天100次"
+      msg: "Boss投递限制每天150次"
     };
   }
 
@@ -673,8 +673,10 @@ export class BossPlatform extends AbsPlatform {
         throw new PushStopError(`命中人工验证提示：${remindContent.slice(0, 40)}`);
       }
 
-      if (pushResp.data?.zpData?.bizData?.chatRemindDialog?.content.includes("您今天已与120位BOSS沟通")) {
-        logger$1.debug(`当天已投递超过120次 工作【${jobTitle}】已修正为投递成功`);
+      const reachedDailyLimitMatch = remindContent.match(/您今天已与(\d+)位BOSS沟通/);
+      if (reachedDailyLimitMatch) {
+        const reachedDailyLimit = reachedDailyLimitMatch[1];
+        logger$1.debug(`当天已投递超过${reachedDailyLimit}次 工作【${jobTitle}】已修正为投递成功`);
         return {
           code: PushResultStatus.SUCCESS,
           message: "Success"

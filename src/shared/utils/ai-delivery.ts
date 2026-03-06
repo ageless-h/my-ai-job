@@ -4,6 +4,8 @@ import { normalizePreferenceBoolean } from "@/shared/utils/preference";
 export type AiDeliveryPromptConfig = {
   prompt: string;
   extraPrompt?: string;
+  focusSkills?: string[];
+  excludeKeywords?: string[];
   includeUserProfile: boolean;
   includeTraditionalSnapshot: boolean;
 };
@@ -806,6 +808,18 @@ export const buildAiDeliveryJudgePrompt = (
   const extraPrompt = normalizeInlineText(config.extraPrompt, "");
   if (extraPrompt) {
     sections.push(`[附加指令]\n${extraPrompt}`);
+  }
+
+  const focusSkills = normalizeKeywordList(config.focusSkills);
+  const excludeKeywords = normalizeKeywordList(config.excludeKeywords);
+  if (focusSkills.length || excludeKeywords.length) {
+    sections.push(
+      [
+        "[重点过滤规则]",
+        `核心技能要求（应重点匹配）：${focusSkills.length ? focusSkills.join("、") : "无"}`,
+        `绝对排除关键词（命中即拒绝）：${excludeKeywords.length ? excludeKeywords.join("、") : "无"}`
+      ].join("\n")
+    );
   }
 
   if (config.includeUserProfile) {

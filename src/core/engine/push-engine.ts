@@ -185,7 +185,7 @@ export abstract class AbsPlatform {
 
     const minActionIntervalSec = Math.max(8, toNumberOr(getPreferenceValue(preference, "pushIntervalSec", "pi"), 8));
     const maxSessionActions = Math.max(1, toNumberOr(preference.maxSessionActions, 60));
-    const maxDailyActions = Math.max(1, toNumberOr(preference.maxDailyActions, 120));
+    const maxDailyActions = Math.max(1, toNumberOr(preference.maxDailyActions, 150));
     const maxActionsPerMinute = Math.max(1, toNumberOr(preference.maxActionsPerMinute, 9));
     const maxConsecutiveFailures = Math.max(1, toNumberOr(preference.maxConsecutiveFailures, 10));
     const cooldownMinutesOnLimit = Math.max(1, toNumberOr(preference.cooldownMinutesOnLimit, 25));

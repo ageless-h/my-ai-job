@@ -90,7 +90,7 @@ function reasonLabel(reason: string): string {
   const map: Record<string, string> = {
     hr_rejected: 'HR拒绝',
     self_rejected: '我拒绝',
-    stale_no_reply: '已读不回',
+    stale_no_reply: '长期未活跃',
     ai_detected: 'AI判定',
   };
   return map[reason] || reason;

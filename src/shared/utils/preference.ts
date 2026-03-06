@@ -37,6 +37,8 @@ const PREFERENCE_KEY_MIGRATIONS: PreferenceMigrationEntry[] = [
   { nextKey: "aiDeliveryJudgeEnabled", legacyKeys: ["aiDeliverJudgeE", "aiDeliverJudgeEnabled"] },
   { nextKey: "aiDeliveryJudgePrompt", legacyKeys: ["aiDeliverJudgePrompt"] },
   { nextKey: "aiDeliveryJudgeExtraPrompt", legacyKeys: ["aiDeliverJudgeExtraPrompt"] },
+  { nextKey: "aiDeliveryJudgeFocusSkills", legacyKeys: ["aiDeliverJudgeFocusSkills"] },
+  { nextKey: "aiDeliveryJudgeExcludeKeywords", legacyKeys: ["aiDeliverJudgeExcludeKeywords"] },
   {
     nextKey: "aiDeliveryJudgeIncludeUserProfile",
     legacyKeys: ["aiDeliverJudgeIncludeUserProfile"]

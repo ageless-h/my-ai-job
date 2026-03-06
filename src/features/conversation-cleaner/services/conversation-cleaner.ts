@@ -41,7 +41,7 @@ export interface HistoryMessage {
 export type RejectReason =
   | 'hr_rejected'       // HR 回复了拒绝消息
   | 'self_rejected'     // 我主动拒绝
-  | 'stale_no_reply'    // 超过 N 天已读不回
+  | 'stale_no_reply'    // 超过 N 天未活跃
   | 'ai_detected';      // AI 分析判定
 
 export interface CleanCandidate {
@@ -74,6 +74,18 @@ const HISTORY_MAX_PAGES = 3;
 const CLEANER_SCAN_MAX_DEFAULT = 120;
 const CLEANER_DELETE_MAX_DEFAULT = 40;
 const CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT = 20;
+const CLEANER_SAFETY_CHECK_INTERVAL_MS = 3500;
+
+function createManualVerificationGuard(action: string): (force?: boolean) => void {
+  let lastCheckAt = 0;
+  return (force = false): void => {
+    const now = Date.now();
+    if (force || now - lastCheckAt >= CLEANER_SAFETY_CHECK_INTERVAL_MS) {
+      Tools.ensureNoManualVerificationOrThrow(action);
+      lastCheckAt = now;
+    }
+  };
+}
 
 function getCleanerSafetyConfig(): { maxScanCount: number; maxDeleteCount: number; manualConfirmThreshold: number } {
   let preference: Record<string, unknown> = {};
@@ -326,7 +338,8 @@ export async function scanConversations(
   onProgress: (progress: ScanProgress) => void,
 ): Promise<CleanCandidate[]> {
   Tools.ensureBossDomainOrThrow('会话扫描');
-  Tools.ensureNoManualVerificationOrThrow('会话扫描');
+  const ensureSafeScan = createManualVerificationGuard('会话扫描');
+  ensureSafeScan(true);
   const candidates: CleanCandidate[] = [];
   const safety = getCleanerSafetyConfig();
   const now = Date.now();
@@ -349,23 +362,29 @@ export async function scanConversations(
 
   // Phase 2: 全量扫描队列（日期只做最后兜底判断）
   const staleCount = friendList.filter((f) => now - f.updateTime > STALE_MS).length;
-  const analysisList = friendList.slice(0, safety.maxScanCount);
+  const analysisList = friendList;
+  const scanBatchSize = Math.min(199, Math.max(20, safety.maxScanCount));
+  let analyzeFailedCount = 0;
 
   onProgress({
     phase: 'fetching',
     current: 0,
     total: analysisList.length,
-    message: `共 ${friendList.length} 个会话（本轮最多扫描 ${safety.maxScanCount} 个），其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始关键词+AI扫描，日期作为最后兜底判断`,
+    message: `共 ${friendList.length} 个会话（全量扫描，详情分批约 ${scanBatchSize} 个/批），其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始关键词+规则+AI扫描`,
   });
 
   // Phase 3: 批量获取详情
   const analysisIds = analysisList.map((f) => f.friendId);
   let details: FriendDetail[] = [];
-  // 分批获取，每批 199 个
-  for (let i = 0; i < analysisIds.length; i += 199) {
-    const batch = analysisIds.slice(i, i + 199);
+  // 分批获取，单批最多 199 个（由安全配置控制批量大小）
+  for (let i = 0; i < analysisIds.length; i += scanBatchSize) {
+    ensureSafeScan();
+    const batch = analysisIds.slice(i, i + scanBatchSize);
     const batchDetails = await bossThrottle.enqueue(() => fetchFriendDetails(batch));
     details = details.concat(batchDetails);
+    if (i + scanBatchSize < analysisIds.length) {
+      await Tools.sleep(Tools.getRandomNumber(120, 260));
+    }
   }
 
   const detailMap = new Map<number, FriendDetail>();
@@ -380,6 +399,7 @@ export async function scanConversations(
   });
 
   for (let i = 0; i < analysisList.length; i++) {
+    ensureSafeScan();
     const friend = analysisList[i];
     const detail = detailMap.get(friend.friendId);
     if (!detail || !detail.securityId) continue;
@@ -392,10 +412,13 @@ export async function scanConversations(
     });
 
     try {
+      await Tools.sleep(Tools.getRandomNumber(120, 300));
       const messages = await bossThrottle.enqueue(() => fetchHistoryMessages(detail.encryptBossId, detail.securityId));
 
       // 最后一条文本消息
       const lastTextMsg = [...messages].reverse().find((m) => m.bodyType === 1 && m.text);
+      const lastMsg = messages[messages.length - 1];
+      const isStaleSession = now - friend.updateTime > STALE_MS;
 
       // Step A: 关键词快速检测
       const kwResult = detectByKeywords(messages, myUid);
@@ -416,7 +439,31 @@ export async function scanConversations(
         continue;
       }
 
-      // Step B: AI 分析（全量会话）
+      // Step B: 两周+死会话兜底（优先于 AI，减少无效 AI 调用）
+      if (isStaleSession) {
+        const staleDetail = !lastMsg
+          ? `会话超过 ${STALE_DAYS} 天未活跃（无历史消息）`
+          : lastMsg.fromUid === myUid
+            ? `已读不回超过 ${STALE_DAYS} 天`
+            : `会话超过 ${STALE_DAYS} 天未活跃`;
+
+        candidates.push({
+          friendId: friend.friendId,
+          encryptBossId: detail.encryptBossId,
+          securityId: detail.securityId,
+          name: detail.name,
+          brandName: detail.brandName,
+          title: detail.title,
+          updateTime: friend.updateTime,
+          lastText: lastTextMsg?.text || '',
+          reason: 'stale_no_reply',
+          reasonDetail: staleDetail,
+          selected: true,
+        });
+        continue;
+      }
+
+      // Step C: AI 分析（非 stale 会话）
       const aiResult = await analyzeWithAi(messages, myUid, detail.name);
       if (aiResult.shouldClean) {
         candidates.push({
@@ -434,26 +481,9 @@ export async function scanConversations(
         });
         continue;
       }
-
-      // Step C: 日期兜底判断（最后执行）
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg && lastMsg.fromUid === myUid && now - friend.updateTime > STALE_MS) {
-        candidates.push({
-          friendId: friend.friendId,
-          encryptBossId: detail.encryptBossId,
-          securityId: detail.securityId,
-          name: detail.name,
-          brandName: detail.brandName,
-          title: detail.title,
-          updateTime: friend.updateTime,
-          lastText: lastTextMsg?.text || '',
-          reason: 'stale_no_reply',
-          reasonDetail: `已读不回超过 ${STALE_DAYS} 天`,
-          selected: true,
-        });
-      }
     } catch (_e) {
       // 单个会话分析失败不影响整体
+      analyzeFailedCount += 1;
     }
   }
 
@@ -461,7 +491,7 @@ export async function scanConversations(
     phase: 'done',
     current: analysisList.length,
     total: analysisList.length,
-    message: `扫描完成，找到 ${candidates.length} 个待清理会话`,
+    message: `扫描完成，找到 ${candidates.length} 个待清理会话${analyzeFailedCount > 0 ? `，${analyzeFailedCount} 个会话分析失败` : ''}`,
   });
 
   return candidates;
@@ -474,7 +504,8 @@ export async function batchDelete(
   options: { manualConfirmed?: boolean } = {},
 ): Promise<{ success: number; failed: number; lastError: string; topFailReason: string; successSecurityIds: string[] }> {
   Tools.ensureBossDomainOrThrow('会话删除');
-  Tools.ensureNoManualVerificationOrThrow('会话删除');
+  const ensureSafeDelete = createManualVerificationGuard('会话删除');
+  ensureSafeDelete(true);
   let success = 0;
   let failed = 0;
   let lastError = '';
@@ -505,6 +536,7 @@ export async function batchDelete(
     const maxRetries = 3;
     let latestMsg = '';
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      ensureSafeDelete();
       try {
         const result = await bossThrottle.enqueue(() => deleteFriend(securityId));
         if (result.ok) return result;
@@ -525,6 +557,7 @@ export async function batchDelete(
   };
 
   for (let i = 0; i < selected.length; i++) {
+    ensureSafeDelete();
     const item = selected[i];
     await Tools.sleep(Tools.getRandomNumber(500, 1200));
     onProgress(i + 1, selected.length, item.name);

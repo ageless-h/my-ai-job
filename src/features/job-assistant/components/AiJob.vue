@@ -156,11 +156,18 @@ const logRecorder = new LogRecorder();
 const latestPushRecords = ref<any[]>([]);
 const logsContainer = ref<HTMLElement | null>(null);
 let recordsUpdateTimer: ReturnType<typeof setInterval> | null = null;
+let recommendLoopCooldownTimer: ReturnType<typeof setTimeout> | null = null;
+
+type StartPushOptions = {
+  silent?: boolean;
+  forceRecommendLoop?: boolean;
+};
 
 const RECOMMEND_LOOP_RELOAD_KEY = "ai-job-recommend-loop-reload";
-const RECOMMEND_LOOP_TTL_MS = 5 * 60 * 1e3;
+const RECOMMEND_LOOP_TTL_MS = 45 * 60 * 1e3;
 const RECOMMEND_LOOP_RESUME_MAX_ATTEMPTS = 15;
 const RECOMMEND_LOOP_RESUME_INTERVAL_MS = 1200;
+const RECOMMEND_LOOP_RETRY_BUFFER_MS = 1500;
 
 const infiniteLoopEnabled = computed({
   get: () => !!userStore?.user?.preference?.imE,
@@ -298,6 +305,50 @@ const clearRecommendLoopReload = () => {
   localStorage.removeItem(RECOMMEND_LOOP_RELOAD_KEY);
 };
 
+const getPlatformLastStopReason = () => {
+  return `${platform?.lastStopReason || ""}`.trim();
+};
+
+const parseSafetyCooldownWaitMs = (reason: string) => {
+  const match = `${reason || ""}`.match(/(\d+)\s*分钟后可继续/);
+  if (!match) {
+    return 0;
+  }
+  const waitMinutes = Number(match[1]);
+  if (!Number.isFinite(waitMinutes) || waitMinutes <= 0) {
+    return 0;
+  }
+  return waitMinutes * 60 * 1000;
+};
+
+const clearRecommendLoopCooldownTimer = () => {
+  if (recommendLoopCooldownTimer) {
+    clearTimeout(recommendLoopCooldownTimer);
+    recommendLoopCooldownTimer = null;
+  }
+};
+
+const scheduleRecommendLoopCooldownRetry = (reason: string, forceEnabled = false) => {
+  const waitMs = parseSafetyCooldownWaitMs(reason);
+  if (waitMs <= 0 || (!forceEnabled && !shouldEnableRecommendLoop())) {
+    return false;
+  }
+
+  markRecommendLoopReload();
+  clearRecommendLoopCooldownTimer();
+  recommendLoopCooldownTimer = setTimeout(() => {
+    void tryAutoResumeRecommendLoop();
+  }, waitMs + RECOMMEND_LOOP_RETRY_BUFFER_MS);
+
+  showAppMessage({
+    message: `${reason}，推荐页无限循环将在冷却结束后自动继续`,
+    type: "warning",
+    duration: 2800
+  });
+
+  return true;
+};
+
 const updateLatestPushRecords = () => {
   const allLogs = logRecorder.getLogs(1, logRecorder.getLogCount());
   const pushLogs = allLogs.filter((log) => {
@@ -408,19 +459,22 @@ const ensurePreferenceLoadedForStart = (options = { silent: false }) => {
   return false;
 };
 
-const startPush = async (options = { silent: false }) => {
+const startPush = async (options: StartPushOptions = {}) => {
+  const silent = !!options.silent;
+  const recommendLoopEnabledForRun = !!options.forceRecommendLoop || shouldEnableRecommendLoop();
+
   if (!loginInterceptor()) {
     return false;
   }
 
-  if (!ensurePreferenceLoadedForStart(options)) {
+  if (!ensurePreferenceLoadedForStart({ silent })) {
     return false;
   }
 
-  if (shouldEnableRecommendLoop()) {
+  if (recommendLoopEnabledForRun) {
     const aligned = await alignOtherJobsShenzhen();
     if (!aligned) {
-      if (!options.silent) {
+      if (!silent) {
         showAppMessage({
           message: "未定位到“其他职位(深圳)”入口，正在重新进入目标页",
           type: "warning",
@@ -447,7 +501,25 @@ const startPush = async (options = { silent: false }) => {
 
   const pushResultPromise = platform.startPush();
   pushResultPromise.then(() => {
-    const shouldLoopRestart = pushStatus.value === PushStatus.PUSHING && shouldEnableRecommendLoop();
+    const stopReason = getPlatformLastStopReason();
+    if (platform.pushStatus === PushStatus.LIMIT) {
+      pushStatus.value = PushStatus.LIMIT;
+      pushBtnType.value = "primary";
+      pushBtnText.value = getStartButtonText();
+      stopRecordsUpdate();
+
+      const scheduled = recommendLoopEnabledForRun && scheduleRecommendLoopCooldownRetry(stopReason, true);
+      if (!scheduled && stopReason) {
+        showAppMessage({
+          message: stopReason,
+          type: "warning",
+          duration: 2500
+        });
+      }
+      return;
+    }
+
+    const shouldLoopRestart = pushStatus.value === PushStatus.PUSHING && recommendLoopEnabledForRun;
     if (shouldLoopRestart) {
       markRecommendLoopReload();
       showAppMessage({
@@ -529,6 +601,7 @@ const handlerClearPushRecords = () => {
 const tryAutoResumeRecommendLoop = async () => {
   const payload = readRecommendLoopReload();
   if (!payload) {
+    clearRecommendLoopCooldownTimer();
     return;
   }
 
@@ -554,9 +627,8 @@ const tryAutoResumeRecommendLoop = async () => {
     }
 
     if (pushStatus.value !== PushStatus.PUSHING) {
-      const started = await startPush({ silent: true });
+      const started = await startPush({ silent: true, forceRecommendLoop: true });
       if (started) {
-        clearRecommendLoopReload();
         showAppMessage({
           message: "推荐页无限循环：页面已刷新，已切换到其他职位(深圳)并继续运行",
           type: "info",
@@ -597,6 +669,7 @@ watch(collectMode, () => {
 });
 
 onUnmounted(() => {
+  clearRecommendLoopCooldownTimer();
   stopRecordsUpdate();
 });
 </script>

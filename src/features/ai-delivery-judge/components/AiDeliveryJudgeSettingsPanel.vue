@@ -49,11 +49,7 @@
             class="full-width"
             :teleported="false"
             placeholder="输入技能并按回车确认，例如：Vue3"
-          >
-            <el-option label="Vue3" value="Vue3" />
-            <el-option label="React" value="React" />
-            <el-option label="TypeScript" value="TypeScript" />
-          </el-select>
+          />
           <div class="sub-desc mt-4">如果 JD 中明确不包含或不需要这些核心技能，AI 将给出低分。</div>
         </el-form-item>
 
@@ -67,11 +63,7 @@
             class="full-width"
             :teleported="false"
             placeholder="输入排除词并按回车确认，例如：外包"
-          >
-            <el-option label="外包" value="外包" />
-            <el-option label="驻场" value="驻场" />
-            <el-option label="跨境电商" value="跨境电商" />
-          </el-select>
+          />
           <div class="sub-desc mt-4">输入关键词并按回车添加。AI 识别到这些词将直接拒绝该岗位。</div>
         </el-form-item>
       </el-form>
@@ -179,13 +171,14 @@ const props = withDefaults(
 
 const userStore = UserStore();
 const platform = inject<JobPreviewPlatform | null>("$platform", null);
+const currentConfig = Tools.getAiDeliveryJudgeConfig(userStore.user?.preference || {});
 
 const previewVisible = ref(false);
 const previewLoading = ref(false);
 const previewJobLabel = ref("");
 const previewPayloadText = ref("");
-const focusSkills = ref<string[]>(["Vue3", "TypeScript"]);
-const excludeKeywords = ref<string[]>(["外包", "驻场", "催收"]);
+const focusSkills = ref<string[]>(currentConfig.focusSkills);
+const excludeKeywords = ref<string[]>(currentConfig.excludeKeywords);
 
 const showSectionHeader = computed(() => props.showSectionHeader);
 const sectionTitle = computed(() => props.sectionTitle);
@@ -203,8 +196,6 @@ const toText = (value: unknown, fallback = ""): string => {
   return `${value ?? fallback}`;
 };
 
-const currentConfig = Tools.getAiDeliveryJudgeConfig(userStore.user?.preference || {});
-
 const form = reactive({
   enabled: currentConfig.enabled,
   includeUserProfile: currentConfig.includeUserProfile,
@@ -216,6 +207,8 @@ const form = reactive({
 const handleSave = () => {
   const saved = Tools.saveAiDeliveryJudgeConfig({
     enabled: form.enabled,
+    focusSkills: focusSkills.value,
+    excludeKeywords: excludeKeywords.value,
     includeUserProfile: form.includeUserProfile,
     includeTraditionalSnapshot: form.includeTraditionalSnapshot,
     onAiError: form.onAiError,
@@ -223,6 +216,8 @@ const handleSave = () => {
   });
 
   form.enabled = saved.enabled;
+  focusSkills.value = saved.focusSkills;
+  excludeKeywords.value = saved.excludeKeywords;
   form.includeUserProfile = saved.includeUserProfile;
   form.includeTraditionalSnapshot = saved.includeTraditionalSnapshot;
   form.onAiError = saved.onAiError;
@@ -275,6 +270,8 @@ const handlePreviewInputOnce = async () => {
       {
         prompt: toText(latestConfig.prompt).trim(),
         extraPrompt: toText(latestConfig.extraPrompt).trim(),
+        focusSkills: focusSkills.value,
+        excludeKeywords: excludeKeywords.value,
         includeUserProfile: form.includeUserProfile,
         includeTraditionalSnapshot: form.includeTraditionalSnapshot
       },

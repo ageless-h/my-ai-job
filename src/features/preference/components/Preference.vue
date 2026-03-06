@@ -255,6 +255,7 @@ const preferenceDefaultValueHandler = () => {
   }
   userStore.user.preference.maxSessionActions = upgradePrefNumber(userStore.user.preference.maxSessionActions, 35, 60);
   userStore.user.preference.maxDailyActions = upgradePrefNumber(userStore.user.preference.maxDailyActions, 80, 120);
+  userStore.user.preference.maxDailyActions = upgradePrefNumber(userStore.user.preference.maxDailyActions, 120, 150);
   userStore.user.preference.maxActionsPerMinute = upgradePrefNumber(userStore.user.preference.maxActionsPerMinute, 6, 9);
   userStore.user.preference.maxConsecutiveFailures = upgradePrefNumber(userStore.user.preference.maxConsecutiveFailures, 8, 10);
   userStore.user.preference.cooldownMinutesOnLimit = upgradePrefNumber(userStore.user.preference.cooldownMinutesOnLimit, 30, 25);

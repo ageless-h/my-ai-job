@@ -34,6 +34,8 @@ export interface AiDeliveryJudgeConfig {
   enabled: boolean;
   prompt: string;
   extraPrompt: string;
+  focusSkills: string[];
+  excludeKeywords: string[];
   includeUserProfile: boolean;
   includeTraditionalSnapshot: boolean;
   onAiError: "reject" | "fallback-traditional";
@@ -47,6 +49,8 @@ const DEFAULT_AI_DELIVERY_JUDGE_CONFIG: AiDeliveryJudgeConfig = {
   enabled: true,
   prompt: DEFAULT_AI_DELIVERY_JUDGE_PROMPT,
   extraPrompt: "",
+  focusSkills: [],
+  excludeKeywords: [],
   includeUserProfile: true,
   includeTraditionalSnapshot: false,
   onAiError: "reject",
@@ -500,6 +504,30 @@ export class Tools {
     const normalizeFallbackPolicy = (value: unknown, fallback: "reject" | "fallback-traditional"): "reject" | "fallback-traditional" => {
       return value === "fallback-traditional" || value === "reject" ? value : fallback;
     };
+    const normalizeKeywordList = (value: unknown): string[] => {
+      if (!Array.isArray(value)) {
+        return [];
+      }
+
+      const result: string[] = [];
+      const seen = new Set<string>();
+      for (const item of value) {
+        const text = `${item ?? ""}`.trim();
+        if (!text) {
+          continue;
+        }
+
+        const key = text.toLowerCase();
+        if (seen.has(key)) {
+          continue;
+        }
+
+        seen.add(key);
+        result.push(text);
+      }
+
+      return result;
+    };
 
     const enabled =
       typeof extCfg.enabled === "boolean"
@@ -513,6 +541,12 @@ export class Tools {
     const prompt = `${extCfg.prompt || pref.aiDeliveryJudgePrompt || pref.aiDeliverJudgePrompt || ""}`.trim()
       || DEFAULT_AI_DELIVERY_JUDGE_CONFIG.prompt;
     const extraPrompt = `${extCfg.extraPrompt || pref.aiDeliveryJudgeExtraPrompt || pref.aiDeliverJudgeExtraPrompt || ""}`.trim();
+    const focusSkills = normalizeKeywordList(
+      extCfg.focusSkills || pref.aiDeliveryJudgeFocusSkills || pref.aiDeliverJudgeFocusSkills
+    );
+    const excludeKeywords = normalizeKeywordList(
+      extCfg.excludeKeywords || pref.aiDeliveryJudgeExcludeKeywords || pref.aiDeliverJudgeExcludeKeywords
+    );
     const includeUserProfile =
       typeof extCfg.includeUserProfile === "boolean"
         ? extCfg.includeUserProfile
@@ -542,6 +576,8 @@ export class Tools {
       enabled,
       prompt,
       extraPrompt,
+      focusSkills,
+      excludeKeywords,
       includeUserProfile,
       includeTraditionalSnapshot,
       onAiError,
@@ -554,10 +590,36 @@ export class Tools {
     const normalizeFallbackPolicy = (value: unknown, fallback: "reject" | "fallback-traditional"): "reject" | "fallback-traditional" => {
       return value === "fallback-traditional" || value === "reject" ? value : fallback;
     };
+    const normalizeKeywordList = (value: unknown): string[] => {
+      if (!Array.isArray(value)) {
+        return [];
+      }
+
+      const result: string[] = [];
+      const seen = new Set<string>();
+      for (const item of value) {
+        const text = `${item ?? ""}`.trim();
+        if (!text) {
+          continue;
+        }
+
+        const key = text.toLowerCase();
+        if (seen.has(key)) {
+          continue;
+        }
+
+        seen.add(key);
+        result.push(text);
+      }
+
+      return result;
+    };
     const next: AiDeliveryJudgeConfig = {
       enabled: typeof config.enabled === "boolean" ? config.enabled : current.enabled,
       prompt: `${config.prompt || current.prompt || ""}`.trim() || DEFAULT_AI_DELIVERY_JUDGE_PROMPT,
       extraPrompt: `${config.extraPrompt || current.extraPrompt || ""}`.trim(),
+      focusSkills: normalizeKeywordList(config.focusSkills ?? current.focusSkills),
+      excludeKeywords: normalizeKeywordList(config.excludeKeywords ?? current.excludeKeywords),
       includeUserProfile: typeof config.includeUserProfile === "boolean" ? config.includeUserProfile : current.includeUserProfile,
       includeTraditionalSnapshot:
         typeof config.includeTraditionalSnapshot === "boolean"
@@ -572,6 +634,8 @@ export class Tools {
       enabled: next.enabled,
       prompt: next.prompt,
       extraPrompt: next.extraPrompt,
+      focusSkills: next.focusSkills,
+      excludeKeywords: next.excludeKeywords,
       includeUserProfile: next.includeUserProfile,
       includeTraditionalSnapshot: next.includeTraditionalSnapshot,
       onAiError: next.onAiError,
@@ -593,6 +657,8 @@ export class Tools {
       enabled: next.enabled,
       prompt: next.prompt,
       extraPrompt: next.extraPrompt,
+      focusSkills: next.focusSkills,
+      excludeKeywords: next.excludeKeywords,
       includeUserProfile: next.includeUserProfile,
       includeTraditionalSnapshot: next.includeTraditionalSnapshot,
       onAiError: next.onAiError,

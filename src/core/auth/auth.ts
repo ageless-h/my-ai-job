@@ -260,6 +260,7 @@ export function userRemoteLoad(): void {
       runtimeUserStore2.user.preference.npi = runtimeUserStore2.user.preference.npi || 6;
       runtimeUserStore2.user.preference.maxSessionActions = upgradePrefNumber(runtimeUserStore2.user.preference.maxSessionActions, 35, 60);
       runtimeUserStore2.user.preference.maxDailyActions = upgradePrefNumber(runtimeUserStore2.user.preference.maxDailyActions, 80, 120);
+      runtimeUserStore2.user.preference.maxDailyActions = upgradePrefNumber(runtimeUserStore2.user.preference.maxDailyActions, 120, 150);
       runtimeUserStore2.user.preference.maxActionsPerMinute = upgradePrefNumber(runtimeUserStore2.user.preference.maxActionsPerMinute, 6, 9);
       runtimeUserStore2.user.preference.maxConsecutiveFailures = upgradePrefNumber(runtimeUserStore2.user.preference.maxConsecutiveFailures, 8, 10);
       runtimeUserStore2.user.preference.cooldownMinutesOnLimit = upgradePrefNumber(runtimeUserStore2.user.preference.cooldownMinutesOnLimit, 30, 25);

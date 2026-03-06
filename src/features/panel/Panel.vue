@@ -1,65 +1,16 @@
 <script setup lang="ts">
-// @ts-nocheck
-import * as Vue from "vue";
-import * as ElementPlus from "element-plus";
-import * as Icons from "@element-plus/icons-vue";
-import axios from "axios";
-import { request, showAppMessage, isProdEnv } from "@/core/http/request";
-import { Tools } from "@/shared/utils/tools";
-import { UserStore } from "@/state/user";
-import { LoginStore } from "@/state/login";
-import { pushResultCount } from "@/state/push-result";
-
-import { LogRecorder, PushStatus } from "@/core/engine/push-engine";
-import { loginInterceptor, silentlyLogin, fetchWithGM_request } from "@/core/auth/auth";
-import { AiPower } from "@/core/ai/ai-power";
-import { Message } from "@/core/protocol/message";
+import { nextTick, onBeforeUnmount, onMounted, onUpdated, ref, shallowRef, watch } from "vue";
+import AiConfig from "@/features/ai-config/components/AiConfig.vue";
+import Account from "@/features/account/components/Account.vue";
+import AiDeliveryJudge from "@/features/ai-delivery-judge/components/AiDeliveryJudge.vue";
 import AiJob from "@/features/job-assistant/components/AiJob.vue";
+import MemorySession from "@/features/memory-session/components/MemorySession.vue";
 import Preference from "@/features/preference/components/Preference.vue";
 import RunRecord from "@/features/run-record/components/RunRecord.vue";
-import AiConfig from "@/features/ai-config/components/AiConfig.vue";
-import AiDeliveryJudge from "@/features/ai-delivery-judge/components/AiDeliveryJudge.vue";
-import MemorySession from "@/features/memory-session/components/MemorySession.vue";
-import Account from "@/features/account/components/Account.vue";
-
-const VueAny = Vue as any;
-const ElementAny = ElementPlus as any;
-const IconsAny = Icons as any;
-
-const {
-  defineComponent, computed, watch, provide, reactive, toRefs,
-  openBlock, createElementBlock, normalizeClass, unref, renderSlot,
-  inject, ref, onMounted, onBeforeUnmount, onUpdated, createVNode,
-  Fragment, useSlots, withCtx, createBlock, resolveDynamicComponent,
-  normalizeStyle, createTextVNode, toDisplayString, createCommentVNode,
-  createElementVNode, TransitionGroup, useAttrs, nextTick, mergeProps,
-  withModifiers, Transition, toHandlers, withKeys, withDirectives,
-  vShow, getCurrentInstance, h, watchEffect, toRef, renderList,
-  shallowRef, createSlots, toRaw, resolveComponent, resolveDirective,
-  vModelText, onUnmounted, isRef
-} = VueAny;
-
-const pushScopeId = VueAny.pushScopeId || (() => undefined);
-const popScopeId = VueAny.popScopeId || (() => undefined);
-
-const {
-  ElMenu, ElMenuItem, ElText, ElIcon, ElButton, ElTableColumn,
-  ElTag, ElTable, ElInput, ElLink, ElImage, ElDialog, ElInputNumber,
-  ElSwitch, ElTooltip, ElEmpty, ElForm, ElFormItem, ElCheckbox,
-  ElOption, ElSelect, ElUpload, ElRow, ElCol, ElTimePicker,
-  ElPagination, ElCollapse, ElCollapseItem, ElMessageBox,
-  ElNotification, vLoading
-} = ElementAny;
-
-const {
-  CircleCloseFilled, Upload, Promotion, Collection, Service,
-  Shop, Wallet, PriceTag
-} = IconsAny;
 
 const STORAGE_KEY = "ai-job-panel-collapsed";
 const WIDTH_STORAGE_KEY = "ai-job-panel-width";
 
-// Optimized SVG Icons
 const SVG_OPEN = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/></svg>';
 const SVG_CLOSE = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 const SVG_MINIMIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
@@ -70,6 +21,9 @@ const FAB_BASE_DESKTOP = { right: 24, bottom: 108 };
 const FAB_BASE_MOBILE = { right: 16, bottom: 88 };
 const FAB_ANCHOR_RIGHT_SHIFT_PX = 15;
 const FAB_ANCHOR_TOP_OFFSET_PX = 70;
+const MIN_PANEL_WIDTH = 380;
+const MAX_PANEL_WIDTH = 800;
+
 const FAB_COLLISION_SELECTORS = [
   ".zp-side-entry-jobs",
   ".zp-side-entry-question",
@@ -79,329 +33,366 @@ const FAB_COLLISION_SELECTORS = [
   ".vip-guide.sider-box",
   ".job-tools-banners",
   ".banner-item.template-banner"
-];
+] as const;
+
 const FAB_ANCHOR_SELECTORS = [
   ".zp-side-entry-jobs",
   ".zp-side-entry-question",
   ".side-entry.side-entry-jobs",
   ".side-entry.side-entry-question"
-];
+] as const;
 
-// Tab Icons
-const SVG_TAB_AI = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>';
-const SVG_TAB_PREF = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.72V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.17a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
-const SVG_TAB_RECORD = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>';
-const SVG_TAB_CONFIG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
-const SVG_TAB_JUDGE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>';
-const SVG_TAB_MEMORY = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
-const SVG_TAB_ACCOUNT = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
-
-const _sfc_main$1 = /* @__PURE__ */ defineComponent({
-  __name: "Panel",
-  setup(__props) {
-    const showComponent = shallowRef(AiJob);
-    const activeMenuKey = ref("1");
-    const collapsed = ref(false);
-    const panelWidth = ref(480);
-    const isResizing = ref(false);
-    const fabDynamicStyle = ref({
-      right: `${FAB_BASE_DESKTOP.right}px`,
-      bottom: `${FAB_BASE_DESKTOP.bottom}px`
-    });
-    let fabRepositionRaf = 0;
-    const fabRecheckTimers: number[] = [];
-
-    const getFabBasePosition = () => {
-      if (window.innerWidth <= 900) return { ...FAB_BASE_MOBILE };
-      return { ...FAB_BASE_DESKTOP };
-    };
-
-    const hasIntersection = (a, b, gap = 0) => {
-      return !(
-        a.right < b.left - gap ||
-        b.right < a.left - gap ||
-        a.bottom < b.top - gap ||
-        b.bottom < a.top - gap
-      );
-    };
-
-    const getFabRect = (position) => {
-      const left = window.innerWidth - position.right - FAB_SIZE;
-      const top = window.innerHeight - position.bottom - FAB_SIZE;
-      return {
-        left,
-        top,
-        right: left + FAB_SIZE,
-        bottom: top + FAB_SIZE
-      };
-    };
-
-    const clampFabPosition = (position) => {
-      const minInset = 12;
-      const maxRight = Math.max(minInset, window.innerWidth - FAB_SIZE - minInset);
-      const maxBottom = Math.max(minInset, window.innerHeight - FAB_SIZE - minInset);
-      return {
-        right: Math.max(minInset, Math.min(position.right, maxRight)),
-        bottom: Math.max(minInset, Math.min(position.bottom, maxBottom))
-      };
-    };
-
-    const getRectsBySelectors = (selectors) => {
-      return selectors
-        .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
-        .map((element) => element.getBoundingClientRect())
-        .filter((rect) => (
-          rect.width > 0 &&
-          rect.height > 0 &&
-          rect.bottom > 0 &&
-          rect.right > 0 &&
-          rect.top < window.innerHeight &&
-          rect.left < window.innerWidth
-        ));
-    };
-
-    const getCollisionRects = () => getRectsBySelectors(FAB_COLLISION_SELECTORS);
-
-    const getAnchorRects = () => getRectsBySelectors(FAB_ANCHOR_SELECTORS);
-
-    const resolveFabCollisionPosition = () => {
-      const base = getFabBasePosition();
-
-      const collisionRects = getCollisionRects();
-      if (!collisionRects.length) {
-        return clampFabPosition(base);
-      }
-
-      const sideEntryRect = getAnchorRects()
-        .slice()
-        .sort((a, b) => (b.top + b.height / 2) - (a.top + a.height / 2))[0];
-
-      if (sideEntryRect) {
-        const right = window.innerWidth - sideEntryRect.right + Math.max(0, (sideEntryRect.width - FAB_SIZE) / 2) - FAB_ANCHOR_RIGHT_SHIFT_PX;
-        const bottom = window.innerHeight - sideEntryRect.top + FAB_ANCHOR_TOP_OFFSET_PX;
-        return clampFabPosition({ right, bottom });
-      }
-
-      let raisedBottom = base.bottom;
-      let rounds = 0;
-
-      while (rounds < 6) {
-        rounds += 1;
-        const currentRect = getFabRect({ right: base.right, bottom: raisedBottom });
-        let nextBottom = raisedBottom;
-
-        collisionRects.forEach((rect) => {
-          if (!hasIntersection(currentRect, rect, FAB_SAFE_GAP)) return;
-          nextBottom = Math.max(nextBottom, window.innerHeight - rect.top + FAB_SAFE_GAP);
-        });
-
-        if (nextBottom === raisedBottom) break;
-        raisedBottom = nextBottom;
-      }
-
-      const candidates = [
-        { right: base.right, bottom: raisedBottom },
-        { right: base.right + 220, bottom: raisedBottom }
-      ].map(clampFabPosition);
-
-      const best = candidates.find((position) => {
-        const fabRect = getFabRect(position);
-        return !collisionRects.some((rect) => hasIntersection(fabRect, rect, FAB_SAFE_GAP));
-      });
-
-      return best || clampFabPosition({ right: base.right + 220, bottom: raisedBottom });
-    };
-
-    const applyFabPosition = () => {
-      const resolved = resolveFabCollisionPosition();
-      fabDynamicStyle.value = {
-        right: `${Math.round(resolved.right)}px`,
-        bottom: `${Math.round(resolved.bottom)}px`
-      };
-    };
-
-    const scheduleFabPosition = () => {
-      if (fabRepositionRaf) return;
-      fabRepositionRaf = requestAnimationFrame(() => {
-        fabRepositionRaf = 0;
-        applyFabPosition();
-      });
-    };
-
-    const queueFabRechecks = () => {
-      [400, 1200, 2400].forEach((delay) => {
-        const timer = window.setTimeout(() => {
-          scheduleFabPosition();
-        }, delay);
-        fabRecheckTimers.push(timer);
-      });
-    };
-
-    onMounted(() => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved === "true") collapsed.value = true;
-        const savedWidth = localStorage.getItem(WIDTH_STORAGE_KEY);
-        if (savedWidth) {
-          const w = parseInt(savedWidth);
-          if (w >= 380 && w <= 800) panelWidth.value = w;
-        }
-      } catch (_e) {}
-
-      nextTick(() => {
-        applyFabPosition();
-        queueFabRechecks();
-      });
-
-      window.addEventListener("resize", scheduleFabPosition);
-      window.addEventListener("scroll", scheduleFabPosition, true);
-    });
-
-    onBeforeUnmount(() => {
-      window.removeEventListener("resize", scheduleFabPosition);
-      window.removeEventListener("scroll", scheduleFabPosition, true);
-      if (fabRepositionRaf) {
-        cancelAnimationFrame(fabRepositionRaf);
-        fabRepositionRaf = 0;
-      }
-      fabRecheckTimers.forEach((timer) => {
-        clearTimeout(timer);
-      });
-      fabRecheckTimers.length = 0;
-    });
-
-    const toggleCollapse = () => {
-      collapsed.value = !collapsed.value;
-      try { localStorage.setItem(STORAGE_KEY, String(collapsed.value)); } catch (_e) {}
-      nextTick(() => {
-        scheduleFabPosition();
-      });
-    };
-
-    watch([collapsed, panelWidth], () => {
-      scheduleFabPosition();
-    });
-
-    onUpdated(() => {
-      scheduleFabPosition();
-    });
-
-    const componentMap = /* @__PURE__ */ new Map();
-    componentMap.set("1", { component: AiJob, name: "工作台", icon: SVG_TAB_AI });
-    componentMap.set("2", { component: AiConfig, name: "AI 配置", icon: SVG_TAB_CONFIG });
-    componentMap.set("3", { component: AiDeliveryJudge, name: "投递判定", icon: SVG_TAB_JUDGE });
-    componentMap.set("4", { component: Preference, name: "传统投递", icon: SVG_TAB_PREF });
-    componentMap.set("5", { component: MemorySession, name: "对话通知", icon: SVG_TAB_MEMORY });
-    componentMap.set("6", { component: RunRecord, name: "运行记录", icon: SVG_TAB_RECORD });
-    componentMap.set("7", { component: Account, name: "账户", icon: SVG_TAB_ACCOUNT });
-
-    const cleanupPreference = () => {
-      nextTick(() => {
-        // Clean label text: remove nbsp
-        document.querySelectorAll('.form-preference .el-form-item__label, .ai-config .el-form-item__label').forEach((label: Element) => {
-          const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
-          let node: Text | null;
-          while ((node = walker.nextNode() as Text | null)) {
-            const cleaned = node.textContent!.replace(/[\u00a0]/g, ' ').replace(/^\s+/, '').replace(/\s+$/, '');
-            if (cleaned !== node.textContent) node.textContent = cleaned;
-          }
-        });
-      });
-    };
-
-    const handleSelect = (key: string) => {
-      activeMenuKey.value = key;
-      const item = componentMap.get(key);
-      if (item) showComponent.value = item.component;
-      cleanupPreference();
-    };
-
-    const startResize = (e: MouseEvent) => {
-      e.preventDefault();
-      isResizing.value = true;
-      const startX = e.clientX;
-      const startWidth = panelWidth.value;
-
-      const onMouseMove = (moveEvent: MouseEvent) => {
-        const delta = startX - moveEvent.clientX;
-        let newWidth = startWidth + delta;
-        if (newWidth < 380) newWidth = 380;
-        if (newWidth > 800) newWidth = 800;
-        panelWidth.value = newWidth;
-      };
-
-      const onMouseUp = () => {
-        isResizing.value = false;
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
-        try { localStorage.setItem(WIDTH_STORAGE_KEY, String(panelWidth.value)); } catch (_e) {}
-      };
-
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
-    };
-
-    return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", { class: "ai-job-root" }, [
-        // FAB Button
-        createElementVNode("div", {
-          class: normalizeClass(["ai-fab", { "ai-fab--close": !collapsed.value }]),
-          style: normalizeStyle(fabDynamicStyle.value),
-          onClick: toggleCollapse,
-          title: collapsed.value ? "展开 AI 助手面板" : "收起面板",
-          innerHTML: collapsed.value ? SVG_OPEN : SVG_CLOSE
-        }, null, 14 /* CLASS, STYLE, PROPS */, ["title", "innerHTML"]),
-
-        // Sidebar (CSS class controls visibility, no vShow/Transition)
-        createElementVNode("div", {
-          class: normalizeClass(["ai-sidebar", {
-            "is-resizing": isResizing.value,
-            "is-collapsed": collapsed.value
-          }]),
-          style: normalizeStyle({ width: panelWidth.value + 'px' })
-        }, [
-          // Resize Handle
-          createElementVNode("div", {
-            class: "ai-resize-handle",
-            onMousedown: startResize
-          }),
-          // Header
-          createElementVNode("div", { class: "ai-sidebar-header" }, [
-            createElementVNode("div", { class: "ai-sidebar-title" }, "AI 工作猎手"),
-            createElementVNode("div", {
-              class: "ai-sidebar-minimize",
-              onClick: toggleCollapse,
-              title: "收起面板",
-              innerHTML: SVG_MINIMIZE
-            })
-          ]),
-          // Nav Tabs (plain HTML, no ElMenu)
-          createElementVNode("div", { class: "ai-sidebar-nav ai-sidebar-nav-vertical" },
-            renderList(Array.from(componentMap.entries()), ([key, value]) => {
-              return createElementVNode("div", {
-                class: normalizeClass(["ai-nav-tab", { "is-active": activeMenuKey.value === key }]),
-                onClick: () => handleSelect(key),
-                innerHTML: value.icon + '<span>' + value.name + '</span>'
-              }, null, 10 /* CLASS, PROPS */, ["innerHTML"]);
-            })
-          ),
-          // Body
-          createElementVNode("div", {
-            class: "ai-sidebar-body boss-panel-body"
-          }, [
-            (openBlock(), createBlock(Vue.KeepAlive, null, { default: () => [(openBlock(), createBlock(resolveDynamicComponent(showComponent.value)))], _: 1 }))
-          ])
-        ], 6 /* CLASS, STYLE */)
-      ]);
-    };
+const tabs = [
+  {
+    key: "1",
+    name: "工作台",
+    component: AiJob,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>'
+  },
+  {
+    key: "2",
+    name: "AI 配置",
+    component: AiConfig,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>'
+  },
+  {
+    key: "3",
+    name: "投递判定",
+    component: AiDeliveryJudge,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>'
+  },
+  {
+    key: "4",
+    name: "传统投递",
+    component: Preference,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.72V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.17a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>'
+  },
+  {
+    key: "5",
+    name: "对话通知",
+    component: MemorySession,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+  },
+  {
+    key: "6",
+    name: "运行记录",
+    component: RunRecord,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>'
+  },
+  {
+    key: "7",
+    name: "账户",
+    component: Account,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
   }
+] as const;
+
+type Position = { right: number; bottom: number };
+
+const showComponent = shallowRef(AiJob);
+const activeMenuKey = ref("1");
+const collapsed = ref(false);
+const panelWidth = ref(480);
+const isResizing = ref(false);
+const fabDynamicStyle = ref({
+  right: `${FAB_BASE_DESKTOP.right}px`,
+  bottom: `${FAB_BASE_DESKTOP.bottom}px`
 });
 
-const RenderComponent = _sfc_main$1;
+let fabRepositionRaf = 0;
+const fabRecheckTimers: number[] = [];
+
+function safeGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // 忽略受限环境下的 localStorage 写入异常
+  }
+}
+
+function getFabBasePosition(): Position {
+  if (window.innerWidth <= 900) {
+    return { ...FAB_BASE_MOBILE };
+  }
+  return { ...FAB_BASE_DESKTOP };
+}
+
+function hasIntersection(a: DOMRect | ReturnType<typeof getFabRect>, b: DOMRect, gap = 0): boolean {
+  return !(
+    a.right < b.left - gap ||
+    b.right < a.left - gap ||
+    a.bottom < b.top - gap ||
+    b.bottom < a.top - gap
+  );
+}
+
+function getFabRect(position: Position): { left: number; top: number; right: number; bottom: number } {
+  const left = window.innerWidth - position.right - FAB_SIZE;
+  const top = window.innerHeight - position.bottom - FAB_SIZE;
+  return {
+    left,
+    top,
+    right: left + FAB_SIZE,
+    bottom: top + FAB_SIZE
+  };
+}
+
+function clampFabPosition(position: Position): Position {
+  const minInset = 12;
+  const maxRight = Math.max(minInset, window.innerWidth - FAB_SIZE - minInset);
+  const maxBottom = Math.max(minInset, window.innerHeight - FAB_SIZE - minInset);
+  return {
+    right: Math.max(minInset, Math.min(position.right, maxRight)),
+    bottom: Math.max(minInset, Math.min(position.bottom, maxBottom))
+  };
+}
+
+function getRectsBySelectors(selectors: readonly string[]): DOMRect[] {
+  return selectors
+    .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+    .map((element) => element.getBoundingClientRect())
+    .filter(
+      (rect) =>
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom > 0 &&
+        rect.right > 0 &&
+        rect.top < window.innerHeight &&
+        rect.left < window.innerWidth
+    );
+}
+
+function resolveFabCollisionPosition(): Position {
+  const base = getFabBasePosition();
+  const collisionRects = getRectsBySelectors(FAB_COLLISION_SELECTORS);
+  if (!collisionRects.length) {
+    return clampFabPosition(base);
+  }
+
+  const sideEntryRect = getRectsBySelectors(FAB_ANCHOR_SELECTORS)
+    .slice()
+    .sort((a, b) => b.top + b.height / 2 - (a.top + a.height / 2))[0];
+
+  if (sideEntryRect) {
+    const right =
+      window.innerWidth -
+      sideEntryRect.right +
+      Math.max(0, (sideEntryRect.width - FAB_SIZE) / 2) -
+      FAB_ANCHOR_RIGHT_SHIFT_PX;
+    const bottom = window.innerHeight - sideEntryRect.top + FAB_ANCHOR_TOP_OFFSET_PX;
+    return clampFabPosition({ right, bottom });
+  }
+
+  let raisedBottom = base.bottom;
+  let rounds = 0;
+  while (rounds < 6) {
+    rounds += 1;
+    const currentRect = getFabRect({ right: base.right, bottom: raisedBottom });
+    let nextBottom = raisedBottom;
+    collisionRects.forEach((rect) => {
+      if (!hasIntersection(currentRect, rect, FAB_SAFE_GAP)) {
+        return;
+      }
+      nextBottom = Math.max(nextBottom, window.innerHeight - rect.top + FAB_SAFE_GAP);
+    });
+    if (nextBottom === raisedBottom) {
+      break;
+    }
+    raisedBottom = nextBottom;
+  }
+
+  const candidates = [
+    { right: base.right, bottom: raisedBottom },
+    { right: base.right + 220, bottom: raisedBottom }
+  ].map(clampFabPosition);
+
+  const best = candidates.find((position) => {
+    const fabRect = getFabRect(position);
+    return !collisionRects.some((rect) => hasIntersection(fabRect, rect, FAB_SAFE_GAP));
+  });
+
+  return best || clampFabPosition({ right: base.right + 220, bottom: raisedBottom });
+}
+
+function applyFabPosition(): void {
+  const resolved = resolveFabCollisionPosition();
+  fabDynamicStyle.value = {
+    right: `${Math.round(resolved.right)}px`,
+    bottom: `${Math.round(resolved.bottom)}px`
+  };
+}
+
+function scheduleFabPosition(): void {
+  if (fabRepositionRaf) {
+    return;
+  }
+  fabRepositionRaf = requestAnimationFrame(() => {
+    fabRepositionRaf = 0;
+    applyFabPosition();
+  });
+}
+
+function queueFabRechecks(): void {
+  [400, 1200, 2400].forEach((delay) => {
+    const timer = window.setTimeout(() => {
+      scheduleFabPosition();
+    }, delay);
+    fabRecheckTimers.push(timer);
+  });
+}
+
+function cleanupPreference(): void {
+  nextTick(() => {
+    document
+      .querySelectorAll(".form-preference .el-form-item__label, .ai-config .el-form-item__label")
+      .forEach((label) => {
+        const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+        let node = walker.nextNode() as Text | null;
+        while (node) {
+          const currentText = node.textContent ?? "";
+          const cleanedText = currentText.replace(/[\u00a0]/g, " ").trim();
+          if (cleanedText !== currentText) {
+            node.textContent = cleanedText;
+          }
+          node = walker.nextNode() as Text | null;
+        }
+      });
+  });
+}
+
+function toggleCollapse(): void {
+  collapsed.value = !collapsed.value;
+  safeSetItem(STORAGE_KEY, String(collapsed.value));
+  nextTick(() => {
+    scheduleFabPosition();
+  });
+}
+
+function handleSelect(key: string): void {
+  activeMenuKey.value = key;
+  const tab = tabs.find((item) => item.key === key);
+  if (tab) {
+    showComponent.value = tab.component;
+  }
+  cleanupPreference();
+}
+
+function startResize(event: MouseEvent): void {
+  event.preventDefault();
+  isResizing.value = true;
+  const startX = event.clientX;
+  const startWidth = panelWidth.value;
+
+  const onMouseMove = (moveEvent: MouseEvent) => {
+    const delta = startX - moveEvent.clientX;
+    panelWidth.value = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, startWidth + delta));
+  };
+
+  const onMouseUp = () => {
+    isResizing.value = false;
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    safeSetItem(WIDTH_STORAGE_KEY, String(panelWidth.value));
+  };
+
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+}
+
+onMounted(() => {
+  const savedCollapsed = safeGetItem(STORAGE_KEY);
+  if (savedCollapsed === "true") {
+    collapsed.value = true;
+  }
+
+  const savedWidth = safeGetItem(WIDTH_STORAGE_KEY);
+  if (savedWidth) {
+    const width = Number.parseInt(savedWidth, 10);
+    if (Number.isFinite(width) && width >= MIN_PANEL_WIDTH && width <= MAX_PANEL_WIDTH) {
+      panelWidth.value = width;
+    }
+  }
+
+  nextTick(() => {
+    applyFabPosition();
+    queueFabRechecks();
+  });
+
+  window.addEventListener("resize", scheduleFabPosition);
+  window.addEventListener("scroll", scheduleFabPosition, true);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", scheduleFabPosition);
+  window.removeEventListener("scroll", scheduleFabPosition, true);
+  if (fabRepositionRaf) {
+    cancelAnimationFrame(fabRepositionRaf);
+    fabRepositionRaf = 0;
+  }
+  fabRecheckTimers.forEach((timer) => {
+    clearTimeout(timer);
+  });
+  fabRecheckTimers.length = 0;
+});
+
+watch([collapsed, panelWidth], () => {
+  scheduleFabPosition();
+});
+
+onUpdated(() => {
+  scheduleFabPosition();
+});
 </script>
 
 <template>
-  <RenderComponent />
+  <div class="ai-job-root">
+    <div
+      class="ai-fab"
+      :class="{ 'ai-fab--close': !collapsed }"
+      :style="fabDynamicStyle"
+      :title="collapsed ? '展开 AI 助手面板' : '收起面板'"
+      @click="toggleCollapse"
+      v-html="collapsed ? SVG_OPEN : SVG_CLOSE"
+    />
+
+    <div
+      class="ai-sidebar"
+      :class="{ 'is-resizing': isResizing, 'is-collapsed': collapsed }"
+      :style="{ width: `${panelWidth}px` }"
+    >
+      <div class="ai-resize-handle" @mousedown="startResize" />
+
+      <div class="ai-sidebar-header">
+        <div class="ai-sidebar-title">AI 工作猎手</div>
+        <div class="ai-sidebar-minimize" title="收起面板" @click="toggleCollapse" v-html="SVG_MINIMIZE" />
+      </div>
+
+      <div class="ai-sidebar-nav ai-sidebar-nav-vertical">
+        <div
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="ai-nav-tab"
+          :class="{ 'is-active': activeMenuKey === tab.key }"
+          @click="handleSelect(tab.key)"
+          v-html="`${tab.icon}<span>${tab.name}</span>`"
+        />
+      </div>
+
+      <div class="ai-sidebar-body boss-panel-body">
+        <KeepAlive>
+          <component :is="showComponent" />
+        </KeepAlive>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
