@@ -241,7 +241,7 @@ export class BossPlatform extends AbsPlatform {
   }
 
   private getCardRuntimeKey(cardElement: any): string {
-    const vueData = cardElement?.__vue__?.data || {};
+    const vueData = this.getCardVueData(cardElement) || {};
     const vueKey = this.getStableJobRuntimeKey(vueData);
     if (vueKey && !vueKey.startsWith("undefined:")) {
       return vueKey;
@@ -264,6 +264,18 @@ export class BossPlatform extends AbsPlatform {
     }
 
     return `${cardElement?.textContent || ""}`.replace(/\s+/g, " ").trim().slice(0, 80);
+  }
+
+  private getCardVueData(cardElement: any): any | null {
+    return cardElement?.__vue__?.data || null;
+  }
+
+  private markJobProcessed(jobDetail: any): void {
+    if (!jobDetail || typeof jobDetail !== "object") {
+      return;
+    }
+    jobDetail.processed = true;
+    this.sessionProcessedJobKeys.add(this.getStableJobRuntimeKey(jobDetail));
   }
 
   private buildListSignature(cardList: any[]): string {
@@ -408,8 +420,10 @@ export class BossPlatform extends AbsPlatform {
   getJobList(): any[] {
     if (this.curUrl.includes("jobs")) {
       const elementNodeList2 = document.querySelectorAll(".job-card-wrap");
-      const jobList = Array.from(elementNodeList2)
-        .map((item: any) => item.__vue__.data)
+      const allJobs = Array.from(elementNodeList2)
+        .map((item: any) => this.getCardVueData(item))
+        .filter((job: any) => !!job);
+      const jobList = allJobs
         .filter((job: any) => {
           if (job?.processed) {
             return false;
@@ -417,6 +431,10 @@ export class BossPlatform extends AbsPlatform {
           const runtimeKey = this.getStableJobRuntimeKey(job);
           return !this.sessionProcessedJobKeys.has(runtimeKey);
         });
+
+      if (elementNodeList2.length !== 0 && allJobs.length === 0) {
+        this.preferenceLogRecorder.warn("当前岗位卡片未提取到可用数据，已跳过无效卡片");
+      }
 
       if (elementNodeList2.length !== 0 && jobList.length === 0) {
         this.preferenceLogRecorder.info("当前筛选条件下岗位均已投递");
@@ -427,16 +445,24 @@ export class BossPlatform extends AbsPlatform {
 
     if (this.curUrl.includes("job-recommend")) {
       const elementNodeList2 = document.querySelectorAll(".job-card-wrap");
-      return Array.from(elementNodeList2).map((item: any) => item.__vue__.data).filter((job: any) => !job.contact);
+      return Array.from(elementNodeList2)
+        .map((item: any) => this.getCardVueData(item))
+        .filter((job: any) => !!job)
+        .filter((job: any) => !job.contact);
     }
 
     if (this.curUrl.includes("overseas")) {
       const elementNodeList2 = document.querySelectorAll(".job-card-box");
-      return Array.from(elementNodeList2).map((item: any) => item.__vue__.data).filter((job: any) => !job.contact);
+      return Array.from(elementNodeList2)
+        .map((item: any) => this.getCardVueData(item))
+        .filter((job: any) => !!job)
+        .filter((job: any) => !job.contact);
     }
 
     const elementNodeList = document.querySelectorAll(".job-card-wrapper");
-    return Array.from(elementNodeList).map((item: any) => item.__vue__.data);
+    return Array.from(elementNodeList)
+      .map((item: any) => this.getCardVueData(item))
+      .filter((job: any) => !!job);
   }
 
   hasNext(): boolean {
@@ -557,33 +583,32 @@ export class BossPlatform extends AbsPlatform {
   }
 
   async matchJob(jobDetail: any): Promise<boolean> {
-    jobDetail.processed = true;
-    this.sessionProcessedJobKeys.add(this.getStableJobRuntimeKey(jobDetail));
     const jobTitle = this.getJobKey(jobDetail);
 
-    if (jobDetail.contact) {
-      throw new NotMatchError(jobTitle, jobDetail.contact, "已经沟通过");
-    }
+    try {
+      if (jobDetail.contact) {
+        throw new NotMatchError(jobTitle, jobDetail.contact, "已经沟通过");
+      }
 
-    const aiFilterModeEnabled = this.shouldEnableAiDeliveryJudge();
-    const traditionalDeliveryEnabled = this.isTraditionalDeliveryEnabled();
+      const aiFilterModeEnabled = this.shouldEnableAiDeliveryJudge();
+      const traditionalDeliveryEnabled = this.isTraditionalDeliveryEnabled();
 
-    if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
-      this.applyTraditionalBaseChecks(jobDetail, jobTitle);
-    }
+      if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
+        this.applyTraditionalBaseChecks(jobDetail, jobTitle);
+      }
 
-    const jobDetailExt = await this.obtainBossJobDetailExt(jobDetail);
-    logger$1.debug(`获取工作【${jobTitle}】详情扩展信息用于${aiFilterModeEnabled ? "AI过滤" : "常规过滤"} `, jobDetail);
+      const jobDetailExt = await this.obtainBossJobDetailExt(jobDetail);
+      logger$1.debug(`获取工作【${jobTitle}】详情扩展信息用于${aiFilterModeEnabled ? "AI过滤" : "常规过滤"} `, jobDetail);
 
-    if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
-      this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
-    }
+      if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
+        this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
+      }
 
-    if (this.isCommunication(jobDetailExt)) {
-      throw new NotMatchError(jobTitle, jobDetailExt.friendStatus, "已经沟通过");
-    }
+      if (this.isCommunication(jobDetailExt)) {
+        throw new NotMatchError(jobTitle, jobDetailExt.friendStatus, "已经沟通过");
+      }
 
-    if (aiFilterModeEnabled) {
+      if (aiFilterModeEnabled) {
       const aiConfig = Tools.getAiDeliveryJudgeConfig(runtimeUserStore?.user?.preference || {});
       const user = runtimeUserStore?.user || {};
       await this.ensureRuntimeResumeNarrative(user);
@@ -685,9 +710,16 @@ export class BossPlatform extends AbsPlatform {
       }
 
       this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
-    }
+      }
 
-    return true;
+      this.markJobProcessed(jobDetail);
+      return true;
+    } catch (error: any) {
+      if (error instanceof NotMatchError) {
+        this.markJobProcessed(jobDetail);
+      }
+      throw error;
+    }
   }
 
   unpackBaseInfo(jobDetail: any): Record<string, unknown> {
@@ -757,11 +789,7 @@ export class BossPlatform extends AbsPlatform {
       const reachedDailyLimitMatch = remindContent.match(/您今天已与(\d+)位BOSS沟通/);
       if (reachedDailyLimitMatch) {
         const reachedDailyLimit = reachedDailyLimitMatch[1];
-        logger$1.debug(`当天已投递超过${reachedDailyLimit}次 工作【${jobTitle}】已修正为投递成功`);
-        return {
-          code: PushResultStatus.SUCCESS,
-          message: "Success"
-        };
+        throw new PushLimitError(`今日沟通人数已达上限(已与${reachedDailyLimit}位BOSS沟通)`);
       }
 
       return {

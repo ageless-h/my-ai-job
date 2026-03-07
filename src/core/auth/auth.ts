@@ -223,6 +223,9 @@ export function userRemoteLoad(): void {
   runtimeUserStore2.preferenceLoadError = "";
 
   if (loginStore.loginFailStatus) {
+    runtimeUserStore2.preferenceLoadStatus = "failed";
+    runtimeUserStore2.preferenceLoadError = "登录状态异常，请刷新页面后重试";
+    preferenceLogRecorder.warn("加载用户投递设置终止：登录状态异常");
     return;
   }
 

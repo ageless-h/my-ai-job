@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PushStopError } from "@/shared/errors";
+import { NotMatchError, PushLimitError, PushStopError } from "@/shared/errors";
 import { simulateScrollToEnd } from "@/shared/utils/scroll";
 
 const mocks = vi.hoisted(() => ({
@@ -175,6 +175,34 @@ describe("BossPlatform.doPush", () => {
     });
   });
 
+  it("命中当日沟通上限提示时抛出 PushLimitError", async () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs");
+    mocks.isManualVerificationText.mockReturnValue(false);
+    mocks.getManualVerificationReason.mockReturnValue(null);
+    mocks.axiosPost.mockResolvedValue({
+      data: {
+        code: 1,
+        zpData: {
+          bizData: {
+            chatRemindDialog: {
+              content: "您今天已与150位BOSS沟通"
+            }
+          }
+        }
+      }
+    });
+
+    await expect(platform.doPush({
+      securityId: "sec-1",
+      encryptJobId: "job-1",
+      lid: "lid-1",
+      jobName: "前端工程师",
+      cityName: "上海",
+      areaDistrict: "浦东",
+      businessDistrict: "张江"
+    })).rejects.toBeInstanceOf(PushLimitError);
+  });
+
   it("jobs 页列表容器不可滚时回退到整页滚动", async () => {
     const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs");
     const container = {
@@ -245,5 +273,81 @@ describe("BossPlatform.doPush", () => {
 
     expect(scrollTop).toBe(1000);
     expect(simulateScrollToEnd).not.toHaveBeenCalled();
+  });
+});
+
+describe("BossPlatform.getJobList", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("jobs 页忽略缺失 __vue__.data 的卡片", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs");
+    const cards = [
+      {},
+      {
+        __vue__: {
+          data: {
+            encryptJobId: "job-2",
+            jobName: "后端工程师",
+            cityName: "深圳",
+            areaDistrict: "南山",
+            businessDistrict: "科技园"
+          }
+        }
+      }
+    ];
+
+    vi.stubGlobal("document", {
+      querySelectorAll: vi.fn((selector: string) => selector === ".job-card-wrap" ? cards : [])
+    });
+
+    const jobList = platform.getJobList();
+    expect(jobList).toHaveLength(1);
+    expect(jobList[0].encryptJobId).toBe("job-2");
+  });
+});
+
+describe("BossPlatform.matchJob processed 标记时机", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("瞬时异常时不提前标记 processed", async () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.shouldEnableAiDeliveryJudge = vi.fn(() => false);
+    platform.isTraditionalDeliveryEnabled = vi.fn(() => false);
+    platform.obtainBossJobDetailExt = vi.fn(async () => {
+      throw new Error("timeout");
+    });
+
+    const jobDetail: any = {
+      encryptJobId: "job-3",
+      jobName: "测试工程师",
+      cityName: "深圳",
+      areaDistrict: "南山",
+      businessDistrict: "科技园",
+      contact: false
+    };
+
+    await expect(platform.matchJob(jobDetail)).rejects.toThrow("timeout");
+    expect(jobDetail.processed).not.toBe(true);
+  });
+
+  it("明确不匹配时标记 processed 防止重复扫描", async () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs");
+    const jobDetail: any = {
+      encryptJobId: "job-4",
+      jobName: "测试工程师",
+      cityName: "深圳",
+      areaDistrict: "南山",
+      businessDistrict: "科技园",
+      contact: true
+    };
+
+    await expect(platform.matchJob(jobDetail)).rejects.toBeInstanceOf(NotMatchError);
+    expect(jobDetail.processed).toBe(true);
   });
 });

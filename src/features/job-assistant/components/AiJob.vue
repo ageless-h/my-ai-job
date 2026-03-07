@@ -626,6 +626,18 @@ const startPush = async (options: StartPushOptions = {}) => {
       pushBtnText.value = getStartButtonText();
       stopRecordsUpdate();
     }, 200);
+  }).catch((error: any) => {
+    const errorMsg = `${error?.message || "未知错误"}`;
+    logRecorder.error(`启动${actionLabel.value}失败：${errorMsg}`);
+    pushStatus.value = PushStatus.PAUSE;
+    pushBtnType.value = "primary";
+    pushBtnText.value = getStartButtonText();
+    stopRecordsUpdate();
+    showAppMessage({
+      message: `启动${actionLabel.value}失败：${errorMsg}`,
+      type: "error",
+      duration: 3000
+    });
   });
 
   return true;
