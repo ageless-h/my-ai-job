@@ -3,6 +3,10 @@
 export const simulateScrollToEnd = async (platform2?: string): Promise<void> => {
   const isMac = platform2 === "mac" || navigator.platform.toUpperCase().includes("MAC");
   const modifierKey = isMac ? "Meta" : "Control";
+  const waitFrame = (): Promise<void> => {
+    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  };
+
   try {
     const activeElement = document.activeElement;
     const eventOptions: KeyboardEventInit = {
@@ -22,10 +26,11 @@ export const simulateScrollToEnd = async (platform2?: string): Promise<void> => 
       activeElement.dispatchEvent(downEvent);
       activeElement.dispatchEvent(upEvent);
     }
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await waitFrame();
   } catch (error) {
     console.warn("键盘事件触发失败，使用备选方案");
   }
+
   const getMaxScroll = (): number => {
     const documentElement = document.documentElement;
     return Math.max(
@@ -37,11 +42,40 @@ export const simulateScrollToEnd = async (platform2?: string): Promise<void> => 
       documentElement.clientHeight
     ) - window.innerHeight;
   };
-  const maxScroll = getMaxScroll();
-  if (window.scrollY !== maxScroll) {
+
+  let stableRounds = 0;
+  let guard = 0;
+  while (guard < 40) {
+    const beforeMaxScroll = Math.max(0, getMaxScroll());
     window.scrollTo({
-      top: maxScroll,
-      behavior: "smooth"
+      top: beforeMaxScroll,
+      behavior: "auto"
     });
+    await waitFrame();
+    await waitFrame();
+
+    const afterMaxScroll = Math.max(0, getMaxScroll());
+    const atBottom = window.scrollY >= afterMaxScroll - 4;
+    const heightStable = Math.abs(afterMaxScroll - beforeMaxScroll) <= 2;
+
+    if (atBottom && heightStable) {
+      stableRounds++;
+      if (stableRounds >= 3) {
+        break;
+      }
+    } else {
+      stableRounds = 0;
+    }
+
+    if (!atBottom) {
+      window.scrollBy(0, Math.max(200, Math.floor(window.innerHeight * 0.8)));
+      await waitFrame();
+    }
+
+    guard++;
   }
+
+  const finalMaxScroll = Math.max(0, getMaxScroll());
+  window.scrollTo({ top: finalMaxScroll, behavior: "auto" });
+  await waitFrame();
 };

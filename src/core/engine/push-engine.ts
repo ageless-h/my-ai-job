@@ -257,6 +257,17 @@ export abstract class AbsPlatform {
     TampermonkeyApi.GmSetValue(TampermonkeyApi.SAFETY_COOLDOWN_UNTIL, untilTs);
   }
 
+  private async waitForNextProgress(timeoutMs: number, pollIntervalMs = 450): Promise<boolean> {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      if (this.hasNext()) {
+        return true;
+      }
+      await Tools.sleep(pollIntervalMs);
+    }
+    return this.hasNext();
+  }
+
   next = async (): Promise<boolean> => {
     const actionName = this._collectMode ? "收藏" : "投递";
     const waitSecRaw = Number(runtimeUserStoreRef()?.user?.preference?.npi);
@@ -276,9 +287,8 @@ export abstract class AbsPlatform {
         await Tools.sleep(waitSec * 1000);
       }
       await this.acquireDataPre();
-      await Tools.sleep(4000);
-
-      if (!this.hasNext()) {
+      const recovered = await this.waitForNextProgress(9000);
+      if (!recovered) {
         this.preferenceLogRecorder.info("无下一页数据");
         return false;
       }

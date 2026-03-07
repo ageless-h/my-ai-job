@@ -1,4 +1,3 @@
-// -*- coding: utf-8 -*-
 import axios from "axios";
 import { AiPower } from "@/core/ai/ai-power";
 import { AbsPlatform, PushResultStatus, PushStatus, pushResultCounter, runtimeUserStore } from "@/core/engine/push-engine";
@@ -308,7 +307,7 @@ export class BossPlatform extends AbsPlatform {
 
   private async scrollJobsListToEnd(): Promise<void> {
     const listContainer = document.querySelector(".job-list-container") as HTMLElement | null;
-    if (!listContainer) {
+    if (!listContainer || listContainer.clientHeight <= 0) {
       await simulateScrollToEnd();
       return;
     }
@@ -318,47 +317,55 @@ export class BossPlatform extends AbsPlatform {
       return;
     }
 
-    const step = Math.max(240, Math.floor(listContainer.clientHeight * 0.8));
+    let stableRounds = 0;
     let guard = 0;
-    while (listContainer.scrollTop + listContainer.clientHeight < listContainer.scrollHeight - 4 && guard < 20) {
-      listContainer.scrollTop = Math.min(listContainer.scrollTop + step, listContainer.scrollHeight);
+    while (guard < 45) {
+      const beforeHeight = listContainer.scrollHeight;
+      const targetTop = Math.max(0, beforeHeight - listContainer.clientHeight);
+      const beforeTop = listContainer.scrollTop;
+      listContainer.scrollTop = targetTop;
       listContainer.dispatchEvent(new Event("scroll", { bubbles: true }));
-      await Tools.sleep(120);
+      await Tools.sleep(220);
+
+      const pendingDistance = Math.abs(targetTop - beforeTop);
+      const movedDistance = Math.abs(listContainer.scrollTop - beforeTop);
+      const reachedTarget = Math.abs(listContainer.scrollTop - targetTop) <= 2;
+      if (pendingDistance > 2 && (!reachedTarget || movedDistance <= 2)) {
+        await simulateScrollToEnd();
+        return;
+      }
+
+      const afterHeight = listContainer.scrollHeight;
+      const afterTargetTop = Math.max(0, afterHeight - listContainer.clientHeight);
+      if (Math.abs(listContainer.scrollTop - afterTargetTop) > 2) {
+        listContainer.scrollTop = afterTargetTop;
+        listContainer.dispatchEvent(new Event("scroll", { bubbles: true }));
+        await Tools.sleep(160);
+      }
+
+      const atBottom = listContainer.scrollTop + listContainer.clientHeight >= listContainer.scrollHeight - 4;
+      const heightStable = Math.abs(afterHeight - beforeHeight) <= 2;
+      if (atBottom && heightStable) {
+        stableRounds++;
+        if (stableRounds >= 3) {
+          break;
+        }
+      } else {
+        stableRounds = 0;
+      }
+
       guard++;
     }
-
-    listContainer.scrollTop = listContainer.scrollHeight;
-    listContainer.dispatchEvent(new Event("scroll", { bubbles: true }));
-    await Tools.sleep(220);
   }
-
-  private getAutoContactSafetyConfig(): {
-    minIntervalSec: number;
-    maxMessagesPerSession: number;
-    maxResumesPerSession: number;
-  } {
-    const preference = runtimeUserStore?.user?.preference || {};
-    const toNumberOr = (value: unknown, fallback: number): number => {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : fallback;
-    };
-
-    return {
-      minIntervalSec: Math.max(5, toNumberOr(preference.autoContactMinIntervalSec, 10)),
-      maxMessagesPerSession: Math.max(1, toNumberOr(preference.maxAutoMessagePerSession, 30)),
-      maxResumesPerSession: Math.max(1, toNumberOr(preference.maxAutoResumePerSession, 18))
-    };
-  }
-
-  private enforceAutoContactSafety(kind: "message" | "image"): void {
+  private enforceAutoContactSafety(_kind: "message" | "image"): void {
     const safety = this.getAutoContactSafetyConfig();
     const now = Date.now();
     const elapsedSec = (now - this.lastAutoContactTs) / 1000;
     if (this.lastAutoContactTs > 0 && elapsedSec < safety.minIntervalSec) {
-      throw new Error(`自动${kind === "image" ? "发图" : "发消息"}触发过快，需间隔至少${safety.minIntervalSec}秒`);
+      throw new Error(`自动${_kind === "image" ? "发图" : "发消息"}触发过快，需间隔至少${safety.minIntervalSec}秒`);
     }
 
-    if (kind === "message") {
+    if (_kind === "message") {
       if (this.sessionAutoMessageCount >= safety.maxMessagesPerSession) {
         throw new Error(`自动消息达到会话上限(${safety.maxMessagesPerSession})`);
       }
@@ -371,6 +378,23 @@ export class BossPlatform extends AbsPlatform {
     }
 
     this.lastAutoContactTs = now;
+  }
+
+  private getAutoContactSafetyConfig(): {
+    minIntervalSec: number;
+    maxMessagesPerSession: number;
+    maxResumesPerSession: number;
+  } {
+    const preference = runtimeUserStore?.user?.preference || {};
+    const toNumberOr = (value: unknown, fallback: number): number => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    };
+    return {
+      minIntervalSec: Math.max(5, toNumberOr(preference.autoContactMinIntervalSec, 10)),
+      maxMessagesPerSession: Math.max(1, toNumberOr(preference.maxAutoMessagePerSession, 30)),
+      maxResumesPerSession: Math.max(1, toNumberOr(preference.maxAutoResumePerSession, 18))
+    };
   }
 
   private isManualVerificationText(text: string | null | undefined): boolean {
@@ -483,7 +507,7 @@ export class BossPlatform extends AbsPlatform {
     return (nextPageBtn.parentElement as HTMLElement).className !== "disabled";
   }
 
-  acquireDataPre(): void {
+  async acquireDataPre(): Promise<void> {
     if (this.pushStatus === PushStatus.PAUSE) {
       return;
     }
@@ -494,11 +518,12 @@ export class BossPlatform extends AbsPlatform {
       this.lastJobCardCount = metrics.cardCount;
       this.lastJobsTailKey = metrics.tailKey;
       this.lastJobsListSignature = metrics.listSignature;
-      this.scrollJobsListToEnd().then(() => {
+      try {
+        await this.scrollJobsListToEnd();
         logger$1.info("获取下一页成功");
-      }).catch((e) => {
+      } catch (e) {
         this.preferenceLogRecorder.warn("获取下一页失败", e);
-      });
+      }
       return;
     }
 
@@ -508,21 +533,23 @@ export class BossPlatform extends AbsPlatform {
       this.lastRecommendCardCount = metrics.cardCount;
       this.lastRecommendTailKey = metrics.tailKey;
       this.lastRecommendListSignature = metrics.listSignature;
-      this.scrollJobsListToEnd().then(() => {
+      try {
+        await this.scrollJobsListToEnd();
         logger$1.info("获取下一页成功");
-      }).catch((e) => {
+      } catch (e) {
         this.preferenceLogRecorder.warn("获取下一页失败", e);
-      });
+      }
       return;
     }
 
     if (this.curUrl.includes("overseas")) {
       this.lastHeight = document.querySelector(".job-list")?.scrollHeight || 0;
-      simulateScrollToEnd().then(() => {
+      try {
+        await simulateScrollToEnd();
         logger$1.info("获取下一页成功");
-      }).catch((e) => {
+      } catch (e) {
         this.preferenceLogRecorder.warn("获取下一页失败", e);
-      });
+      }
       return;
     }
 
@@ -724,7 +751,7 @@ export class BossPlatform extends AbsPlatform {
     if (pushResp.data.code === PushResultStatus.FAIL && pushResp.data?.zpData?.bizData?.chatRemindDialog?.content) {
       const remindContent = `${pushResp.data?.zpData?.bizData?.chatRemindDialog?.content || ""}`;
       if (this.isManualVerificationText(remindContent)) {
-        throw new PushStopError(`命中人工验证提示：${remindContent.slice(0, 40)}`);
+        throw new PushStopError(this.getManualVerificationReason() || remindContent);
       }
 
       const reachedDailyLimitMatch = remindContent.match(/您今天已与(\d+)位BOSS沟通/);
