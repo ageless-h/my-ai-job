@@ -139,7 +139,8 @@ export class BossPlatform extends AbsPlatform {
   private lastJobsListSignature = "";
   private lastRecommendListSignature = "";
   private recommendNoProgressRounds = 0;
-  private sessionProcessedJobKeys = new Set<string>();
+  private sessionProcessedJobKeys = new Map<string, number>();
+  private readonly MAX_PROCESSED_JOBS = 500;
   private lastRuntimeResumeRefreshTs = 0;
   private runtimeResumeRefreshPromise: Promise<void> | null = null;
 
@@ -275,7 +276,16 @@ export class BossPlatform extends AbsPlatform {
       return;
     }
     jobDetail.processed = true;
-    this.sessionProcessedJobKeys.add(this.getStableJobRuntimeKey(jobDetail));
+    const key = this.getStableJobRuntimeKey(jobDetail);
+    this.sessionProcessedJobKeys.set(key, Date.now());
+    
+    // LRU清理：超过阈值时删除最早的记录
+    if (this.sessionProcessedJobKeys.size > this.MAX_PROCESSED_JOBS) {
+      const sortedEntries = Array.from(this.sessionProcessedJobKeys.entries())
+        .sort((a, b) => a[1] - b[1]);
+      const toDelete = sortedEntries.slice(0, this.sessionProcessedJobKeys.size - this.MAX_PROCESSED_JOBS);
+      toDelete.forEach(([key]) => this.sessionProcessedJobKeys.delete(key));
+    }
   }
 
   private buildListSignature(cardList: any[]): string {

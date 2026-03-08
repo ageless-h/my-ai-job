@@ -74,6 +74,11 @@ export class LogRecorder extends Logger {
     super(name);
     this.loadLogsFromStorage();
     this.startPersistTimer();
+    
+    // 页面卸载时清理定时器
+    window.addEventListener('beforeunload', () => {
+      this.destroy();
+    });
   }
 
   loadLogsFromStorage(): void {
@@ -87,6 +92,14 @@ export class LogRecorder extends Logger {
     this.persistTimer = window.setInterval(() => {
       this.persistLogs();
     }, 10000);
+  }
+
+  destroy(): void {
+    if (this.persistTimer !== null) {
+      window.clearInterval(this.persistTimer);
+      this.persistTimer = null;
+    }
+    this.persistLogs();  // 最后一次持久化
   }
 
   persistLogs(): void {
