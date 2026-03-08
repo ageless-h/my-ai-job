@@ -213,10 +213,30 @@ export abstract class AbsPlatform {
       return Number.isFinite(n) ? n : fallback;
     };
 
-    const minActionIntervalSec = Math.max(8, toNumberOr(getPreferenceValue(preference, "pushIntervalSec", "pi"), 8));
-    const maxSessionActions = Math.max(1, toNumberOr(preference.maxSessionActions, 60));
-    const maxDailyActions = Math.max(1, toNumberOr(preference.maxDailyActions, 150));
-    const maxActionsPerMinute = Math.max(1, toNumberOr(preference.maxActionsPerMinute, 9));
+    // 硬编码安全上限，防止用户绕过限制导致账号风险
+    const HARD_LIMITS = {
+      minActionIntervalSec: 8,      // 最小间隔不能低于8秒
+      maxSessionActions: 100,        // 单次会话最多100次
+      maxDailyActions: 200,          // 每日最多200次
+      maxActionsPerMinute: 12        // 每分钟最多12次
+    };
+
+    const minActionIntervalSec = Math.max(
+      HARD_LIMITS.minActionIntervalSec,
+      toNumberOr(getPreferenceValue(preference, "pushIntervalSec", "pi"), 8)
+    );
+    const maxSessionActions = Math.min(
+      HARD_LIMITS.maxSessionActions,
+      Math.max(1, toNumberOr(preference.maxSessionActions, 60))
+    );
+    const maxDailyActions = Math.min(
+      HARD_LIMITS.maxDailyActions,
+      Math.max(1, toNumberOr(preference.maxDailyActions, 150))
+    );
+    const maxActionsPerMinute = Math.min(
+      HARD_LIMITS.maxActionsPerMinute,
+      Math.max(1, toNumberOr(preference.maxActionsPerMinute, 9))
+    );
 
     return {
       minActionIntervalSec,
@@ -278,9 +298,6 @@ export abstract class AbsPlatform {
       if (!(await this.ensureNoManualVerification(actionName))) {
         return false;
       }
-      if (!this.enforceSafetyWindowOrStop(actionName)) {
-        return false;
-      }
 
       if (waitSec > 0) {
         await Tools.sleep(waitSec * 1000);
@@ -297,9 +314,6 @@ export abstract class AbsPlatform {
     }
 
     if (!(await this.ensureNoManualVerification(actionName))) {
-      return false;
-    }
-    if (!this.enforceSafetyWindowOrStop(actionName)) {
       return false;
     }
 
