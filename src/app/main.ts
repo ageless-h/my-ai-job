@@ -7,6 +7,7 @@ import "element-plus/dist/index.css";
 import "@/styles/ui-migration.css";
 
 import App from "@/app/App.vue";
+import { createStoreRuntimeAdapter } from "@/app/adapters/store-adapter";
 import { request } from "@/core/http/request";
 import { PlatformFactory } from "@/core/platform/platform-factory";
 
@@ -23,7 +24,8 @@ const app = createApp(App);
 app.use(createPinia());
 app.use(ElementPlus, { locale: zhCn });
 
-const platform = PlatformFactory.getInstance(location.href);
+const runtimeDeps = createStoreRuntimeAdapter();
+const platform = PlatformFactory.getInstance(location.href, runtimeDeps);
 app.provide("$platform", platform);
 app.provide("$axios", request);
 

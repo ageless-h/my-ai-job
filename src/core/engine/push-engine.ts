@@ -1,7 +1,6 @@
 // -*- coding: utf-8 -*-
-import { usePushResultStore } from "@/state/push-result";
-import { useUserStore } from "@/state/user";
 import { getPreferenceValue } from "@/shared/utils/preference";
+import type { PushResultCounterRuntime, RuntimeUserStore } from "@/core/runtime/runtime-contracts";
 import { Logger, LogLevel } from "@/shared/utils/logger";
 import { TampermonkeyApi } from "@/shared/utils/tampermonkey";
 import { Tools } from "@/shared/utils/tools";
@@ -16,23 +15,46 @@ import {
 
 const logger = Logger.rootLogger;
 
-export type PushResultCounterStore = ReturnType<typeof usePushResultStore>;
-export type UserStoreType = ReturnType<typeof useUserStore>;
+const createFallbackCounterRuntime = (): PushResultCounterRuntime => ({
+  notMatchCount: 0,
+  successCount: 0,
+  onceSuccessCount: 0,
+  failCount: 0,
+  collectSuccessCount: 0,
+  collectFailCount: 0,
+  onceCollectSuccessCount: 0,
+  notMatchIncr: () => undefined,
+  successIncr: () => undefined,
+  failIncr: () => undefined,
+  collectSuccessIncr: () => undefined,
+  collectFailIncr: () => undefined,
+  clearOnceSuccessCount: () => undefined,
+  clearOnceCollectSuccessCount: () => undefined
+});
 
-export let pushResultCounter: any = {};
-export let runtimeUserStore: any = {};
+const createFallbackUserRuntime = (): RuntimeUserStore => ({
+  user: {
+    preference: {}
+  },
+  platformType: undefined,
+  preferenceLoadStatus: "idle",
+  preferenceLoadError: ""
+});
 
-export function bindPlatformRuntime(counter: PushResultCounterStore, userStore: UserStoreType): void {
+export let pushResultCounter: PushResultCounterRuntime = createFallbackCounterRuntime();
+export let runtimeUserStore: RuntimeUserStore = createFallbackUserRuntime();
+
+export function bindPlatformRuntime(counter: PushResultCounterRuntime, userStore: RuntimeUserStore): void {
   pushResultCounter = counter;
   runtimeUserStore = userStore;
 }
 
-function runtimeCounter(): any {
-  return pushResultCounter as any;
+function runtimeCounter(): PushResultCounterRuntime {
+  return pushResultCounter;
 }
 
-function runtimeUserStoreRef(): any {
-  return runtimeUserStore as any;
+function runtimeUserStoreRef(): RuntimeUserStore {
+  return runtimeUserStore;
 }
 
 function formatLogTimestamp(date: Date): string {
