@@ -40,6 +40,8 @@ export class TampermonkeyApi {
   static LOCAL_CONFIG = "config";
   static PUSH_SUCCESS_COUNT = "pushSuccessCount:" + Tools.getCurDay();
   static PUSH_FAIL_COUNT = "pushFailCount:" + Tools.getCurDay();
+  static COLLECT_SUCCESS_COUNT = "collectSuccessCount:" + Tools.getCurDay();
+  static COLLECT_FAIL_COUNT = "collectFailCount:" + Tools.getCurDay();
   static ACTIVE_ENABLE = "activeEnable";
   static PUSH_LIMIT = "push_limit" + Tools.getCurDay();
   static PUSH_LOCK = "push_lock";

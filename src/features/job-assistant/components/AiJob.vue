@@ -5,12 +5,12 @@
       <div class="stats-row">
         <div class="stat-item">
           <span class="stat-label">今日{{ actionLabel }}成功</span>
-          <span class="stat-value text-primary">{{ pushResultCounter.successCount }}</span>
+          <span class="stat-value text-primary">{{ collectMode ? pushResultCounter.collectSuccessCount : pushResultCounter.successCount }}</span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-item">
           <span class="stat-label">今日{{ actionLabel }}失败</span>
-          <span class="stat-value text-danger">{{ pushResultCounter.failCount }}</span>
+          <span class="stat-value text-danger">{{ collectMode ? pushResultCounter.collectFailCount : pushResultCounter.failCount }}</span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-actions">

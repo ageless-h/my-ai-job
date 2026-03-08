@@ -189,7 +189,7 @@ export abstract class AbsPlatform {
     const maxActionsPerMinute = Math.max(1, toNumberOr(preference.maxActionsPerMinute, 9));
     const maxConsecutiveFailures = Math.max(1, toNumberOr(preference.maxConsecutiveFailures, 10));
     const cooldownMinutesOnLimit = Math.max(1, toNumberOr(preference.cooldownMinutesOnLimit, 25));
-    const timeWindowEnabled = false;
+    const timeWindowEnabled = Boolean(preference.safetyTimeWindowE);
     const allowedStartHour = Math.min(23, Math.max(0, toNumberOr(preference.safetyStartHour, 8)));
     const allowedEndHour = Math.min(23, Math.max(0, toNumberOr(preference.safetyEndHour, 22)));
 
@@ -380,7 +380,11 @@ export abstract class AbsPlatform {
     }
 
     this.preferenceLogRecorder.info(`开始${actionName}`);
-    runtimeCounter().clearOnceSuccessCount();
+    if (this._collectMode) {
+      runtimeCounter().clearOnceCollectSuccessCount();
+    } else {
+      runtimeCounter().clearOnceSuccessCount();
+    }
     this.pushStatus = PushStatus.PUSHING;
     this.startPreHandler();
     let sessionSuccessCount = 0;
@@ -397,10 +401,12 @@ export abstract class AbsPlatform {
           return;
         }
 
-        const dailySuccess = Number(runtimeCounter().successCount || 0);
-        if (dailySuccess >= safety.maxDailyActions) {
-          throw new PushLimitError(`触发安全阈值：今日最多${safety.maxDailyActions}次成功${actionName}`);
-        }
+         const dailySuccess = this._collectMode 
+           ? Number(runtimeCounter().collectSuccessCount || 0)
+           : Number(runtimeCounter().successCount || 0);
+         if (dailySuccess >= safety.maxDailyActions) {
+           throw new PushLimitError(`触发安全阈值：今日最多${safety.maxDailyActions}次成功${actionName}`);
+         }
 
         const now = Date.now();
         while (recentActionTs.length > 0 && now - recentActionTs[0] > 60_000) {
@@ -441,20 +447,24 @@ export abstract class AbsPlatform {
               runtimeCounter().notMatchIncr();
               consecutiveFailures = 0;
               break;
-            case error instanceof PushRequestError:
-            case error instanceof FavoriteRequestError:
-              this.preferenceLogRecorder.warn(`工作【${error.jobTitle}】${actionName}失败 原因：${error.message}`);
-              runtimeCounter().failIncr();
-              consecutiveFailures++;
-              if (consecutiveFailures >= safety.maxConsecutiveFailures) {
-                this.pushStatus = PushStatus.LIMIT;
-                this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
-                const reason = `连续失败达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
-                this.setLastStopReason(reason);
-                this.preferenceLogRecorder.error(reason);
-                return;
-              }
-              break;
+             case error instanceof PushRequestError:
+             case error instanceof FavoriteRequestError:
+               this.preferenceLogRecorder.warn(`工作【${error.jobTitle}】${actionName}失败 原因：${error.message}`);
+               if (this._collectMode) {
+                 runtimeCounter().collectFailIncr();
+               } else {
+                 runtimeCounter().failIncr();
+               }
+               consecutiveFailures++;
+               if (consecutiveFailures >= safety.maxConsecutiveFailures) {
+                 this.pushStatus = PushStatus.LIMIT;
+                 this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
+                 const reason = `连续失败达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
+                 this.setLastStopReason(reason);
+                 this.preferenceLogRecorder.error(reason);
+                 return;
+               }
+               break;
             case error instanceof FetchJobDetailError:
               this.preferenceLogRecorder.warn(`工作【${error.jobTitle}】发送自定义招呼语失败 原因：${error.message}`);
               break;
@@ -619,7 +629,7 @@ export abstract class AbsPlatform {
       throw new PushStopError("手动暂停收藏");
     }
 
-    if (this._selfDefPushCountLimit !== -1 && runtimeCounter().onceSuccessCount >= this._selfDefPushCountLimit) {
+    if (this._selfDefPushCountLimit !== -1 && runtimeCounter().onceCollectSuccessCount >= this._selfDefPushCountLimit) {
       throw new PushLimitError("自定义收藏次数限制");
     }
 
@@ -638,7 +648,7 @@ export abstract class AbsPlatform {
   async collectAfterHandler(collectResult: any, jobDetail: any): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (collectResult.message === "Success" && collectResult.code === 0 && collectResult.verified !== false) {
-      runtimeCounter().successIncr();
+      runtimeCounter().collectSuccessIncr();
       this.preferenceLogRecorder.info(`工作【${jobTitle}】 收藏成功`);
       return jobDetail;
     }
