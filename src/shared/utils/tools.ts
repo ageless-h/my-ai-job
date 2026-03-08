@@ -90,7 +90,7 @@ const MANUAL_VERIFY_KEYWORDS = [
   "geetest",
   "yidun"
 ];
-const MAX_MIGRATION_JSON_SIZE = 512 * 1024;
+const MAX_MIGRATION_JSON_SIZE = 2 * 1024 * 1024; // 2MB (提高限制以支持复杂配置)
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -268,6 +268,32 @@ export class Tools {
       const normalizedGMRaw = normalizeStoredJsonString(gmRaw);
       if (normalizedGMRaw) {
         if (normalizedGMRaw.length > MAX_MIGRATION_JSON_SIZE) {
+          logger.error('AI配置大小超过限制 (GM storage)', {
+            size: normalizedGMRaw.length,
+            limit: MAX_MIGRATION_JSON_SIZE,
+            sizeKB: (normalizedGMRaw.length / 1024).toFixed(2),
+            limitKB: (MAX_MIGRATION_JSON_SIZE / 1024).toFixed(0)
+          });
+          
+          // 通知用户
+          if (typeof GM_notification !== 'undefined') {
+            GM_notification({
+              title: 'AI Job Hunting',
+              text: `AI配置文件过大(${(normalizedGMRaw.length / 1024).toFixed(0)}KB > ${(MAX_MIGRATION_JSON_SIZE / 1024).toFixed(0)}KB)，已重置为默认配置。请清理配置或联系开发者。`,
+              timeout: 15000
+            });
+          }
+          
+          // 备份超大配置的前部分用于调试
+          if (_GM_setValue) {
+            try {
+              _GM_setValue(`${AI_CONFIG_EXT_STORAGE_KEY}_oversized_backup`, normalizedGMRaw.slice(0, MAX_MIGRATION_JSON_SIZE));
+              logger.info('已备份超大AI配置的前部分到 ai-job-ai-config-ext_oversized_backup');
+            } catch (backupError) {
+              logger.warn('备份超大AI配置失败', backupError);
+            }
+          }
+          
           parsed = null;
         } else {
           try {
@@ -521,6 +547,31 @@ export class Tools {
     const rawFromGM = normalizeStoredJsonString(gmRaw);
     if (rawFromGM) {
       if (rawFromGM.length > MAX_MIGRATION_JSON_SIZE) {
+        logger.error('用户配置大小超过限制 (GM storage)', {
+          size: rawFromGM.length,
+          limit: MAX_MIGRATION_JSON_SIZE,
+          sizeKB: (rawFromGM.length / 1024).toFixed(2),
+          limitKB: (MAX_MIGRATION_JSON_SIZE / 1024).toFixed(0)
+        });
+        
+        // 通知用户
+        if (typeof GM_notification !== 'undefined') {
+          GM_notification({
+            title: 'AI Job Hunting',
+            text: `用户配置文件过大(${(rawFromGM.length / 1024).toFixed(0)}KB > ${(MAX_MIGRATION_JSON_SIZE / 1024).toFixed(0)}KB)，已重置为默认配置。请清理配置或联系开发者。`,
+            timeout: 15000
+          });
+        }
+        
+        // 备份超大配置的前部分用于调试
+        if (_GM_setValue) {
+          try {
+            _GM_setValue(`${USER_PROFILE_STORAGE_KEY}_oversized_backup`, rawFromGM.slice(0, MAX_MIGRATION_JSON_SIZE));
+            logger.info('已备份超大用户配置的前部分到 ai-job-user_oversized_backup');
+          } catch (backupError) {
+            logger.warn('备份超大用户配置失败', backupError);
+          }
+        }
       } else {
         try {
           const parsed = JSON.parse(rawFromGM);
@@ -537,6 +588,34 @@ export class Tools {
 
     const legacyRaw = localStorage.getItem(USER_PROFILE_STORAGE_KEY);
     if (legacyRaw) {
+      if (legacyRaw.length > MAX_MIGRATION_JSON_SIZE) {
+        logger.error('用户配置大小超过限制 (localStorage)', {
+          size: legacyRaw.length,
+          limit: MAX_MIGRATION_JSON_SIZE,
+          sizeKB: (legacyRaw.length / 1024).toFixed(2),
+          limitKB: (MAX_MIGRATION_JSON_SIZE / 1024).toFixed(0)
+        });
+        
+        // 通知用户
+        if (typeof GM_notification !== 'undefined') {
+          GM_notification({
+            title: 'AI Job Hunting',
+            text: `用户配置文件过大(${(legacyRaw.length / 1024).toFixed(0)}KB > ${(MAX_MIGRATION_JSON_SIZE / 1024).toFixed(0)}KB)，已重置为默认配置。请清理配置或联系开发者。`,
+            timeout: 15000
+          });
+        }
+        
+        // 备份超大配置的前部分用于调试
+        try {
+          localStorage.setItem(`${USER_PROFILE_STORAGE_KEY}_oversized_backup`, legacyRaw.slice(0, MAX_MIGRATION_JSON_SIZE));
+          logger.info('已备份超大用户配置的前部分到 localStorage');
+        } catch (backupError) {
+          logger.warn('备份超大用户配置失败', backupError);
+        }
+        
+        return null;
+      }
+      
       if (legacyRaw.length <= MAX_MIGRATION_JSON_SIZE) {
         try {
           const parsed = JSON.parse(legacyRaw);
