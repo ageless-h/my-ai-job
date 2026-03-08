@@ -397,6 +397,42 @@ export abstract class AbsPlatform {
       return;
     }
 
+    // 多标签页并发检测和锁机制
+    const lockKey = TampermonkeyApi.PUSH_LOCK;
+    const lockValue = `${Date.now()}_${Math.random()}`;
+    const existingLock = TampermonkeyApi.GmGetValue<string>(lockKey, "");
+    
+    if (existingLock) {
+      const lockTimestamp = parseInt(existingLock.split("_")[0] || "0");
+      const lockAge = Date.now() - lockTimestamp;
+      // 如果锁存在且未过期（5分钟内），拒绝启动
+      if (lockAge < 5 * 60 * 1000) {
+        this.pushStatus = PushStatus.LIMIT;
+        const reason = `检测到其他标签页正在${actionName}，请等待完成或关闭其他标签页`;
+        this.setLastStopReason(reason);
+        this.preferenceLogRecorder.warn(reason);
+        return;
+      }
+      // 锁已过期，可能是异常退出，清理旧锁
+      this.preferenceLogRecorder.warn(`检测到过期的${actionName}锁（${Math.floor(lockAge / 1000)}秒前），已清理`);
+    }
+    
+    // 获取锁
+    TampermonkeyApi.GmSetValue(lockKey, lockValue);
+    await Tools.sleep(100); // 等待其他标签页可能的写入
+    
+    // 验证锁是否成功获取
+    const actualLock = TampermonkeyApi.GmGetValue<string>(lockKey, "");
+    if (actualLock !== lockValue) {
+      this.pushStatus = PushStatus.LIMIT;
+      const reason = `获取${actionName}锁失败，其他标签页可能同时启动`;
+      this.setLastStopReason(reason);
+      this.preferenceLogRecorder.warn(reason);
+      return;
+    }
+    
+    this.preferenceLogRecorder.info(`成功获取${actionName}锁 lock=${lockValue}`);
+
     const cooldownUntil = this.getSafetyCooldownUntil();
     if (cooldownUntil > Date.now()) {
       const waitMinutes = Math.ceil((cooldownUntil - Date.now()) / 60000);
@@ -404,37 +440,43 @@ export abstract class AbsPlatform {
       const reason = `处于安全冷却期，${waitMinutes} 分钟后可继续${actionName}`;
       this.setLastStopReason(reason);
       this.preferenceLogRecorder.warn(reason);
+      TampermonkeyApi.GmSetValue(lockKey, ""); // 释放锁
       return;
     }
 
     if (!this.enforceSafetyWindowOrStop(actionName, safety)) {
+      TampermonkeyApi.GmSetValue(lockKey, ""); // 释放锁
       return;
     }
     if (!(await this.ensureNoManualVerification(actionName))) {
+      TampermonkeyApi.GmSetValue(lockKey, ""); // 释放锁
       return;
     }
 
     this.preferenceLogRecorder.info(`开始${actionName}`);
-    if (this._collectMode) {
-      runtimeCounter().clearOnceCollectSuccessCount();
-    } else {
-      runtimeCounter().clearOnceSuccessCount();
-    }
-    this.pushStatus = PushStatus.PUSHING;
-    this.startPreHandler();
-    let sessionSuccessCount = 0;
-    const recentActionTs: number[] = [];
-    let consecutiveFailures = 0;
+    
+    // 使用 try-finally 确保锁被释放
+    try {
+      if (this._collectMode) {
+        runtimeCounter().clearOnceCollectSuccessCount();
+      } else {
+        runtimeCounter().clearOnceSuccessCount();
+      }
+      this.pushStatus = PushStatus.PUSHING;
+      this.startPreHandler();
+      let sessionSuccessCount = 0;
+      const recentActionTs: number[] = [];
+      let consecutiveFailures = 0;
 
-    do {
-      const jobList = this.getJobList();
-      for (const jobDetail of jobList) {
-        if (!this.enforceSafetyWindowOrStop(actionName, safety)) {
-          return;
-        }
-        if (!(await this.ensureNoManualVerification(actionName))) {
-          return;
-        }
+      do {
+        const jobList = this.getJobList();
+        for (const jobDetail of jobList) {
+          if (!this.enforceSafetyWindowOrStop(actionName, safety)) {
+            return;
+          }
+          if (!(await this.ensureNoManualVerification(actionName))) {
+            return;
+          }
 
          const dailySuccess = this._collectMode 
            ? Number(runtimeCounter().collectSuccessCount || 0)
@@ -605,6 +647,11 @@ export abstract class AbsPlatform {
     } while (await this.next());
 
     this.preferenceLogRecorder.info(`结束${actionName}`);
+    } finally {
+      // 释放锁
+      TampermonkeyApi.GmSetValue(lockKey, "");
+      this.preferenceLogRecorder.info(`释放${actionName}锁 lock=${lockValue}`);
+    }
   }
 
   pausePush(): void {
