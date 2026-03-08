@@ -54,9 +54,9 @@
             <el-empty description="暂无日志数据" :image-size="80" />
           </template>
 
-          <el-table-column prop="timestamp" label="记录时间" width="160" />
+          <el-table-column prop="timestamp" label="记录时间" width="160" class-name="col-timestamp" />
 
-          <el-table-column prop="level" label="级别" width="100">
+          <el-table-column prop="level" label="级别" width="100" class-name="col-level">
             <template #default="scope">
               <el-tag :type="getLevelTagType(scope.row.level)" size="small" effect="plain" class="level-tag">
                 {{ String(scope.row.level || '').toUpperCase() }}
@@ -64,7 +64,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="aiDecision" label="AI 判定" width="120">
+          <el-table-column prop="aiDecision" label="AI 判定" width="120" class-name="col-ai-decision">
             <template #default="scope">
               <span v-if="scope.row.aiDecision" :class="['decision-text', getDecisionClass(scope.row.aiDecision)]">
                 {{ scope.row.aiDecision }}
@@ -73,14 +73,14 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="aiReason" label="判定理由 / 提示" width="240" show-overflow-tooltip>
+          <el-table-column prop="aiReason" label="判定理由 / 提示" width="240" show-overflow-tooltip class-name="col-ai-reason">
             <template #default="scope">
               <span class="reason-text" v-if="scope.row.aiReason">{{ scope.row.aiReason }}</span>
               <span v-else class="text-muted">-</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="message" label="详细内容" min-width="300" />
+          <el-table-column prop="message" label="详细内容" min-width="300" class-name="col-message" />
         </el-table>
       </div>
 
@@ -425,5 +425,68 @@ onMounted(() => {
   justify-content: center;
   margin-left: auto;
   gap: 8px 0;
+}
+
+@media (max-width: 768px) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .filter-item {
+    width: 100% !important;
+  }
+
+  .spacer {
+    display: none;
+  }
+
+  .table-container {
+    font-size: 12px;
+  }
+
+  :deep(.boss-table th.el-table__cell) {
+    font-size: 12px;
+    padding: 8px 4px;
+  }
+
+  :deep(.boss-table td.el-table__cell) {
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+
+  :deep(.col-ai-decision),
+  :deep(.col-ai-reason) {
+    display: none;
+  }
+
+  :deep(.col-timestamp) {
+    width: 100px !important;
+  }
+
+  :deep(.col-level) {
+    width: 70px !important;
+  }
+
+  :deep(.col-message) {
+    min-width: 150px !important;
+  }
+
+  .pagination-footer {
+    justify-content: center;
+  }
+
+  :deep(.pagination-footer .el-pagination) {
+    font-size: 12px;
+  }
+
+  :deep(.el-pagination .el-pagination__sizes) {
+    display: none;
+  }
+
+  :deep(.el-pagination .el-pagination__jump) {
+    display: none;
+  }
 }
 </style>
