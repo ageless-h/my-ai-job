@@ -123,7 +123,6 @@
 </template>
 
 <script setup lang="ts">
-// @ts-nocheck
 import { computed, inject, nextTick, onUnmounted, ref, watch } from "vue";
 import { Delete, Promotion, VideoPause } from "@element-plus/icons-vue";
 import { isProdEnv, showAppMessage } from "@/core/http/request";
@@ -135,10 +134,28 @@ import { LogRecorder, PushStatus } from "@/core/engine/push-engine";
 import { loginInterceptor, silentlyLogin, userRemoteLoad } from "@/core/auth/auth";
 import { normalizePreferenceBoolean } from "@/shared/utils/preference";
 
+// Platform interface for type safety
+interface Platform {
+  selfDefPushCountLimit: number;
+  collectMode: boolean;
+  pushMock: boolean;
+  pushStatus: PushStatus;
+  lastStopReason: string;
+  startPush(): Promise<void>;
+  pausePush(): void;
+}
+
+// Log entry type
+interface LogEntry {
+  level: string;
+  message: string;
+  timestamp: string;
+}
+
 const globalAny = globalThis as any;
 const logger = globalAny.logger$1 || console;
 
-const platform = inject<any>("$platform");
+const platform = inject<Platform>("$platform");
 const userStore = UserStore();
 const loginStore = LoginStore();
 const pushResultCounter = pushResultCount();
@@ -153,7 +170,7 @@ const mockPush = ref(false);
 const selfDefPushCountLimit = ref(platform?.selfDefPushCountLimit ?? -1);
 
 const logRecorder = new LogRecorder();
-const latestPushRecords = ref<any[]>([]);
+const latestPushRecords = ref<LogEntry[]>([]);
 const logsContainer = ref<HTMLElement | null>(null);
 let recordsUpdateTimer: ReturnType<typeof setInterval> | null = null;
 let recommendLoopCooldownTimer: ReturnType<typeof setTimeout> | null = null;
@@ -626,8 +643,8 @@ const startPush = async (options: StartPushOptions = {}) => {
       pushBtnText.value = getStartButtonText();
       stopRecordsUpdate();
     }, 200);
-  }).catch((error: any) => {
-    const errorMsg = `${error?.message || "未知错误"}`;
+  }).catch((error: unknown) => {
+    const errorMsg = error instanceof Error ? error.message : String(error || "未知错误");
     logRecorder.error(`启动${actionLabel.value}失败：${errorMsg}`);
     pushStatus.value = PushStatus.PAUSE;
     pushBtnType.value = "primary";
