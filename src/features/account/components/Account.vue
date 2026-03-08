@@ -1006,5 +1006,36 @@ const handleSave = async () => {
     max-width: 100%;
     width: 100%;
   }
+
+  :deep(.boss-dialog) {
+    width: 95% !important;
+    max-width: 95vw !important;
+    margin: 0 auto !important;
+  }
+
+  :deep(.boss-dialog .el-dialog__body) {
+    padding: 12px;
+  }
+
+  :deep(.preview-textarea .el-textarea__inner) {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  :deep(.boss-dialog) {
+    width: 100% !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  :deep(.boss-dialog .el-dialog__header) {
+    padding: 12px;
+  }
+
+  :deep(.boss-dialog .el-dialog__footer) {
+    padding: 12px;
+  }
 }
 </style>
