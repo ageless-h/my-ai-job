@@ -128,7 +128,8 @@ export class BossPlatform extends AbsPlatform {
   name = "Boss";
   urlList = ["/web/geek", "overseas"];
   lastHeight = 0;
-  bossDataCache = new Map<string, any>();
+  bossDataCache = new Map<string, { data: any; timestamp: number }>();
+  private readonly MAX_BOSS_CACHE = 100;
   sessionAutoMessageCount = 0;
   sessionAutoResumeCount = 0;
   lastAutoContactTs = 0;
@@ -1190,12 +1191,26 @@ export class BossPlatform extends AbsPlatform {
 
   async requestBossDataByCache(jobDetail: any): Promise<any> {
     const cacheKey = `${jobDetail.encryptBossId}-${jobDetail.securityId}`;
+    
     if (this.bossDataCache.has(cacheKey)) {
-      return this.bossDataCache.get(cacheKey);
+      const cached = this.bossDataCache.get(cacheKey)!;
+      // 更新访问时间（LRU）
+      this.bossDataCache.delete(cacheKey);
+      this.bossDataCache.set(cacheKey, { ...cached, timestamp: Date.now() });
+      return cached.data;
     }
 
     const result = await this.requestBossData(jobDetail);
-    this.bossDataCache.set(cacheKey, result);
+    this.bossDataCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    
+    // LRU清理：超过阈值时删除最早的记录
+    if (this.bossDataCache.size > this.MAX_BOSS_CACHE) {
+      const sortedEntries = Array.from(this.bossDataCache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const toDelete = sortedEntries.slice(0, this.bossDataCache.size - this.MAX_BOSS_CACHE);
+      toDelete.forEach(([key]) => this.bossDataCache.delete(key));
+    }
+    
     return result;
   }
 
