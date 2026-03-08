@@ -60,17 +60,15 @@ export const migratePreferenceKeys = (preference: Record<string, unknown>): void
         .find((legacyValue) => legacyValue !== undefined);
       if (firstLegacyValue !== undefined) {
         preference[entry.nextKey] = firstLegacyValue;
+        // 迁移后删除旧key，避免数据膨胀
+        for (const legacyKey of entry.legacyKeys) {
+          delete preference[legacyKey];
+        }
       }
-    }
-
-    const canonicalValue = preference[entry.nextKey];
-    if (canonicalValue === undefined) {
-      continue;
-    }
-
-    for (const legacyKey of entry.legacyKeys) {
-      if (preference[legacyKey] === undefined) {
-        preference[legacyKey] = canonicalValue;
+    } else {
+      // 如果新key已存在，删除所有旧key
+      for (const legacyKey of entry.legacyKeys) {
+        delete preference[legacyKey];
       }
     }
   }
