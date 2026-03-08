@@ -46,7 +46,57 @@ export function getLocalUser(): AiUser {
       migratePreferenceKeys(user.preference as Record<string, unknown>);
     }
     return user;
-  } catch (_e) {
+  } catch (error) {
+    // 记录错误详情
+    logger.error('用户配置解析失败', error, {
+      rawLength: raw.length,
+      rawPreview: raw.substring(0, 100)
+    });
+
+    // 备份损坏的配置以便调试
+    if (typeof GM_setValue !== 'undefined' && raw !== fallbackJson) {
+      try {
+        GM_setValue('ai-job-user-corrupted-backup', raw);
+        logger.info('已备份损坏的用户配置到 ai-job-user-corrupted-backup');
+      } catch (backupError) {
+        logger.warn('备份损坏配置失败', backupError);
+      }
+    }
+
+    // 尝试从备份恢复
+    if (typeof GM_getValue !== 'undefined') {
+      try {
+        const backup = GM_getValue('ai-job-user_backup', '');
+        if (backup && backup !== raw) {
+          const userFromBackup = JSON.parse(backup) as AiUser;
+          if (userFromBackup?.preference && typeof userFromBackup.preference === 'object') {
+            logger.info('已从备份恢复用户配置');
+            // 通知用户配置已从备份恢复
+            if (typeof GM_notification !== 'undefined') {
+              GM_notification({
+                title: 'AI Job Hunting',
+                text: '用户配置损坏，已从备份恢复。',
+                timeout: 8000
+              });
+            }
+            migratePreferenceKeys(userFromBackup.preference as Record<string, unknown>);
+            return userFromBackup;
+          }
+        }
+      } catch (backupError) {
+        logger.warn('从备份恢复配置失败', backupError);
+      }
+    }
+
+    // 通知用户配置损坏
+    if (typeof GM_notification !== 'undefined') {
+      GM_notification({
+        title: 'AI Job Hunting',
+        text: '用户配置损坏且无法恢复，已重置为默认配置。请重新设置。',
+        timeout: 10000
+      });
+    }
+
     return JSON.parse(fallbackJson) as AiUser;
   }
 }
@@ -60,6 +110,18 @@ export const useUserStore = defineStore("ai-user", () => {
   // 防抖保存，避免频繁写入
   const debouncedSave = debounce(() => {
     try {
+      // 先备份当前配置
+      if (typeof GM_getValue !== 'undefined' && typeof GM_setValue !== 'undefined') {
+        try {
+          const current = GM_getValue('ai-job-user', '');
+          if (current) {
+            GM_setValue('ai-job-user_backup', current);
+          }
+        } catch (backupError) {
+          logger.warn('备份当前配置失败', backupError);
+        }
+      }
+
       Tools.saveStoredUserProfile(user);
       logger.debug('用户配置已自动保存', {
         hasPhone: !!user?.phone,

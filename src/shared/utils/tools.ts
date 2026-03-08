@@ -280,7 +280,20 @@ export class Tools {
             } else {
               parsed = null;
             }
-          } catch (_e) {
+          } catch (parseError) {
+            logger.error('AI配置解析失败 (GM storage)', parseError, {
+              rawLength: normalizedGMRaw.length,
+              rawPreview: normalizedGMRaw.substring(0, 100)
+            });
+            // 备份损坏的配置
+            if (_GM_setValue && normalizedGMRaw) {
+              try {
+                _GM_setValue(`${AI_CONFIG_EXT_STORAGE_KEY}_corrupted_backup`, normalizedGMRaw);
+                logger.info('已备份损坏的AI配置到 ai-job-ai-config-ext_corrupted_backup');
+              } catch (backupError) {
+                logger.warn('备份损坏的AI配置失败', backupError);
+              }
+            }
             parsed = null;
           }
         }
@@ -298,13 +311,61 @@ export class Tools {
             } else {
               parsed = null;
             }
-          } catch (_e) {
+          } catch (parseError) {
+            logger.error('AI配置解析失败 (localStorage)', parseError, {
+              rawLength: legacyRaw.length,
+              rawPreview: legacyRaw.substring(0, 100)
+            });
+            // 备份损坏的配置
+            try {
+              localStorage.setItem(`${AI_CONFIG_EXT_STORAGE_KEY}_corrupted_backup`, legacyRaw);
+              logger.info('已备份损坏的AI配置到 localStorage');
+            } catch (backupError) {
+              logger.warn('备份损坏的AI配置失败', backupError);
+            }
             parsed = null;
           }
         }
       }
 
       if (!parsed) {
+        // 尝试从备份恢复
+        if (_GM_getValue) {
+          try {
+            const backup = _GM_getValue(`${AI_CONFIG_EXT_STORAGE_KEY}_backup`, '');
+            if (backup) {
+              const normalizedBackup = normalizeStoredJsonString(backup);
+              if (normalizedBackup && normalizedBackup.length <= MAX_MIGRATION_JSON_SIZE) {
+                const candidate = JSON.parse(normalizedBackup) as Partial<AiConfigExt>;
+                if (isPlainObject(candidate)) {
+                  logger.info('已从备份恢复AI配置');
+                  parsed = candidate;
+                  // 通知用户
+                  if (typeof GM_notification !== 'undefined') {
+                    GM_notification({
+                      title: 'AI Job Hunting',
+                      text: 'AI配置损坏，已从备份恢复。',
+                      timeout: 8000
+                    });
+                  }
+                }
+              }
+            }
+          } catch (backupError) {
+            logger.warn('从备份恢复AI配置失败', backupError);
+          }
+        }
+      }
+
+      if (!parsed) {
+        // 通知用户配置损坏
+        if (typeof GM_notification !== 'undefined') {
+          GM_notification({
+            title: 'AI Job Hunting',
+            text: 'AI配置损坏且无法恢复，已重置为默认配置。请重新设置。',
+            timeout: 10000
+          });
+        }
         return defaultExt;
       }
 
@@ -368,6 +429,18 @@ export class Tools {
     }
 
     try {
+      // 先备份当前配置
+      if (_GM_getValue && _GM_setValue) {
+        try {
+          const current = _GM_getValue(AI_CONFIG_EXT_STORAGE_KEY, '');
+          if (current) {
+            _GM_setValue(`${AI_CONFIG_EXT_STORAGE_KEY}_backup`, current);
+          }
+        } catch (backupError) {
+          logger.warn('备份当前AI配置失败', backupError);
+        }
+      }
+
       const persistedData = { ...data } as Record<string, unknown>;
       if (Array.isArray((persistedData as Record<string, unknown>).apiConfigs)) {
         const sanitizedApiConfigs = ((persistedData as Record<string, unknown>).apiConfigs as Array<Record<string, unknown>>).map((item) => {
