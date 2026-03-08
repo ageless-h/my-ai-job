@@ -427,6 +427,10 @@ export abstract class AbsPlatform {
            throw new PushLimitError(`触发安全阈值：今日最多${safety.maxDailyActions}次成功${actionName}`);
          }
 
+         if (sessionSuccessCount >= safety.maxSessionActions) {
+           throw new PushLimitError(`触发安全阈值：单次会话最多${safety.maxSessionActions}次成功${actionName}`);
+         }
+
         const now = Date.now();
         while (recentActionTs.length > 0 && now - recentActionTs[0] > 60_000) {
           recentActionTs.shift();
