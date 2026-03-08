@@ -792,8 +792,12 @@ export class BossPlatform extends AbsPlatform {
     };
   }
 
-  async doPush(jobDetail: any): Promise<any> {
+  async doPush(jobDetail: any, errorMsg = "", retries = 3): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
+    if (retries === 0) {
+      throw new PushRequestError(jobTitle, errorMsg || "投递重试多次失败");
+    }
+
     logger$1.debug("正在投递：" + jobTitle);
 
     const publishUrl = `https://www.zhipin.com/wapi/zpgeek/friend/add.json?securityId=${jobDetail.securityId}&jobId=${jobDetail.encryptJobId}&lid=${jobDetail.lid}`;
@@ -804,7 +808,15 @@ export class BossPlatform extends AbsPlatform {
       await Tools.sleep(pushIntervalSec * 1000);
       pushResp = await axios.post(publishUrl, null, { headers: { Zp_token: Tools.getCookieValue("bst") } });
     } catch (error: any) {
-      logger$1.debug(`工作【${jobTitle}】投递失败; 原因：${error.message}`);
+      const latestError = `${error?.message || "投递请求失败"}`;
+      // 检测是否为网络错误
+      if (this.isNetworkError(error) && retries > 1) {
+        const retryDelay = (4 - retries) * 1000; // 1s, 2s
+        logger$1.debug(`工作【${jobTitle}】投递失败 (尝试${4 - retries}/3); 正在等待重试; 原因：${latestError}`);
+        await Tools.sleep(retryDelay);
+        return await this.doPush(jobDetail, latestError, retries - 1);
+      }
+      logger$1.debug(`工作【${jobTitle}】投递失败; 原因：${latestError}`);
       throw error;
     }
 
