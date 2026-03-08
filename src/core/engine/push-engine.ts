@@ -206,11 +206,6 @@ export abstract class AbsPlatform {
     maxSessionActions: number;
     maxDailyActions: number;
     maxActionsPerMinute: number;
-    maxConsecutiveFailures: number;
-    cooldownMinutesOnLimit: number;
-    timeWindowEnabled: boolean;
-    allowedStartHour: number;
-    allowedEndHour: number;
   } {
     const preference = runtimeUserStoreRef()?.user?.preference || {};
     const toNumberOr = (value: unknown, fallback: number): number => {
@@ -222,52 +217,13 @@ export abstract class AbsPlatform {
     const maxSessionActions = Math.max(1, toNumberOr(preference.maxSessionActions, 60));
     const maxDailyActions = Math.max(1, toNumberOr(preference.maxDailyActions, 150));
     const maxActionsPerMinute = Math.max(1, toNumberOr(preference.maxActionsPerMinute, 9));
-    const maxConsecutiveFailures = Math.max(1, toNumberOr(preference.maxConsecutiveFailures, 10));
-    const cooldownMinutesOnLimit = Math.max(1, toNumberOr(preference.cooldownMinutesOnLimit, 25));
-    const timeWindowEnabled = Boolean(preference.safetyTimeWindowE);
-    const allowedStartHour = Math.min(23, Math.max(0, toNumberOr(preference.safetyStartHour, 8)));
-    const allowedEndHour = Math.min(23, Math.max(0, toNumberOr(preference.safetyEndHour, 22)));
 
     return {
       minActionIntervalSec,
       maxSessionActions,
       maxDailyActions,
-      maxActionsPerMinute,
-      maxConsecutiveFailures,
-      cooldownMinutesOnLimit,
-      timeWindowEnabled,
-      allowedStartHour,
-      allowedEndHour
+      maxActionsPerMinute
     };
-  }
-
-  private isInSafetyTimeWindow(startHour: number, endHour: number): boolean {
-    const hour = new Date().getHours();
-    if (startHour === endHour) {
-      return true;
-    }
-
-    if (startHour < endHour) {
-      return hour >= startHour && hour < endHour;
-    }
-
-    return hour >= startHour || hour < endHour;
-  }
-
-  private enforceSafetyWindowOrStop(actionName: string, safety = this.getSafetyConfig()): boolean {
-    if (!safety.timeWindowEnabled) {
-      return true;
-    }
-
-    if (this.isInSafetyTimeWindow(safety.allowedStartHour, safety.allowedEndHour)) {
-      return true;
-    }
-
-    this.pushStatus = PushStatus.LIMIT;
-    const reason = `当前不在安全时段(${safety.allowedStartHour}:00-${safety.allowedEndHour}:00)，暂停${actionName}`;
-    this.setLastStopReason(reason);
-    this.preferenceLogRecorder.warn(reason);
-    return false;
   }
 
   private async ensureNoManualVerification(actionName: string): Promise<boolean> {
@@ -298,15 +254,6 @@ export abstract class AbsPlatform {
       }
       await Tools.sleep(5000);
     }
-  }
-
-  private getSafetyCooldownUntil(): number {
-    return Number(TampermonkeyApi.GmGetValue(TampermonkeyApi.SAFETY_COOLDOWN_UNTIL, 0)) || 0;
-  }
-
-  private setSafetyCooldown(minutes: number): void {
-    const untilTs = Date.now() + minutes * 60 * 1000;
-    TampermonkeyApi.GmSetValue(TampermonkeyApi.SAFETY_COOLDOWN_UNTIL, untilTs);
   }
 
   private async waitForNextProgress(timeoutMs: number, pollIntervalMs = 450): Promise<boolean> {
@@ -433,21 +380,6 @@ export abstract class AbsPlatform {
     
     this.preferenceLogRecorder.info(`成功获取${actionName}锁 lock=${lockValue}`);
 
-    const cooldownUntil = this.getSafetyCooldownUntil();
-    if (cooldownUntil > Date.now()) {
-      const waitMinutes = Math.ceil((cooldownUntil - Date.now()) / 60000);
-      this.pushStatus = PushStatus.LIMIT;
-      const reason = `处于安全冷却期，${waitMinutes} 分钟后可继续${actionName}`;
-      this.setLastStopReason(reason);
-      this.preferenceLogRecorder.warn(reason);
-      TampermonkeyApi.GmSetValue(lockKey, ""); // 释放锁
-      return;
-    }
-
-    if (!this.enforceSafetyWindowOrStop(actionName, safety)) {
-      TampermonkeyApi.GmSetValue(lockKey, ""); // 释放锁
-      return;
-    }
     if (!(await this.ensureNoManualVerification(actionName))) {
       TampermonkeyApi.GmSetValue(lockKey, ""); // 释放锁
       return;
@@ -466,14 +398,10 @@ export abstract class AbsPlatform {
       this.startPreHandler();
       let sessionSuccessCount = 0;
       const recentActionTs: number[] = [];
-      let consecutiveFailures = 0;
 
       do {
         const jobList = this.getJobList();
         for (const jobDetail of jobList) {
-          if (!this.enforceSafetyWindowOrStop(actionName, safety)) {
-            return;
-          }
           if (!(await this.ensureNoManualVerification(actionName))) {
             return;
           }
@@ -503,7 +431,6 @@ export abstract class AbsPlatform {
             await this.collectAfterHandler(collectResult, jobDetail);
             recentActionTs.push(Date.now());
             sessionSuccessCount++;
-            consecutiveFailures = 0;
             continue;
           }
 
@@ -512,7 +439,6 @@ export abstract class AbsPlatform {
           await this.pushAfterHandler(pushResult, jobDetail);
           recentActionTs.push(Date.now());
           sessionSuccessCount++;
-          consecutiveFailures = 0;
         } catch (error: any) {
           switch (true) {
             case error instanceof NotMatchError:
@@ -522,7 +448,6 @@ export abstract class AbsPlatform {
                 this.preferenceLogRecorder.info(`工作【${error.jobTitle}】被过滤 原因：${error.message}`);
               }
               runtimeCounter().notMatchIncr();
-              consecutiveFailures = 0;
               break;
              case error instanceof PushRequestError:
              case error instanceof FavoriteRequestError:
@@ -531,15 +456,6 @@ export abstract class AbsPlatform {
                  runtimeCounter().collectFailIncr();
                } else {
                  runtimeCounter().failIncr();
-               }
-               consecutiveFailures++;
-               if (consecutiveFailures >= safety.maxConsecutiveFailures) {
-                 this.pushStatus = PushStatus.LIMIT;
-                 this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
-                 const reason = `连续失败达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
-                 this.setLastStopReason(reason);
-                 this.preferenceLogRecorder.error(reason);
-                 return;
                }
                break;
             case error instanceof FetchJobDetailError:
@@ -566,7 +482,6 @@ export abstract class AbsPlatform {
               return;
             case error instanceof PushLimitError:
               this.pushStatus = PushStatus.LIMIT;
-              this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
               this.setLastStopReason(`停止${actionName} ${error.message}`);
               this.preferenceLogRecorder.info(`停止${actionName} ${error.message}`);
               return;
@@ -599,7 +514,6 @@ export abstract class AbsPlatform {
                       await this.pushAfterHandler(pushResult, jobDetail);
                     }
                     retried = true;
-                    consecutiveFailures = 0;
                     break;
                   } catch (retryError: any) {
                     if (!this.isNetworkError(retryError)) {
@@ -616,27 +530,13 @@ export abstract class AbsPlatform {
                   }
                 }
                 if (!retried) {
-                  consecutiveFailures++;
-                  if (consecutiveFailures >= safety.maxConsecutiveFailures) {
-                    this.pushStatus = PushStatus.LIMIT;
-                    this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
-                    const reason = `连续网络失败达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
-                    this.setLastStopReason(reason);
-                    this.preferenceLogRecorder.error(reason);
-                    return;
-                  }
+                  // 网络失败不计入连续失败，仅记录
+                  this.preferenceLogRecorder.warn(`网络异常导致${actionName}失败，继续处理下一个`);
                 }
               } else {
                 logger.error("未捕获异常--->", error);
-                consecutiveFailures++;
-                if (consecutiveFailures >= safety.maxConsecutiveFailures) {
-                  this.pushStatus = PushStatus.LIMIT;
-                  this.setSafetyCooldown(safety.cooldownMinutesOnLimit);
-                  const reason = `连续异常达到${safety.maxConsecutiveFailures}次，触发安全熔断`;
-                  this.setLastStopReason(reason);
-                  this.preferenceLogRecorder.error(reason);
-                  return;
-                }
+                // 未知异常仅记录，不触发熔断
+                this.preferenceLogRecorder.error(`未知异常导致${actionName}失败：${error?.message || error}`);
               }
             }
           }

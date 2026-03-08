@@ -257,17 +257,6 @@ const preferenceDefaultValueHandler = () => {
   userStore.user.preference.maxDailyActions = upgradePrefNumber(userStore.user.preference.maxDailyActions, 80, 120);
   userStore.user.preference.maxDailyActions = upgradePrefNumber(userStore.user.preference.maxDailyActions, 120, 150);
   userStore.user.preference.maxActionsPerMinute = upgradePrefNumber(userStore.user.preference.maxActionsPerMinute, 6, 9);
-  userStore.user.preference.maxConsecutiveFailures = upgradePrefNumber(userStore.user.preference.maxConsecutiveFailures, 8, 10);
-  userStore.user.preference.cooldownMinutesOnLimit = upgradePrefNumber(userStore.user.preference.cooldownMinutesOnLimit, 30, 25);
-  if (typeof userStore.user.preference.safetyTimeWindowE !== 'boolean') {
-    userStore.user.preference.safetyTimeWindowE = false;
-  }
-  if (userStore.user.preference.safetyStartHour === undefined || userStore.user.preference.safetyStartHour === null) {
-    userStore.user.preference.safetyStartHour = 8;
-  }
-  if (userStore.user.preference.safetyEndHour === undefined || userStore.user.preference.safetyEndHour === null) {
-    userStore.user.preference.safetyEndHour = 22;
-  }
   userStore.user.preference.imMaxReloadPerDay = upgradePrefNumber(userStore.user.preference.imMaxReloadPerDay, 10, 15);
   if (!userStore.user.preference.cleanerMaxScanCount) {
     userStore.user.preference.cleanerMaxScanCount = 120;
