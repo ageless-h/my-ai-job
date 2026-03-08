@@ -637,47 +637,64 @@ export class BossPlatform extends AbsPlatform {
       const maskedUserProfile = this.maskAiDeliveryUserProfile(userProfile);
       this.preferenceLogRecorder.info(`工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${AI_DELIVERY_JUDGE_TIMEOUT_MS} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`);
       this.preferenceLogRecorder.info(`工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} includeTraditionalSnapshot=${aiConfig.includeTraditionalSnapshot} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(",")} extKeys=${Object.keys(extInfo).join(",")}`);
-      try {
-        const filterStartedAt = Date.now();
-        const filterResp = await AiPower.filter(
-          prompt,
-          filterInput.jobBaseInfo,
-          filterInput.jobExtInfo,
-          AI_DELIVERY_JUDGE_TIMEOUT_MS
-        );
-        const filterElapsed = Date.now() - filterStartedAt;
-        const parseStartedAt = Date.now();
-        judgeResult = this.parseAiDeliveryJudgeResult(filterResp);
-        const parseElapsed = Date.now() - parseStartedAt;
-        const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
-        const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
-        this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断完成 trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`);
-      } catch (error: any) {
-        const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
-        const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
-        const aiErrorMessage = `${error?.message || "AI请求失败"}`;
-        this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) onAiError=${aiConfig.onAiError} 原因：${aiErrorMessage}`);
-        const aiErrorFallback = resolveAiDeliveryFallback(aiConfig.onAiError, "ai-error");
-        if (aiErrorFallback.enabled) {
-          const fallbackReason = this.normalizeAiJudgeReason(
-            `[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则：${aiErrorMessage}`,
-            "[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则"
+      
+      // AI 请求重试机制
+      const MAX_AI_RETRIES = 3;
+      let lastError: any = null;
+      
+      for (let attempt = 1; attempt <= MAX_AI_RETRIES; attempt++) {
+        try {
+          const filterStartedAt = Date.now();
+          const filterResp = await AiPower.filter(
+            prompt,
+            filterInput.jobBaseInfo,
+            filterInput.jobExtInfo,
+            AI_DELIVERY_JUDGE_TIMEOUT_MS
           );
-          this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`);
-          this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
-          jobDetail.aiDeliveryJudge = {
-            traceId: judgeTraceId,
-            path: filterPath,
-            match: true,
-            reason: fallbackReason,
-            valid: true,
-            parseMode: aiErrorFallback.parseMode,
-            judgedAt: new Date().toISOString()
-          };
-          this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
-          return true;
+          const filterElapsed = Date.now() - filterStartedAt;
+          const parseStartedAt = Date.now();
+          judgeResult = this.parseAiDeliveryJudgeResult(filterResp);
+          const parseElapsed = Date.now() - parseStartedAt;
+          const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
+          const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
+          const retryInfo = attempt > 1 ? ` (重试${attempt - 1}次后成功)` : '';
+          this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断完成${retryInfo} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`);
+          break; // 成功，跳出重试循环
+        } catch (error: any) {
+          lastError = error;
+          if (attempt < MAX_AI_RETRIES) {
+            const retryDelay = 1000 * attempt; // 指数退避：1s, 2s
+            this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 (尝试${attempt}/${MAX_AI_RETRIES}) trace=${judgeTraceId} 原因：${error?.message || "AI请求失败"}，${retryDelay}ms后重试`);
+            await Tools.sleep(retryDelay);
+          } else {
+            // 最后一次重试也失败了
+            const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
+            const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
+            const aiErrorMessage = `${error?.message || "AI请求失败"}`;
+            this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 (已重试${MAX_AI_RETRIES}次) trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) onAiError=${aiConfig.onAiError} 原因：${aiErrorMessage}`);
+            const aiErrorFallback = resolveAiDeliveryFallback(aiConfig.onAiError, "ai-error");
+            if (aiErrorFallback.enabled) {
+              const fallbackReason = this.normalizeAiJudgeReason(
+                `[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则：${aiErrorMessage}`,
+                "[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则"
+              );
+              this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`);
+              this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
+              jobDetail.aiDeliveryJudge = {
+                traceId: judgeTraceId,
+                path: filterPath,
+                match: true,
+                reason: fallbackReason,
+                valid: true,
+                parseMode: aiErrorFallback.parseMode,
+                judgedAt: new Date().toISOString()
+              };
+              this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
+              return true;
+            }
+            throw new NotMatchError(jobTitle, aiErrorMessage, "AI投递判断异常");
+          }
         }
-        throw new NotMatchError(jobTitle, aiErrorMessage, "AI投递判断异常");
       }
 
       jobDetail.aiDeliveryJudge = {
