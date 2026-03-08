@@ -40,6 +40,47 @@ const toRecord = (value: unknown): Record<string, unknown> => {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 };
 
+/**
+ * 选择器降级查询 - 支持多个选择器按优先级尝试
+ * @param selectors 选择器数组，按优先级从高到低
+ * @param context 查询上下文，默认为 document
+ * @returns 找到的第一个元素，或 null
+ */
+const querySelectorWithFallback = (selectors: string[], context: Document | Element = document): Element | null => {
+  for (const selector of selectors) {
+    try {
+      const element = context.querySelector(selector);
+      if (element) {
+        return element;
+      }
+    } catch (error) {
+      // 选择器语法错误，跳过
+      logger$1.warn(`选择器 "${selector}" 查询失败:`, error);
+    }
+  }
+  return null;
+};
+
+/**
+ * 选择器降级查询（多个元素）
+ * @param selectors 选择器数组，按优先级从高到低
+ * @param context 查询上下文，默认为 document
+ * @returns 找到的元素数组
+ */
+const querySelectorAllWithFallback = (selectors: string[], context: Document | Element = document): Element[] => {
+  for (const selector of selectors) {
+    try {
+      const elements = Array.from(context.querySelectorAll(selector));
+      if (elements.length > 0) {
+        return elements;
+      }
+    } catch (error) {
+      logger$1.warn(`选择器 "${selector}" 查询失败:`, error);
+    }
+  }
+  return [];
+};
+
 async function setChatWebsocket(): Promise<void> {
   logger$1.info("check ChatWebsocket runtime channels");
   if (!Tools.isBossDomainHost(Tools.getCurrentHostname())) {
@@ -162,18 +203,18 @@ export class BossPlatform extends AbsPlatform {
         let p = "";
 
         if (this.curUrl.includes("www.zhipin.com/web/geek/chat")) {
-          element = document.querySelector(".chat-conversation");
+          element = querySelectorWithFallback([".chat-conversation", ".chat-container", ".geek-chat"]);
         }
 
         if (this.curUrl.includes("www.zhipin.com/web/geek/job-recommend")) {
-          element = document.querySelector(".recommend-search-inner");
+          element = querySelectorWithFallback([".recommend-search-inner", ".recommend-container", ".job-recommend"]);
           p = "end";
         }
 
         if (this.curUrl.includes("www.zhipin.com/web/geek/jobs")) {
-          element = document.querySelector(".job-recommend-result");
+          element = querySelectorWithFallback([".job-recommend-result", ".job-result", ".jobs-container"]);
         } else if (this.curUrl.includes("www.zhipin.com/web/geek/job")) {
-          element = document.querySelector(".page-job-inner");
+          element = querySelectorWithFallback([".page-job-inner", ".job-page", ".job-container"]);
         }
 
         if (this.curUrl.includes("www.zhipin.com/web/geek/resume")) {
@@ -182,7 +223,7 @@ export class BossPlatform extends AbsPlatform {
         }
 
         if (this.curUrl.includes("overseas")) {
-          element = document.querySelector(".mod-header");
+          element = querySelectorWithFallback([".mod-header", ".header", ".page-header"]);
         }
 
         if (element !== null) {
@@ -300,23 +341,30 @@ export class BossPlatform extends AbsPlatform {
   }
 
   private getJobsPageMetrics(): { scrollHeight: number; cardCount: number; tailKey: string; listSignature: string } {
-    const listContainer = document.querySelector(".job-list-container") as HTMLElement | null;
-    const cardList = Array.from(document.querySelectorAll(".job-list-container .job-card-wrap")) as any[];
-    const fallbackCardList = cardList.length > 0 ? cardList : Array.from(document.querySelectorAll(".rec-job-list .job-card-wrap")) as any[];
-    const tailCard = fallbackCardList[fallbackCardList.length - 1] as any;
+    const listContainer = querySelectorWithFallback([".job-list-container", ".job-list", ".jobs-list"]) as HTMLElement | null;
+    const cardList = querySelectorAllWithFallback([
+      ".job-list-container .job-card-wrap",
+      ".job-list .job-card-wrap",
+      ".rec-job-list .job-card-wrap",
+      ".job-card-wrap"
+    ]) as any[];
+    const tailCard = cardList[cardList.length - 1] as any;
     const tailKey = this.getCardRuntimeKey(tailCard);
 
     return {
       scrollHeight: listContainer?.scrollHeight || 0,
-      cardCount: fallbackCardList.length,
+      cardCount: cardList.length,
       tailKey,
-      listSignature: this.buildListSignature(fallbackCardList)
+      listSignature: this.buildListSignature(cardList)
     };
   }
 
   private getRecommendPageMetrics(): { scrollHeight: number; cardCount: number; tailKey: string; listSignature: string } {
-    const scopedCards = Array.from(document.querySelectorAll(".job-list-container .job-card-wrap")) as any[];
-    const cardList = scopedCards.length > 0 ? scopedCards : Array.from(document.querySelectorAll(".job-card-wrap")) as any[];
+    const cardList = querySelectorAllWithFallback([
+      ".job-list-container .job-card-wrap",
+      ".job-list .job-card-wrap",
+      ".job-card-wrap"
+    ]) as any[];
     const tailCard = cardList[cardList.length - 1] as any;
     const tailKey = this.getCardRuntimeKey(tailCard);
 
@@ -329,7 +377,7 @@ export class BossPlatform extends AbsPlatform {
   }
 
   private async scrollJobsListToEnd(): Promise<void> {
-    const listContainer = document.querySelector(".job-list-container") as HTMLElement | null;
+    const listContainer = querySelectorWithFallback([".job-list-container", ".job-list", ".jobs-list"]) as HTMLElement | null;
     if (!listContainer || listContainer.clientHeight <= 0) {
       await simulateScrollToEnd();
       return;
