@@ -235,17 +235,34 @@ export abstract class AbsPlatform {
     return false;
   }
 
-  private ensureNoManualVerification(actionName: string): boolean {
-    const reason = this.getManualVerificationReason();
-    if (!reason) {
-      return true;
-    }
+  private async ensureNoManualVerification(actionName: string): Promise<boolean> {
+    let hasWaited = false;
+    let lastWarnAt = 0;
+    while (true) {
+      if (this.pushStatus === PushStatus.PAUSE) {
+        this.setLastStopReason(`手动暂停${actionName}`);
+        return false;
+      }
 
-    this.pushStatus = PushStatus.PAUSE;
-    const stopReason = `检测到人工验证，已暂停${actionName}：${reason}`;
-    this.setLastStopReason(stopReason);
-    this.preferenceLogRecorder.warn(stopReason);
-    return false;
+      const reason = this.getManualVerificationReason();
+      if (!reason) {
+        if (hasWaited) {
+          this.preferenceLogRecorder.info(`人工验证已解除，继续${actionName}`);
+          this.clearLastStopReason();
+        }
+        return true;
+      }
+
+      hasWaited = true;
+      const waitReason = `检测到人工验证，等待处理后继续${actionName}：${reason}`;
+      this.setLastStopReason(waitReason);
+      const now = Date.now();
+      if (now - lastWarnAt >= 15_000) {
+        this.preferenceLogRecorder.warn(waitReason);
+        lastWarnAt = now;
+      }
+      await Tools.sleep(5000);
+    }
   }
 
   private getSafetyCooldownUntil(): number {
@@ -276,7 +293,7 @@ export abstract class AbsPlatform {
     const hasProgress = this.hasNext();
     if (!hasProgress) {
       this.preferenceLogRecorder.info("未检测到下一页进展，执行兜底滚动重试");
-      if (!this.ensureNoManualVerification(actionName)) {
+      if (!(await this.ensureNoManualVerification(actionName))) {
         return false;
       }
       if (!this.enforceSafetyWindowOrStop(actionName)) {
@@ -297,7 +314,7 @@ export abstract class AbsPlatform {
       return true;
     }
 
-    if (!this.ensureNoManualVerification(actionName)) {
+    if (!(await this.ensureNoManualVerification(actionName))) {
       return false;
     }
     if (!this.enforceSafetyWindowOrStop(actionName)) {
@@ -358,7 +375,7 @@ export abstract class AbsPlatform {
     if (!this.enforceSafetyWindowOrStop(actionName, safety)) {
       return;
     }
-    if (!this.ensureNoManualVerification(actionName)) {
+    if (!(await this.ensureNoManualVerification(actionName))) {
       return;
     }
 
@@ -366,7 +383,7 @@ export abstract class AbsPlatform {
     runtimeCounter().clearOnceSuccessCount();
     this.pushStatus = PushStatus.PUSHING;
     this.startPreHandler();
-    let sessionActionAttempts = 0;
+    let sessionSuccessCount = 0;
     const recentActionTs: number[] = [];
     let consecutiveFailures = 0;
 
@@ -376,12 +393,8 @@ export abstract class AbsPlatform {
         if (!this.enforceSafetyWindowOrStop(actionName, safety)) {
           return;
         }
-        if (!this.ensureNoManualVerification(actionName)) {
+        if (!(await this.ensureNoManualVerification(actionName))) {
           return;
-        }
-
-        if (sessionActionAttempts >= safety.maxSessionActions) {
-          throw new PushLimitError(`触发安全阈值：单轮最多${safety.maxSessionActions}次${actionName}`);
         }
 
         const dailySuccess = Number(runtimeCounter().successCount || 0);
@@ -397,8 +410,6 @@ export abstract class AbsPlatform {
           throw new PushLimitError(`触发安全阈值：每分钟最多${safety.maxActionsPerMinute}次${actionName}`);
         }
 
-        recentActionTs.push(now);
-        sessionActionAttempts++;
         try {
           this.preMatchJob();
           await this.matchJob(jobDetail);
@@ -407,6 +418,8 @@ export abstract class AbsPlatform {
             this.collectPreHandler(jobDetail);
             const collectResult = await this.collect(jobDetail);
             await this.collectAfterHandler(collectResult, jobDetail);
+            recentActionTs.push(Date.now());
+            sessionSuccessCount++;
             consecutiveFailures = 0;
             continue;
           }
@@ -414,6 +427,8 @@ export abstract class AbsPlatform {
           this.pushPreHandler(jobDetail);
           const pushResult = await this.push(jobDetail);
           await this.pushAfterHandler(pushResult, jobDetail);
+          recentActionTs.push(Date.now());
+          sessionSuccessCount++;
           consecutiveFailures = 0;
         } catch (error: any) {
           switch (true) {
@@ -444,6 +459,21 @@ export abstract class AbsPlatform {
               this.preferenceLogRecorder.warn(`工作【${error.jobTitle}】发送自定义招呼语失败 原因：${error.message}`);
               break;
             case error instanceof PushStopError:
+              if (`${error?.message || ""}`.includes("手动暂停")) {
+                this.setLastStopReason(`手动暂停${actionName} ${error.message}`);
+                this.preferenceLogRecorder.info(`手动暂停${actionName} ${error.message}`);
+                return;
+              }
+
+              if (Tools.isManualVerificationText(error?.message) || this.getManualVerificationReason()) {
+                const reason = `${error?.message || this.getManualVerificationReason() || "检测到人工验证"}`;
+                this.preferenceLogRecorder.warn(`检测到人工验证，进入安全等待：${reason}`);
+                if (!(await this.ensureNoManualVerification(actionName))) {
+                  return;
+                }
+                break;
+              }
+
               this.setLastStopReason(`手动暂停${actionName} ${error.message}`);
               this.preferenceLogRecorder.info(`手动暂停${actionName} ${error.message}`);
               return;
@@ -466,9 +496,9 @@ export abstract class AbsPlatform {
                     this.preferenceLogRecorder.info(`重试期间手动暂停`);
                     return;
                   }
-                  if (!this.ensureNoManualVerification(actionName)) {
-                    return;
-                  }
+                   if (!(await this.ensureNoManualVerification(actionName))) {
+                     return;
+                   }
                   try {
                     this.preMatchJob();
                     await this.matchJob(jobDetail);
@@ -490,11 +520,11 @@ export abstract class AbsPlatform {
                       break;
                     }
                     if (attempt === maxRetries) {
-                      const reason = `网络异常重试 ${maxRetries} 次后仍失败，暂停${actionName}`;
+                      const reason = `网络异常重试 ${maxRetries} 次后仍失败，进入安全等待后继续${actionName}`;
                       this.setLastStopReason(reason);
-                      this.preferenceLogRecorder.error(reason);
-                      this.pushStatus = PushStatus.PAUSE;
-                      return;
+                      this.preferenceLogRecorder.warn(reason);
+                      await Tools.sleep(Math.max(8000, safety.minActionIntervalSec * 2000));
+                      break;
                     }
                   }
                 }
