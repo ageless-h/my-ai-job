@@ -652,8 +652,15 @@ export class BossPlatform extends AbsPlatform {
       const aiFilterModeEnabled = this.shouldEnableAiDeliveryJudge();
       const traditionalDeliveryEnabled = this.isTraditionalDeliveryEnabled();
 
+      // ✅ 新增：通用硬性约束检查 - 在 AI 和传统模式下都生效
+      // 包括：薪资、公司规模、猎头过滤、在线 BOSS、黑名单等
+      if (traditionalDeliveryEnabled) {
+        this.applyCommonHardConstraints(jobDetail, jobTitle);
+      }
+
+      // 传统投递软性过滤（仅传统模式）
       if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
-        this.applyTraditionalBaseChecks(jobDetail, jobTitle);
+        this.applyTraditionalSoftFilters(jobDetail, jobTitle);
       }
 
       const jobDetailExt = await this.obtainBossJobDetailExt(jobDetail);
@@ -1817,36 +1824,36 @@ export class BossPlatform extends AbsPlatform {
     this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
   }
 
-  private applyTraditionalBaseChecks(jobDetail: any, jobTitle: string): void {
+  /**
+   * 通用硬性约束检查 - 在 AI 和传统投递模式下都生效
+   * 包括：薪资、公司规模、猎头过滤、在线 BOSS、黑名单等
+   */
+  private applyCommonHardConstraints(jobDetail: any, jobTitle: string): void {
     const preference = runtimeUserStore?.user?.preference || {};
+    
+    // 过滤猎头
     if (preference.fhE && jobDetail.goldHunter === 1) {
       throw new NotMatchError(jobTitle, jobDetail.goldHunter, "过滤猎头");
     }
 
+    // 仅投递在线 BOSS
     if (preference.polE && !jobDetail.bossOnline) {
       throw new NotMatchError(jobTitle, jobDetail.bossOnline, "仅投递在线boss");
     }
 
-    const companyNameInclude = preference.cni;
-    if (preference.cniE && !Tools.fuzzyMatch(companyNameInclude, jobDetail.brandName, true)) {
-      throw new NotMatchError(jobTitle, jobDetail.brandName, "不满足配置公司名");
-    }
-
+    // 公司名排除（黑名单）
     const companyNameExclude = preference.cne;
     if (preference.cneE && Tools.fuzzyMatch(companyNameExclude, jobDetail.brandName, false)) {
       throw new NotMatchError(jobTitle, jobDetail.brandName, "满足排除公司名");
     }
 
-    const jobNameInclude = preference.jni;
-    if (preference.jniE && !Tools.fuzzyMatch(jobNameInclude, jobDetail.jobName, true)) {
-      throw new NotMatchError(jobTitle, jobDetail.jobName, "不满足配置工作名");
-    }
-
+    // 岗位名排除（黑名单）
     const jobNameExclude = preference.jne;
     if (preference.jneE && Tools.fuzzyMatch(jobNameExclude, jobDetail.jobName, false)) {
       throw new NotMatchError(jobTitle, jobDetail.jobName, "满足排除工作名");
     }
 
+    // 薪资范围检查
     const pageSalaryRange = `${jobDetail.salaryDesc || ""}`.split(".")[0];
     if (preference.srE) {
       const salaryFilterType = `${preference.srT || "1"}`;
@@ -1860,10 +1867,40 @@ export class BossPlatform extends AbsPlatform {
       }
     }
 
+    // 公司规模范围检查
     const pageCompanyScaleRange = preference.csr;
     if (preference.csrE && !Tools.isRangeOverlap(pageCompanyScaleRange, jobDetail.brandScaleName)) {
       throw new NotMatchError(jobTitle, jobDetail.brandScaleName, "不满足公司规模范围");
     }
+  }
+
+  /**
+   * 传统投递软性过滤 - 仅在传统投递模式下生效
+   * 包括：公司名/岗位名白名单等
+   */
+  private applyTraditionalSoftFilters(jobDetail: any, jobTitle: string): void {
+    const preference = runtimeUserStore?.user?.preference || {};
+    
+    // 公司名包含（白名单）
+    const companyNameInclude = preference.cni;
+    if (preference.cniE && !Tools.fuzzyMatch(companyNameInclude, jobDetail.brandName, true)) {
+      throw new NotMatchError(jobTitle, jobDetail.brandName, "不满足配置公司名");
+    }
+
+    // 岗位名包含（白名单）
+    const jobNameInclude = preference.jni;
+    if (preference.jniE && !Tools.fuzzyMatch(jobNameInclude, jobDetail.jobName, true)) {
+      throw new NotMatchError(jobTitle, jobDetail.jobName, "不满足配置工作名");
+    }
+  }
+
+  /**
+   * 传统投递基础检查 - 兼容旧代码，内部调用通用约束和软性过滤
+   * @deprecated 建议直接使用 applyCommonHardConstraints 和 applyTraditionalSoftFilters
+   */
+  private applyTraditionalBaseChecks(jobDetail: any, jobTitle: string): void {
+    this.applyCommonHardConstraints(jobDetail, jobTitle);
+    this.applyTraditionalSoftFilters(jobDetail, jobTitle);
   }
 
   private applyTraditionalExtChecks(jobDetailExt: any, jobTitle: string): void {
