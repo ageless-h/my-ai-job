@@ -8,12 +8,12 @@
         <el-row :gutter="40">
           <el-col :span="12">
             <el-form-item label="手机号码" prop="phone">
-              <el-input v-model="userStore.user.phone" placeholder="用于异常通知短信提醒" />
+              <el-input v-model="userStore.user.phone" placeholder="用于异常通知短信提醒" data-testid="phone-input" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="通知邮箱" prop="email">
-              <el-input v-model="userStore.user.email" placeholder="用于接收每日总结及高意向提醒" />
+              <el-input v-model="userStore.user.email" placeholder="用于接收每日总结及高意向提醒" data-testid="email-input" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -35,7 +35,7 @@
 
           <div class="resume-actions">
             <el-tooltip content="将前往 BOSS 个人主页后台抓取最新的简历数据" placement="top" :show-after="300">
-              <el-button type="primary" :loading="importResumeLoading" @click="handlerImportResume">
+              <el-button type="primary" :loading="importResumeLoading" data-testid="import-resume-button" @click="handlerImportResume">
                 <el-icon class="mr-4"><Refresh /></el-icon>直接从 BOSS 导入
               </el-button>
             </el-tooltip>
@@ -87,10 +87,10 @@
       <div class="sub-desc mb-16">可以导出您多年精心调教的投递偏好设置、提示词和参数，随时更换设备或分享给朋友。</div>
 
       <div class="data-actions">
-        <el-button type="warning" plain size="small" class="shadow-sm" @click="exportSetting">
+        <el-button type="warning" plain size="small" class="shadow-sm" data-testid="export-config-button" @click="exportSetting">
           <el-icon class="mr-4"><Download /></el-icon>导出所有配置文件
         </el-button>
-        <el-button type="info" plain size="small" class="shadow-sm" @click="importSetting">
+        <el-button type="info" plain size="small" class="shadow-sm" data-testid="import-config-button" @click="importSetting">
           <el-icon class="mr-4"><UploadFilled /></el-icon>导入外部设置
         </el-button>
       </div>

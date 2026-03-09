@@ -24,6 +24,7 @@
             active-text="开"
             inactive-text="关"
             inline-prompt
+            data-testid="enable-rules-switch"
             :style="{ '--el-switch-on-color': 'var(--boss-primary, #00bebd)', '--el-switch-off-color': '#dcdfe6' }"
           />
         </div>
@@ -35,12 +36,12 @@
         <div class="responsive-grid">
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.srE">薪资要求 (月薪k)</el-checkbox>
-            <el-input v-model="userStore.user.preference.sr" placeholder="例如：15-30" />
+            <el-input v-model="userStore.user.preference.sr" placeholder="例如：15-30" data-testid="salary-filter-switch" />
           </el-form-item>
 
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.csrE">公司规模范围</el-checkbox>
-            <el-input v-model="userStore.user.preference.csr" placeholder="例如：100-9999" />
+            <el-input v-model="userStore.user.preference.csr" placeholder="例如：100-9999" data-testid="company-scale-filter" />
           </el-form-item>
         </div>
 
@@ -79,6 +80,7 @@
               default-first-option
               :reserve-keyword="false"
               placeholder="输入后回车添加"
+              data-testid="keyword-input"
             >
               <el-option v-for="item in companyHints" :key="item" :label="item" :value="item" />
             </el-select>
@@ -207,7 +209,7 @@
       <div class="action-footer mt-24">
         <div class="footer-right buttons">
           <el-button link class="text-muted" @click="resetForm">恢复默认过滤</el-button>
-          <el-button color="#00bebd" type="primary" class="save-btn" style="color: white;" @click="submitForm">保存传统投递偏好</el-button>
+           <el-button color="#00bebd" type="primary" class="save-btn" style="color: white;" data-testid="save-preference-button" @click="submitForm">保存传统投递偏好</el-button>
         </div>
       </div>
     </el-form>

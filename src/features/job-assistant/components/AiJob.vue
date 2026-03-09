@@ -3,21 +3,21 @@
     <div class="boss-card">
       <div class="card-title">投递统计</div>
       <div class="stats-row">
-        <div class="stat-item">
-          <span class="stat-label">今日{{ actionLabel }}成功</span>
-          <span class="stat-value text-primary">{{ collectMode ? pushResultCounter.collectSuccessCount : pushResultCounter.successCount }}</span>
-        </div>
+         <div class="stat-item">
+           <span class="stat-label">今日{{ actionLabel }}成功</span>
+           <span class="stat-value text-primary" data-testid="push-success-count">{{ collectMode ? pushResultCounter.collectSuccessCount : pushResultCounter.successCount }}</span>
+         </div>
         <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-label">今日{{ actionLabel }}失败</span>
-          <span class="stat-value text-danger">{{ collectMode ? pushResultCounter.collectFailCount : pushResultCounter.failCount }}</span>
-        </div>
+         <div class="stat-item">
+           <span class="stat-label">今日{{ actionLabel }}失败</span>
+           <span class="stat-value text-danger" data-testid="push-fail-count">{{ collectMode ? pushResultCounter.collectFailCount : pushResultCounter.failCount }}</span>
+         </div>
         <div class="stat-divider"></div>
         <div class="stat-actions">
-          <el-button type="info" size="small" plain @click="handlerClearPushRecords">
-            <el-icon><Delete /></el-icon>
-            清理投递记录
-          </el-button>
+           <el-button type="info" size="small" plain data-testid="clear-records-button" @click="handlerClearPushRecords">
+             <el-icon><Delete /></el-icon>
+             清理投递记录
+           </el-button>
         </div>
       </div>
     </div>
@@ -32,6 +32,7 @@
             :min="-1"
             :max="100"
             size="small"
+            data-testid="push-count-limit"
             @change="selfDefPushCountLimitChange"
           />
         </div>
@@ -48,6 +49,7 @@
             active-text="开"
             inactive-text="关"
             inline-prompt
+            data-testid="collect-mode-switch"
             style="--el-switch-off-color: #dcdfe6"
           />
         </div>
@@ -59,6 +61,7 @@
             active-text="开"
             inactive-text="关"
             inline-prompt
+            data-testid="infinite-loop-switch"
             style="--el-switch-off-color: #dcdfe6"
           />
         </div>
@@ -74,7 +77,7 @@
           raw-content
           placement="bottom"
         >
-          <el-button :type="pushBtnType" class="boss-btn-full" @click="handlerPush">
+          <el-button :type="pushBtnType" class="boss-btn-full" data-testid="start-push-button" @click="handlerPush">
             <el-icon class="mr-6">
               <Promotion v-if="pushStatus !== PushStatus.PUSHING" />
               <VideoPause v-else />
@@ -111,7 +114,7 @@
 
     <transition name="el-fade-in">
       <div v-show="pushStatus === PushStatus.PUSHING" class="fixed-stop-button">
-        <el-button type="danger" size="large" shadow="always" @click="handlerFixedStopPush">
+        <el-button type="danger" size="large" shadow="always" data-testid="stop-push-button" @click="handlerFixedStopPush">
           <el-icon class="mr-6">
             <VideoPause />
           </el-icon>
