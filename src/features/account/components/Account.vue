@@ -96,6 +96,17 @@
       </div>
     </div>
 
+    <div class="boss-card mt-16 mb-24">
+      <div class="card-title">敏感数据管理</div>
+      <div class="sub-desc mb-16">清除本地存储的简历内容和 API 密钥，保护您的隐私安全。</div>
+
+      <div class="data-actions">
+        <el-button type="danger" plain size="small" class="shadow-sm" @click="handleClearSensitiveData">
+          <el-icon class="mr-4"><Delete /></el-icon>清除所有敏感数据
+        </el-button>
+      </div>
+    </div>
+
     <div class="action-footer">
       <div class="buttons">
         <el-button type="primary" class="save-btn shadow-sm" @click="handleSave">保存变更</el-button>
@@ -626,6 +637,15 @@ const writeImportedResumeToUser = (resumeId: string, importDataInput: unknown, f
 
 const handlerImportResume = async () => {
   if (!loginInterceptor()) return;
+  
+  // ✅ 新增：检查用户是否授权存储简历
+  const { requestResumeStorageConsent } = await import('@/shared/utils/sensitive-data-consent');
+  const hasConsent = await requestResumeStorageConsent();
+  if (!hasConsent) {
+    showAppMessage({ type: 'warning', message: '您拒绝了简历存储授权，无法导入简历' });
+    return;
+  }
+  
   const tokenDetail = getBossTokenDetail();
   const token = tokenDetail.token;
   const bossUserId = getBossUid();
@@ -753,6 +773,43 @@ const importSetting = async () => {
         });
       } catch {
         ElNotification({ title: '导入失败', message: '配置格式错误，请检查后重试', type: 'error', duration: 2000 });
+      }
+    })
+    .catch(() => undefined);
+};
+
+// ---- Clear Sensitive Data ----
+const handleClearSensitiveData = async () => {
+  ElMessageBox.confirm(
+    '此操作将清除本地存储的简历内容和所有 API 密钥，且无法恢复。是否继续？',
+    '清除敏感数据',
+    {
+      confirmButtonText: '确认清除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(async () => {
+      try {
+        const { clearAllSensitiveData } = await import('@/shared/utils/sensitive-data-consent');
+        clearAllSensitiveData();
+        ElNotification({
+          title: '清除成功',
+          message: '已清除所有敏感数据并撤销授权',
+          type: 'success',
+          duration: 3000,
+        });
+        // 刷新页面以重新加载数据
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } catch (error) {
+        ElNotification({
+          title: '清除失败',
+          message: `操作失败：${error?.message || '未知错误'}`,
+          type: 'error',
+          duration: 3000,
+        });
       }
     })
     .catch(() => undefined);
