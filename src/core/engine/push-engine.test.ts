@@ -1,307 +1,859 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  AbsPlatform,
+  LogRecorder,
+  PushResultStatus,
+  PushStatus,
   bindPlatformRuntime,
   pushResultCounter,
-  runtimeUserStore,
-  PushStatus,
-  PushResultStatus,
-  LogRecorder
-} from './push-engine';
-import type { PushResultCounterRuntime, RuntimeUserStore } from '@/core/runtime/runtime-contracts';
+  runtimeUserStore
+} from "@/core/engine/push-engine";
+import type { PushResultCounterRuntime, RuntimeUserStore } from "@/core/runtime/runtime-contracts";
+import {
+  FavoriteRequestError,
+  FetchJobDetailError,
+  NotMatchError,
+  PushLimitError,
+  PushRequestError,
+  PushStopError
+} from "@/shared/errors";
+import { LogLevel } from "@/shared/utils/logger";
+import { TampermonkeyApi } from "@/shared/utils/tampermonkey";
+import { Tools } from "@/shared/utils/tools";
 
-describe('push-engine', () => {
-  describe('bindPlatformRuntime', () => {
-    it('应该正确绑定平台运行时', () => {
-      const mockCounter: PushResultCounterRuntime = {
-        notMatchCount: 5,
-        successCount: 10,
-        onceSuccessCount: 2,
-        failCount: 3,
-        collectSuccessCount: 1,
-        collectFailCount: 0,
-        onceCollectSuccessCount: 1,
-        notMatchIncr: vi.fn(),
-        successIncr: vi.fn(),
-        failIncr: vi.fn(),
-        collectSuccessIncr: vi.fn(),
-        collectFailIncr: vi.fn(),
-        clearOnceSuccessCount: vi.fn(),
-        clearOnceCollectSuccessCount: vi.fn()
-      };
+type Job = {
+  id: string;
+  title: string;
+};
 
-      const mockUserStore: RuntimeUserStore = {
-        user: {
-          preference: {
-            pushInterval: 3000,
-            pushLimit: 10
-          }
-        },
-        platformType: 'boss' as any,
-        preferenceLoadStatus: 'success',
-        preferenceLoadError: ''
-      };
+const createCounterRuntime = (): PushResultCounterRuntime => {
+  const counter: PushResultCounterRuntime = {
+    notMatchCount: 0,
+    successCount: 0,
+    onceSuccessCount: 0,
+    failCount: 0,
+    collectSuccessCount: 0,
+    collectFailCount: 0,
+    onceCollectSuccessCount: 0,
+    notMatchIncr: vi.fn(() => {
+      counter.notMatchCount += 1;
+    }),
+    successIncr: vi.fn(() => {
+      counter.successCount += 1;
+      counter.onceSuccessCount += 1;
+    }),
+    failIncr: vi.fn(() => {
+      counter.failCount += 1;
+    }),
+    collectSuccessIncr: vi.fn(() => {
+      counter.collectSuccessCount += 1;
+      counter.onceCollectSuccessCount += 1;
+    }),
+    collectFailIncr: vi.fn(() => {
+      counter.collectFailCount += 1;
+    }),
+    clearOnceSuccessCount: vi.fn(() => {
+      counter.onceSuccessCount = 0;
+    }),
+    clearOnceCollectSuccessCount: vi.fn(() => {
+      counter.onceCollectSuccessCount = 0;
+    })
+  };
 
-      bindPlatformRuntime(mockCounter, mockUserStore);
+  return counter;
+};
 
-      expect(pushResultCounter.successCount).toBe(10);
-      expect(runtimeUserStore.platformType).toBe('boss');
-    });
+const createUserStore = (preference: Record<string, unknown> = {}): RuntimeUserStore => ({
+  user: {
+    preference
+  },
+  platformType: undefined,
+  preferenceLoadStatus: "idle",
+  preferenceLoadError: ""
+});
 
-    it('应该更新全局counter引用', () => {
-      const counter1: PushResultCounterRuntime = {
-        notMatchCount: 1,
-        successCount: 1,
-        onceSuccessCount: 0,
-        failCount: 0,
-        collectSuccessCount: 0,
-        collectFailCount: 0,
-        onceCollectSuccessCount: 0,
-        notMatchIncr: vi.fn(),
-        successIncr: vi.fn(),
-        failIncr: vi.fn(),
-        collectSuccessIncr: vi.fn(),
-        collectFailIncr: vi.fn(),
-        clearOnceSuccessCount: vi.fn(),
-        clearOnceCollectSuccessCount: vi.fn()
-      };
+class TestPlatform extends AbsPlatform {
+  jobs: Job[] = [];
+  hasNextQueue: boolean[] = [];
+  manualVerificationQueue: Array<string | null> = [];
+  limitResponse: { limit: boolean; msg: string } = {
+    limit: false,
+    msg: ""
+  };
 
-      const userStore1: RuntimeUserStore = {
-        user: { preference: {} },
-        platformType: undefined,
-        preferenceLoadStatus: 'idle',
-        preferenceLoadError: ''
-      };
+  override getJobList = vi.fn(() => this.jobs);
 
-      bindPlatformRuntime(counter1, userStore1);
-      expect(pushResultCounter.successCount).toBe(1);
-
-      const counter2: PushResultCounterRuntime = {
-        ...counter1,
-        successCount: 5
-      };
-
-      bindPlatformRuntime(counter2, userStore1);
-      expect(pushResultCounter.successCount).toBe(5);
-    });
+  override hasNext = vi.fn(() => {
+    if (this.hasNextQueue.length === 0) {
+      return false;
+    }
+    return this.hasNextQueue.shift() as boolean;
   });
 
-  describe('PushStatus枚举', () => {
-    it('应该定义正确的状态值', () => {
+  override acquireDataPre = vi.fn(async () => undefined);
+
+  override startPreHandler = vi.fn(() => undefined);
+
+  override matchJob = vi.fn(async (_jobDetail: Job) => undefined);
+
+  override pushAfterHandler = vi.fn(async (_pushResult: any, _jobDetail: Job) => undefined);
+
+  override pushPreHandler = vi.fn((jobDetail: Job) => jobDetail);
+
+  override getJobKey = vi.fn((jobDetail: Job) => `${jobDetail?.title || jobDetail?.id || "unknown"}`);
+
+  override doPush = vi.fn(async (_jobDetail: Job) => ({
+    message: "Success",
+    code: 0,
+    verified: true
+  }));
+
+  override doCollect = vi.fn(async (_jobDetail: Job) => ({
+    message: "Success",
+    code: 0,
+    verified: true
+  }));
+
+  override isLimit(jobDetail: Job): { limit: boolean; msg: string } {
+    if (this.limitResponse.limit) {
+      return this.limitResponse;
+    }
+
+    return {
+      limit: false,
+      msg: this.getJobKey(jobDetail)
+    };
+  }
+
+  protected override getManualVerificationReason(): string | null {
+    if (this.manualVerificationQueue.length === 0) {
+      return null;
+    }
+    return this.manualVerificationQueue.shift() ?? null;
+  }
+}
+
+class DefaultBehaviorPlatform extends AbsPlatform {
+  jobs: Job[] = [];
+
+  override getJobList(): Job[] {
+    return this.jobs;
+  }
+
+  override hasNext(): boolean {
+    return false;
+  }
+
+  override async acquireDataPre(): Promise<void> {
+    return undefined;
+  }
+
+  override startPreHandler(): void {
+  }
+
+  override async matchJob(_jobDetail: Job): Promise<any> {
+    return undefined;
+  }
+
+  override async pushAfterHandler(_pushResult: any, _jobDetail: Job): Promise<any> {
+    return undefined;
+  }
+
+  override pushPreHandler(jobDetail: Job): any {
+    return jobDetail;
+  }
+
+  override getJobKey(jobDetail: Job): string {
+    return jobDetail.title;
+  }
+
+  override async doPush(_jobDetail: Job): Promise<any> {
+    return {
+      message: "Success",
+      code: 0
+    };
+  }
+}
+
+const createJobs = (...ids: string[]): Job[] => ids.map((id) => ({ id, title: `job-${id}` }));
+
+let gmStore: Record<string, unknown> = {};
+let gmGetValueSpy: any;
+let gmSetValueSpy: any;
+let sleepSpy: any;
+let managedRecorders: LogRecorder[] = [];
+
+const setupRuntime = (preference: Record<string, unknown> = {}) => {
+  const counter = createCounterRuntime();
+  const userStore = createUserStore(preference);
+  bindPlatformRuntime(counter, userStore);
+  return {
+    counter,
+    userStore
+  };
+};
+
+const createPlatform = (): TestPlatform => {
+  const platform = new TestPlatform();
+  managedRecorders.push(platform.preferenceLogRecorder);
+  return platform;
+};
+
+describe("push-engine module", () => {
+  beforeEach(() => {
+    gmStore = {};
+    managedRecorders = [];
+    LogRecorder.logs = [];
+
+    gmGetValueSpy = vi.spyOn(TampermonkeyApi, "GmGetValue").mockImplementation((key: string, defaultValue: unknown) => {
+      if (Object.prototype.hasOwnProperty.call(gmStore, key)) {
+        return gmStore[key];
+      }
+      return defaultValue;
+    });
+    gmSetValueSpy = vi.spyOn(TampermonkeyApi, "GmSetValue").mockImplementation((key: string, value: unknown) => {
+      gmStore[key] = value;
+    });
+
+    sleepSpy = vi.spyOn(Tools, "sleep").mockResolvedValue(undefined);
+    vi.spyOn(Tools, "getCurrentHostname").mockReturnValue("www.zhipin.com");
+    vi.spyOn(Tools, "isBossDomainHost").mockReturnValue(true);
+    vi.spyOn(Tools, "isManualVerificationText").mockImplementation((text: string | null | undefined) => `${text || ""}`.includes("验证"));
+    vi.spyOn(Tools, "getRandomNumber").mockReturnValue(0);
+
+    const gmXmlHttpRequestMock = (globalThis as any).GM_xmlhttpRequest;
+    if (typeof gmXmlHttpRequestMock?.mockReset === "function") {
+      gmXmlHttpRequestMock.mockReset();
+    }
+
+    setupRuntime();
+  });
+
+  afterEach(() => {
+    for (const recorder of managedRecorders) {
+      try {
+        recorder.destroy();
+      } catch (_error) {
+      }
+    }
+    managedRecorders = [];
+    LogRecorder.logs = [];
+
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  describe("runtime binding and enums", () => {
+    it("bindPlatformRuntime 应更新全局运行时引用", () => {
+      const counter = createCounterRuntime();
+      const userStore = createUserStore({ pushIntervalSec: 12 });
+
+      bindPlatformRuntime(counter, userStore);
+
+      expect(pushResultCounter).toBe(counter);
+      expect(runtimeUserStore).toBe(userStore);
+    });
+
+    it("PushStatus 与 PushResultStatus 枚举值应稳定", () => {
       expect(PushStatus.NOT_START).toBe(0);
       expect(PushStatus.PUSHING).toBe(1);
       expect(PushStatus.PAUSE).toBe(2);
       expect(PushStatus.LIMIT).toBe(3);
-    });
 
-    it('状态值应该是唯一的', () => {
-      const values = [
-        PushStatus.NOT_START,
-        PushStatus.PUSHING,
-        PushStatus.PAUSE,
-        PushStatus.LIMIT
-      ];
-      const uniqueValues = new Set(values);
-      expect(uniqueValues.size).toBe(values.length);
-    });
-  });
-
-  describe('PushResultStatus枚举', () => {
-    it('应该定义正确的结果状态值', () => {
       expect(PushResultStatus.NOT_START).toBe(-1);
       expect(PushResultStatus.SUCCESS).toBe(0);
       expect(PushResultStatus.FAIL).toBe(1);
     });
 
-    it('结果状态值应该是唯一的', () => {
-      const values = [
-        PushResultStatus.NOT_START,
-        PushResultStatus.SUCCESS,
-        PushResultStatus.FAIL
+    it("pausePush 当前应为 no-op", () => {
+      const platform = createPlatform();
+      platform.pushStatus = PushStatus.PUSHING;
+
+      platform.pausePush();
+
+      expect(platform.pushStatus).toBe(PushStatus.PUSHING);
+    });
+
+    it("setter/getter 应正确维护 collectMode 与 selfDefPushCountLimit", () => {
+      const platform = createPlatform();
+
+      platform.collectMode = true;
+      platform.selfDefPushCountLimit = 5;
+
+      expect(platform.collectMode).toBe(true);
+      expect(platform.selfDefPushCountLimit).toBe(5);
+    });
+  });
+
+  describe("LogRecorder", () => {
+    it("构造时应加载并去重持久化日志", () => {
+      LogRecorder.logs = [
+        { level: "info", message: "in-memory", timestamp: "10:00:00.001" }
       ];
-      const uniqueValues = new Set(values);
-      expect(uniqueValues.size).toBe(values.length);
+      gmStore[LogRecorder.LOGS_STORAGE_KEY] = [
+        { level: "info", message: "duplicate", timestamp: "10:00:00.001" },
+        { level: "warn", message: "from-storage", timestamp: "10:00:00.002" }
+      ];
+
+      const recorder = new LogRecorder("dedupe");
+      managedRecorders.push(recorder);
+
+      expect(LogRecorder.logs).toHaveLength(2);
+      expect(LogRecorder.logs.map((item) => item.message)).toEqual(["in-memory", "from-storage"]);
+    });
+
+    it("应按定时器周期触发持久化", () => {
+      vi.useFakeTimers();
+      const recorder = new LogRecorder("timer");
+      managedRecorders.push(recorder);
+      const persistSpy = vi.spyOn(recorder, "persistLogs");
+
+      vi.advanceTimersByTime(10_000);
+
+      expect(persistSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("destroy 应停止定时器并执行最后一次持久化", () => {
+      vi.useFakeTimers();
+      const recorder = new LogRecorder("destroy");
+      managedRecorders.push(recorder);
+      const persistSpy = vi.spyOn(recorder, "persistLogs");
+
+      recorder.destroy();
+      vi.advanceTimersByTime(20_000);
+
+      expect(recorder.persistTimer).toBeNull();
+      expect(persistSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("addLog 应在超过 maxLogs 时淘汰最旧记录", () => {
+      const recorder = new LogRecorder("max");
+      managedRecorders.push(recorder);
+      recorder.maxLogs = 2;
+
+      recorder.addLog("info", "a");
+      recorder.addLog("info", "b");
+      recorder.addLog("info", "c");
+
+      expect(LogRecorder.logs).toHaveLength(2);
+      expect(LogRecorder.logs.map((item) => item.message)).toEqual(["b", "c"]);
+    });
+
+    it("clearLogs 应清空并写回存储", () => {
+      const recorder = new LogRecorder("clear");
+      managedRecorders.push(recorder);
+      const persistSpy = vi.spyOn(recorder, "persistLogs");
+      LogRecorder.logs = [{ level: "warn", message: "x", timestamp: "10:00:00.010" }];
+
+      recorder.clearLogs();
+
+      expect(LogRecorder.logs).toHaveLength(0);
+      expect(persistSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("getLogs/getLogCount 应支持分页读取", () => {
+      const recorder = new LogRecorder("page");
+      managedRecorders.push(recorder);
+      LogRecorder.logs = [
+        { level: "info", message: "1", timestamp: "10:00:00.001" },
+        { level: "info", message: "2", timestamp: "10:00:00.002" },
+        { level: "info", message: "3", timestamp: "10:00:00.003" }
+      ];
+
+      expect(recorder.getLogCount()).toBe(3);
+      expect(recorder.getLogs(2, 2).map((item) => item.message)).toEqual(["3"]);
+    });
+
+    it("error/warn/info/debug/trace 应记录不同级别日志", () => {
+      const recorder = new LogRecorder("levels");
+      managedRecorders.push(recorder);
+
+      recorder.error("err");
+      recorder.warn("warn");
+      recorder.info("info");
+      recorder.debug("debug");
+      recorder.trace("trace");
+
+      expect(LogRecorder.logs.slice(-5).map((item) => item.level)).toEqual([
+        "error",
+        "warn",
+        "info",
+        "debug",
+        "trace"
+      ]);
     });
   });
 
-  describe('LogRecorder', () => {
-    let logRecorder: LogRecorder;
+  describe("AbsPlatform 基础行为", () => {
+    it("preMatchJob 在自定义投递上限触达时应抛出 PushLimitError", () => {
+      const { counter } = setupRuntime();
+      counter.onceSuccessCount = 2;
+      const platform = createPlatform();
+      platform.selfDefPushCountLimit = 2;
 
-    beforeEach(() => {
-      // 清空静态logs
-      LogRecorder.logs = [];
-      logRecorder = new LogRecorder('test');
+      expect(() => platform.preMatchJob()).toThrow(PushLimitError);
     });
 
-    it('应该正确初始化LogRecorder', () => {
-      expect(logRecorder).toBeDefined();
-      expect(logRecorder.name).toBe('test');
+    it("preMatchJob 在暂停状态应抛出 PushStopError", () => {
+      const platform = createPlatform();
+      platform.pushStatus = PushStatus.PAUSE;
+
+      expect(() => platform.preMatchJob()).toThrow(PushStopError);
     });
 
-    it('应该记录日志到静态logs数组', () => {
-      logRecorder.info('Test message');
-      expect(LogRecorder.logs.length).toBeGreaterThan(0);
-      expect(LogRecorder.logs[LogRecorder.logs.length - 1].message).toContain('Test message');
+    it("push 在命中限制条件时应抛出 PushLimitError", async () => {
+      const platform = createPlatform();
+      platform.limitResponse = {
+        limit: true,
+        msg: "限制命中"
+      };
+
+      await expect(platform.push({ id: "1", title: "job-1" })).rejects.toBeInstanceOf(PushLimitError);
     });
 
-    it('应该记录不同级别的日志', () => {
-      const initialLength = LogRecorder.logs.length;
-      
-      logRecorder.info('Info message');
-      logRecorder.warn('Warn message');
-      logRecorder.error('Error message');
-      
-      expect(LogRecorder.logs.length).toBe(initialLength + 3);
+    it("push 在 pushMock=true 时应返回 mock 成功结果", async () => {
+      const platform = createPlatform();
+      platform.pushMock = true;
+
+      const result = await platform.push({ id: "1", title: "job-1" });
+
+      expect(result).toEqual({
+        message: "Success",
+        code: 0
+      });
+      expect(platform.doPush).not.toHaveBeenCalled();
     });
 
-    it('应该包含时间戳', () => {
-      logRecorder.info('Test with timestamp');
-      const lastLog = LogRecorder.logs[LogRecorder.logs.length - 1];
-      expect(lastLog.timestamp).toBeDefined();
-      expect(lastLog.timestamp).toMatch(/\d{2}:\d{2}:\d{2}\.\d{3}/);
+    it("push 在正常路径应委托 doPush", async () => {
+      const platform = createPlatform();
+      platform.doPush.mockResolvedValueOnce({ message: "ok", code: 0, verified: true });
+
+      const result = await platform.push({ id: "1", title: "job-1" });
+
+      expect(platform.doPush).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ message: "ok", code: 0, verified: true });
     });
 
-    it('应该限制最大日志数量', () => {
-      const recorder = new LogRecorder('test');
-      recorder.maxLogs = 10;
-      
-      // 添加超过maxLogs的日志
-      for (let i = 0; i < 15; i++) {
-        recorder.info(`Message ${i}`);
-      }
-      
-      // 由于是静态数组，这里只验证recorder有maxLogs属性
-      expect(recorder.maxLogs).toBe(10);
+    it("collect 在暂停状态应抛出 PushStopError", async () => {
+      const platform = createPlatform();
+      platform.pushStatus = PushStatus.PAUSE;
+
+      await expect(platform.collect({ id: "1", title: "job-1" })).rejects.toBeInstanceOf(PushStopError);
     });
 
-    it('应该正确格式化日志级别', () => {
-      logRecorder.info('Info test');
-      const lastLog = LogRecorder.logs[LogRecorder.logs.length - 1];
-      expect(lastLog.level).toBeDefined();
-      expect(['INFO', 'WARN', 'ERROR', 'DEBUG', 'info', 'warn', 'error', 'debug']).toContain(lastLog.level);
+    it("collect 在自定义收藏上限触达时应抛出 PushLimitError", async () => {
+      const { counter } = setupRuntime();
+      counter.onceCollectSuccessCount = 1;
+      const platform = createPlatform();
+      platform.selfDefPushCountLimit = 1;
+
+      await expect(platform.collect({ id: "1", title: "job-1" })).rejects.toBeInstanceOf(PushLimitError);
     });
 
-    it('应该支持清空日志', () => {
-      logRecorder.info('Test 1');
-      logRecorder.info('Test 2');
-      expect(LogRecorder.logs.length).toBeGreaterThan(0);
-      
-      LogRecorder.logs = [];
-      expect(LogRecorder.logs.length).toBe(0);
+    it("collect 在 pushMock=true 时应返回 mock 成功结果", async () => {
+      const platform = createPlatform();
+      platform.pushMock = true;
+
+      const result = await platform.collect({ id: "1", title: "job-1" });
+
+      expect(result).toEqual({
+        message: "Success",
+        code: 0
+      });
+      expect(platform.doCollect).not.toHaveBeenCalled();
     });
 
-    it('应该从localStorage加载日志', () => {
-      // 这个测试验证loadLogsFromStorage方法被调用
-      const recorder = new LogRecorder('load-test');
-      expect(recorder).toBeDefined();
-      // 实际的localStorage交互由test-setup.ts mock
+    it("collect 在正常路径应委托 doCollect", async () => {
+      const platform = createPlatform();
+      platform.doCollect.mockResolvedValueOnce({ message: "ok", code: 0, verified: true });
+
+      const result = await platform.collect({ id: "1", title: "job-1" });
+
+      expect(platform.doCollect).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ message: "ok", code: 0, verified: true });
     });
 
-    it('应该启动持久化定时器', () => {
-      const recorder = new LogRecorder('persist-test');
-      expect(recorder.persistTimer).toBeDefined();
+    it("collectAfterHandler 成功时应累计并返回岗位详情", async () => {
+      const { counter } = setupRuntime();
+      const platform = createPlatform();
+      const job = { id: "1", title: "job-1" };
+
+      const result = await platform.collectAfterHandler({ message: "Success", code: 0, verified: true }, job);
+
+      expect(counter.collectSuccessCount).toBe(1);
+      expect(result).toBe(job);
+    });
+
+    it("collectAfterHandler 失败时应抛出 FavoriteRequestError", async () => {
+      const platform = createPlatform();
+
+      await expect(
+        platform.collectAfterHandler({ message: "失败", code: 1 }, { id: "1", title: "job-1" })
+      ).rejects.toBeInstanceOf(FavoriteRequestError);
+    });
+
+    it("collectPreHandler 应原样返回岗位详情", () => {
+      const platform = createPlatform();
+      const job = { id: "1", title: "job-1" };
+
+      expect(platform.collectPreHandler(job)).toBe(job);
+    });
+
+    it("默认 doCollect 应返回平台不支持提示", async () => {
+      const platform = new DefaultBehaviorPlatform();
+      managedRecorders.push(platform.preferenceLogRecorder);
+
+      const result = await platform.doCollect({ id: "1", title: "job-1" });
+
+      expect(result).toEqual({
+        message: "当前平台暂不支持收藏",
+        code: 1
+      });
+    });
+
+    it("默认 isLimit 应返回不限制并携带岗位key", () => {
+      const platform = new DefaultBehaviorPlatform();
+      managedRecorders.push(platform.preferenceLogRecorder);
+
+      expect(platform.isLimit({ id: "1", title: "job-1" })).toEqual({
+        limit: false,
+        msg: "job-1"
+      });
+    });
+
+    it("getFistJobDetail 应返回首个岗位", () => {
+      const platform = new DefaultBehaviorPlatform();
+      managedRecorders.push(platform.preferenceLogRecorder);
+      platform.jobs = createJobs("1", "2");
+
+      expect(platform.getFistJobDetail()).toEqual({ id: "1", title: "job-1" });
     });
   });
 
-  describe('运行时状态管理', () => {
-    it('应该提供默认的fallback counter', () => {
-      const mockCounter: PushResultCounterRuntime = {
-        notMatchCount: 0,
-        successCount: 0,
-        onceSuccessCount: 0,
-        failCount: 0,
-        collectSuccessCount: 0,
-        collectFailCount: 0,
-        onceCollectSuccessCount: 0,
-        notMatchIncr: vi.fn(),
-        successIncr: vi.fn(),
-        failIncr: vi.fn(),
-        collectSuccessIncr: vi.fn(),
-        collectFailIncr: vi.fn(),
-        clearOnceSuccessCount: vi.fn(),
-        clearOnceCollectSuccessCount: vi.fn()
-      };
+  describe("next", () => {
+    it("有下一页进展时应正常等待并继续", async () => {
+      setupRuntime({ npi: 2 });
+      const platform = createPlatform();
+      platform.hasNextQueue = [true];
 
-      const mockUserStore: RuntimeUserStore = {
-        user: { preference: {} },
-        platformType: undefined,
-        preferenceLoadStatus: 'idle',
-        preferenceLoadError: ''
-      };
+      const result = await platform.next();
 
-      bindPlatformRuntime(mockCounter, mockUserStore);
-      
-      expect(pushResultCounter.notMatchIncr).toBeDefined();
-      expect(pushResultCounter.successIncr).toBeDefined();
-      expect(pushResultCounter.failIncr).toBeDefined();
+      expect(result).toBe(true);
+      expect(platform.acquireDataPre).toHaveBeenCalledTimes(1);
+      expect(sleepSpy).toHaveBeenCalledWith(2000);
+      expect(sleepSpy).toHaveBeenCalledWith(3000);
     });
 
-    it('应该正确处理用户偏好设置', () => {
-      const mockCounter: PushResultCounterRuntime = {
-        notMatchCount: 0,
-        successCount: 0,
-        onceSuccessCount: 0,
-        failCount: 0,
-        collectSuccessCount: 0,
-        collectFailCount: 0,
-        onceCollectSuccessCount: 0,
-        notMatchIncr: vi.fn(),
-        successIncr: vi.fn(),
-        failIncr: vi.fn(),
-        collectSuccessIncr: vi.fn(),
-        collectFailIncr: vi.fn(),
-        clearOnceSuccessCount: vi.fn(),
-        clearOnceCollectSuccessCount: vi.fn()
-      };
+    it("无下一页时兜底滚动后恢复进展应返回 true", async () => {
+      setupRuntime({ npi: 1 });
+      const platform = createPlatform();
+      platform.hasNextQueue = [false, true];
 
-      const mockUserStore: RuntimeUserStore = {
-        user: {
-          preference: {
-            pushInterval: 5000,
-            pushLimit: 20,
-            enableAI: true
-          }
-        },
-        platformType: 'boss' as any,
-        preferenceLoadStatus: 'success',
-        preferenceLoadError: ''
-      };
+      const result = await platform.next();
 
-      bindPlatformRuntime(mockCounter, mockUserStore);
-      
-      expect(runtimeUserStore.user.preference.pushInterval).toBe(5000);
-      expect(runtimeUserStore.user.preference.pushLimit).toBe(20);
-      expect(runtimeUserStore.user.preference.enableAI).toBe(true);
+      expect(result).toBe(true);
+      expect(platform.acquireDataPre).toHaveBeenCalledTimes(1);
+      expect(sleepSpy).toHaveBeenCalledWith(1000);
     });
 
-    it('应该处理偏好加载失败的情况', () => {
-      const mockCounter: PushResultCounterRuntime = {
-        notMatchCount: 0,
-        successCount: 0,
-        onceSuccessCount: 0,
-        failCount: 0,
-        collectSuccessCount: 0,
-        collectFailCount: 0,
-        onceCollectSuccessCount: 0,
-        notMatchIncr: vi.fn(),
-        successIncr: vi.fn(),
-        failIncr: vi.fn(),
-        collectSuccessIncr: vi.fn(),
-        collectFailIncr: vi.fn(),
-        clearOnceSuccessCount: vi.fn(),
-        clearOnceCollectSuccessCount: vi.fn()
-      };
+    it("无下一页且超时仍无进展应返回 false", async () => {
+      const dateNowSpy = vi.spyOn(Date, "now");
+      let now = 0;
+      dateNowSpy.mockImplementation(() => {
+        now += 10_000;
+        return now;
+      });
 
-      const mockUserStore: RuntimeUserStore = {
-        user: { preference: {} },
-        platformType: undefined,
-        preferenceLoadStatus: 'failed',
-        preferenceLoadError: 'Failed to load preferences'
-      };
+      const platform = createPlatform();
+      platform.hasNextQueue = [false, false];
 
-      bindPlatformRuntime(mockCounter, mockUserStore);
-      
-      expect(runtimeUserStore.preferenceLoadStatus).toBe('failed');
-      expect(runtimeUserStore.preferenceLoadError).toBe('Failed to load preferences');
+      const result = await platform.next();
+
+      expect(result).toBe(false);
+      expect(platform.acquireDataPre).toHaveBeenCalledTimes(1);
+    });
+
+    it("暂停状态调用 next 应停止并记录原因", async () => {
+      const platform = createPlatform();
+      platform.pushStatus = PushStatus.PAUSE;
+      platform.hasNextQueue = [true];
+
+      const result = await platform.next();
+
+      expect(result).toBe(false);
+      expect(platform.lastStopReason).toContain("手动暂停投递");
+    });
+
+    it("人工验证解除后 next 应清理停止原因并继续", async () => {
+      const platform = createPlatform();
+      platform.hasNextQueue = [true];
+      platform.manualVerificationQueue = ["检测到验证弹窗", null];
+
+      const result = await platform.next();
+
+      expect(result).toBe(true);
+      expect(platform.lastStopReason).toBe("");
+      expect(sleepSpy).toHaveBeenCalledWith(5000);
+    });
+  });
+
+  describe("startPush", () => {
+    it("当前域名不可信时应进入 LIMIT 状态", async () => {
+      const platform = createPlatform();
+      vi.spyOn(Tools, "getCurrentHostname").mockReturnValue("evil.example.com");
+      vi.spyOn(Tools, "isBossDomainHost").mockReturnValue(false);
+
+      await platform.startPush();
+
+      expect(platform.pushStatus).toBe(PushStatus.LIMIT);
+      expect(platform.lastStopReason).toContain("不受信任");
+      expect(platform.startPreHandler).not.toHaveBeenCalled();
+    });
+
+    it("存在未过期锁时应拒绝启动", async () => {
+      const platform = createPlatform();
+      gmStore[TampermonkeyApi.PUSH_LOCK] = `${Date.now()}_other-tab`;
+
+      await platform.startPush();
+
+      expect(platform.pushStatus).toBe(PushStatus.LIMIT);
+      expect(platform.lastStopReason).toContain("其他标签页");
+    });
+
+    it("锁过期时应清理旧锁并继续执行", async () => {
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      gmStore[TampermonkeyApi.PUSH_LOCK] = `${Date.now() - 6 * 60 * 1000}_expired`;
+
+      await platform.startPush();
+
+      expect(platform.pushStatus).toBe(PushStatus.PUSHING);
+      expect(platform.startPreHandler).toHaveBeenCalledTimes(1);
+      expect(gmStore[TampermonkeyApi.PUSH_LOCK]).toBe("");
+    });
+
+    it("锁回读不一致时应进入 LIMIT 状态", async () => {
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+
+      gmGetValueSpy.mockReset();
+      gmSetValueSpy.mockReset();
+      gmGetValueSpy
+        .mockImplementationOnce((_key: string, defaultValue: unknown) => defaultValue)
+        .mockImplementationOnce(() => "another-lock-value");
+      gmSetValueSpy.mockImplementation(() => undefined);
+
+      await platform.startPush();
+
+      expect(platform.pushStatus).toBe(PushStatus.LIMIT);
+      expect(platform.lastStopReason).toContain("获取投递锁失败");
+    });
+
+    it("启动前已手动暂停时应提前退出并释放锁", async () => {
+      const platform = createPlatform();
+      platform.pushStatus = PushStatus.PAUSE;
+
+      await platform.startPush();
+
+      expect(platform.lastStopReason).toContain("手动暂停投递");
+      expect(gmStore[TampermonkeyApi.PUSH_LOCK]).toBe("");
+      expect(platform.startPreHandler).not.toHaveBeenCalled();
+    });
+
+    it("正常路径应按队列顺序处理岗位并释放锁", async () => {
+      const { counter } = setupRuntime();
+      const platform = createPlatform();
+      platform.jobs = createJobs("1", "2");
+      platform.next = vi.fn(async () => false);
+
+      await platform.startPush();
+
+      expect(counter.clearOnceSuccessCount).toHaveBeenCalledTimes(1);
+      expect(platform.pushPreHandler.mock.calls.map((args: any[]) => args[0].id)).toEqual(["1", "2"]);
+      expect(platform.doPush).toHaveBeenCalledTimes(2);
+      expect(platform.pushAfterHandler).toHaveBeenCalledTimes(2);
+      expect(gmStore[TampermonkeyApi.PUSH_LOCK]).toBe("");
+    });
+
+    it("NotMatchError 应计入 notMatchCount", async () => {
+      const { counter } = setupRuntime();
+      const platform = createPlatform();
+      platform.preferenceLogRecorder.setLogLevel(LogLevel.Debug);
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      platform.matchJob.mockRejectedValueOnce(new NotMatchError("job-1", "salary", "薪资不匹配"));
+
+      await platform.startPush();
+
+      expect(counter.notMatchCount).toBe(1);
+      expect(platform.doPush).not.toHaveBeenCalled();
+    });
+
+    it("PushRequestError 应计入 failCount", async () => {
+      const { counter } = setupRuntime();
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      platform.doPush.mockRejectedValueOnce(new PushRequestError("job-1", "请求失败"));
+
+      await platform.startPush();
+
+      expect(counter.failCount).toBe(1);
+    });
+
+    it("collectMode 下 FavoriteRequestError 应计入 collectFailCount", async () => {
+      const { counter } = setupRuntime();
+      const platform = createPlatform();
+      platform.collectMode = true;
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      platform.doCollect.mockResolvedValueOnce({ message: "收藏失败", code: 1, verified: false });
+
+      await platform.startPush();
+
+      expect(counter.collectFailCount).toBe(1);
+    });
+
+    it("FetchJobDetailError 应记录告警但不计入 failCount", async () => {
+      const { counter } = setupRuntime();
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      platform.doPush.mockRejectedValueOnce(new FetchJobDetailError("job-1", "招呼语失败"));
+
+      await platform.startPush();
+
+      expect(counter.failCount).toBe(0);
+      expect(platform.lastStopReason).toBe("");
+    });
+
+    it("PushStopError(手动暂停) 应立即停止并记录原因", async () => {
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      platform.doPush.mockRejectedValueOnce(new PushStopError("手动暂停投递"));
+
+      await platform.startPush();
+
+      expect(platform.lastStopReason).toContain("手动暂停投递");
+      expect(gmStore[TampermonkeyApi.PUSH_LOCK]).toBe("");
+    });
+
+    it("PushStopError(人工验证) 在验证解除后应继续执行", async () => {
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      platform.manualVerificationQueue = ["检测到验证弹窗", null];
+      platform.doPush.mockRejectedValueOnce(new PushStopError("请先完成验证"));
+
+      await platform.startPush();
+
+      expect(platform.lastStopReason).toBe("");
+      expect(sleepSpy).toHaveBeenCalledWith(5000);
+    });
+
+    it("PushLimitError 应进入 LIMIT 状态并停止", async () => {
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      platform.doPush.mockRejectedValueOnce(new PushLimitError("命中限制"));
+
+      await platform.startPush();
+
+      expect(platform.pushStatus).toBe(PushStatus.LIMIT);
+      expect(platform.lastStopReason).toContain("停止投递");
+    });
+
+    it("应命中每日成功次数上限保护", async () => {
+      const { counter } = setupRuntime({ maxDailyActions: 2 });
+      counter.successCount = 2;
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+
+      await expect(platform.startPush()).rejects.toThrow("今日最多2次成功投递");
+      expect(gmStore[TampermonkeyApi.PUSH_LOCK]).toBe("");
+    });
+
+    it("应命中会话成功次数上限保护", async () => {
+      setupRuntime({ maxSessionActions: 1 });
+      const platform = createPlatform();
+      platform.jobs = createJobs("1", "2");
+      platform.next = vi.fn(async () => false);
+
+      await expect(platform.startPush()).rejects.toThrow("单次会话最多1次成功投递");
+      expect(platform.doPush).toHaveBeenCalledTimes(1);
+      expect(gmStore[TampermonkeyApi.PUSH_LOCK]).toBe("");
+    });
+
+    it("应命中每分钟动作次数上限保护", async () => {
+      setupRuntime({ maxActionsPerMinute: 1 });
+      const platform = createPlatform();
+      platform.jobs = createJobs("1", "2");
+      platform.next = vi.fn(async () => false);
+
+      await expect(platform.startPush()).rejects.toThrow("每分钟最多1次投递");
+      expect(platform.doPush).toHaveBeenCalledTimes(1);
+      expect(gmStore[TampermonkeyApi.PUSH_LOCK]).toBe("");
+    });
+
+    it("网络异常后重试成功应继续流程", async () => {
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      const networkError = { code: "ERR_NETWORK", message: "network down" };
+      platform.matchJob
+        .mockRejectedValueOnce(networkError)
+        .mockResolvedValueOnce(undefined);
+
+      await platform.startPush();
+
+      expect(platform.matchJob).toHaveBeenCalledTimes(2);
+      expect(platform.doPush).toHaveBeenCalledTimes(1);
+      expect(sleepSpy.mock.calls.some((args: any[]) => args[0] === 2000)).toBe(true);
+    });
+
+    it("网络异常重试耗尽后应记录安全等待原因", async () => {
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      const networkError = { code: "ERR_NETWORK", message: "network down" };
+      platform.matchJob.mockRejectedValue(networkError);
+
+      await platform.startPush();
+
+      expect(platform.matchJob).toHaveBeenCalledTimes(4);
+      expect(platform.lastStopReason).toContain("网络异常重试 3 次后仍失败");
+    });
+
+    it("未知异常应记录错误并继续处理", async () => {
+      const platform = createPlatform();
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      const errorSpy = vi.spyOn(platform.preferenceLogRecorder, "error");
+      platform.matchJob.mockRejectedValueOnce(new Error("boom"));
+
+      await platform.startPush();
+
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("未知异常导致投递失败"));
+    });
+
+    it("collectMode 正常路径应走收藏链路并清理 onceCollect 计数", async () => {
+      const { counter } = setupRuntime();
+      const platform = createPlatform();
+      platform.collectMode = true;
+      platform.jobs = createJobs("1");
+      platform.next = vi.fn(async () => false);
+      const collectPreSpy = vi.spyOn(platform, "collectPreHandler");
+      const collectAfterSpy = vi.spyOn(platform, "collectAfterHandler");
+
+      await platform.startPush();
+
+      expect(counter.clearOnceCollectSuccessCount).toHaveBeenCalledTimes(1);
+      expect(collectPreSpy).toHaveBeenCalledTimes(1);
+      expect(collectAfterSpy).toHaveBeenCalledTimes(1);
+      expect(platform.pushPreHandler).not.toHaveBeenCalled();
     });
   });
 });
