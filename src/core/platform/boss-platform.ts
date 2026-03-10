@@ -11,7 +11,7 @@ import {
   buildAiDeliveryUserProfile,
   buildTraditionalRuleSnapshot,
   resolveAiDeliveryFallback
-} from "@/shared/utils/ai-delivery";
+} from "@/core/delivery/ai-delivery-builder";
 import { TampermonkeyApi } from "@/shared/utils/tampermonkey";
 import {
   NotMatchError,
@@ -23,6 +23,7 @@ import {
 } from "@/shared/errors";
 import { Message } from "@/core/protocol/message";
 import { simulateScrollToEnd } from "@/shared/utils/scroll";
+import { querySelectorWithFallback, querySelectorAllWithFallback } from "@/core/platform/boss-dom-adapter";
 
 const logger$1 = Logger.rootLogger;
 const AI_DELIVERY_JUDGE_TIMEOUT_MS = 12_000;
@@ -38,47 +39,6 @@ const toText = (value: unknown, maxLength = 500): string => {
 
 const toRecord = (value: unknown): Record<string, unknown> => {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-};
-
-/**
- * 选择器降级查询 - 支持多个选择器按优先级尝试
- * @param selectors 选择器数组，按优先级从高到低
- * @param context 查询上下文，默认为 document
- * @returns 找到的第一个元素，或 null
- */
-const querySelectorWithFallback = (selectors: string[], context: Document | Element = document): Element | null => {
-  for (const selector of selectors) {
-    try {
-      const element = context.querySelector(selector);
-      if (element) {
-        return element;
-      }
-    } catch (error) {
-      // 选择器语法错误，跳过
-      logger$1.warn(`选择器 "${selector}" 查询失败:`, error);
-    }
-  }
-  return null;
-};
-
-/**
- * 选择器降级查询（多个元素）
- * @param selectors 选择器数组，按优先级从高到低
- * @param context 查询上下文，默认为 document
- * @returns 找到的元素数组
- */
-const querySelectorAllWithFallback = (selectors: string[], context: Document | Element = document): Element[] => {
-  for (const selector of selectors) {
-    try {
-      const elements = Array.from(context.querySelectorAll(selector));
-      if (elements.length > 0) {
-        return elements;
-      }
-    } catch (error) {
-      logger$1.warn(`选择器 "${selector}" 查询失败:`, error);
-    }
-  }
-  return [];
 };
 
 async function setChatWebsocket(): Promise<void> {
