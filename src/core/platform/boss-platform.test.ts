@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NotMatchError, PushLimitError, PushStopError } from "@/shared/errors";
 import { simulateScrollToEnd } from "@/shared/utils/scroll";
 
@@ -307,6 +307,69 @@ describe("BossPlatform.getJobList", () => {
     expect(jobList).toHaveLength(1);
     expect(jobList[0].encryptJobId).toBe("job-2");
   });
+
+  it("jobs 页过滤已处理的岗位", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs");
+    const cards = [
+      {
+        __vue__: {
+          data: {
+            encryptJobId: "job-1",
+            jobName: "前端工程师",
+            processed: true
+          }
+        }
+      },
+      {
+        __vue__: {
+          data: {
+            encryptJobId: "job-2",
+            jobName: "后端工程师"
+          }
+        }
+      }
+    ];
+
+    vi.stubGlobal("document", {
+      querySelectorAll: vi.fn((selector: string) => selector === ".job-card-wrap" ? cards : [])
+    });
+
+    const jobList = platform.getJobList();
+    expect(jobList).toHaveLength(1);
+    expect(jobList[0].encryptJobId).toBe("job-2");
+  });
+
+  it("job-recommend 页过滤已沟通的岗位", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/job-recommend");
+    const cards = [
+      {
+        __vue__: {
+          data: {
+            encryptJobId: "job-1",
+            jobName: "前端工程师",
+            contact: true
+          }
+        }
+      },
+      {
+        __vue__: {
+          data: {
+            encryptJobId: "job-2",
+            jobName: "后端工程师",
+            contact: false
+          }
+        }
+      }
+    ];
+
+    vi.stubGlobal("document", {
+      querySelectorAll: vi.fn((selector: string) => selector === ".job-card-wrap" ? cards : [])
+    });
+
+    const jobList = platform.getJobList();
+    expect(jobList).toHaveLength(1);
+    expect(jobList[0].encryptJobId).toBe("job-2");
+  });
 });
 
 describe("BossPlatform.matchJob processed 标记时机", () => {
@@ -349,5 +412,238 @@ describe("BossPlatform.matchJob processed 标记时机", () => {
 
     await expect(platform.matchJob(jobDetail)).rejects.toBeInstanceOf(NotMatchError);
     expect(jobDetail.processed).toBe(true);
+  });
+});
+
+describe("BossPlatform.hasNext", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("jobs 页初始状态有卡片时返回 true", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs");
+    const container = { scrollHeight: 2000 };
+    const cards = [{ textContent: "job1" }, { textContent: "job2" }];
+
+    vi.stubGlobal("document", {
+      querySelector: vi.fn((selector: string) => selector === ".job-list-container" ? container : null),
+      querySelectorAll: vi.fn((selector: string) => selector.includes(".job-card-wrap") ? cards : [])
+    });
+
+    expect(platform.hasNext()).toBe(true);
+  });
+
+  it("jobs 页卡片数量增加时返回 true", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.lastJobCardCount = 5;
+    platform.lastHeight = 2000;
+
+    const container = { scrollHeight: 2000 };
+    const cards = Array(10).fill({ textContent: "job" });
+
+    vi.stubGlobal("document", {
+      querySelector: vi.fn((selector: string) => selector === ".job-list-container" ? container : null),
+      querySelectorAll: vi.fn((selector: string) => selector.includes(".job-card-wrap") ? cards : [])
+    });
+
+    expect(platform.hasNext()).toBe(true);
+  });
+
+  it("jobs 页无变化时返回 false", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.lastJobCardCount = 5;
+    platform.lastHeight = 2000;
+    
+    const cards = Array(5).fill(null).map((_, i) => ({
+      textContent: "job",
+      __vue__: { data: { encryptJobId: `job-${i}` } }
+    }));
+    
+    const tailCard = cards[cards.length - 1];
+    const tailKey = `encrypt:job-${cards.length - 1}`;
+    platform.lastJobsTailKey = tailKey;
+    
+    const firstKeys = cards.slice(0, 3).map((_, i) => `encrypt:job-${i}`);
+    const lastKeys = cards.slice(-3).map((_, i) => `encrypt:job-${i + 2}`);
+    platform.lastJobsListSignature = [...firstKeys, ...lastKeys].join("||");
+
+    const container = { scrollHeight: 2000 };
+
+    vi.stubGlobal("document", {
+      querySelector: vi.fn((selector: string) => selector === ".job-list-container" ? container : null),
+      querySelectorAll: vi.fn((selector: string) => selector.includes(".job-card-wrap") ? cards : [])
+    });
+
+    const result = platform.hasNext();
+    expect(result).toBe(false);
+  });
+
+  it("overseas 页高度变化时返回 true", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/overseas") as any;
+    platform.lastHeight = 1000;
+
+    vi.stubGlobal("document", {
+      querySelector: vi.fn((selector: string) => selector === ".job-list" ? { scrollHeight: 2000 } : null)
+    });
+
+    expect(platform.hasNext()).toBe(true);
+  });
+});
+
+describe("BossPlatform.startPreHandler", () => {
+  it("重置所有状态变量", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.lastHeight = 1000;
+    platform.lastJobCardCount = 10;
+    platform.sessionAutoMessageCount = 5;
+    platform.sessionProcessedJobKeys.set("key1", Date.now());
+
+    platform.startPreHandler();
+
+    expect(platform.lastHeight).toBe(0);
+    expect(platform.lastJobCardCount).toBe(0);
+    expect(platform.sessionAutoMessageCount).toBe(0);
+    expect(platform.sessionProcessedJobKeys.size).toBe(0);
+  });
+});
+
+describe("BossPlatform.enforceAutoContactSafety", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+    mocks.runtimeUserStore.user.preference = {};
+  });
+
+  it("触发过快时抛出错误", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.lastAutoContactTs = Date.now();
+
+    expect(() => {
+      platform.enforceAutoContactSafety("message");
+    }).toThrow("自动发消息触发过快");
+  });
+
+  it("消息数量达到上限时抛出错误", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.sessionAutoMessageCount = 30;
+    platform.lastAutoContactTs = 0;
+
+    expect(() => {
+      platform.enforceAutoContactSafety("message");
+    }).toThrow("自动消息达到会话上限");
+  });
+
+  it("图片简历数量达到上限时抛出错误", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.sessionAutoResumeCount = 18;
+    platform.lastAutoContactTs = 0;
+
+    expect(() => {
+      platform.enforceAutoContactSafety("image");
+    }).toThrow("自动图片简历达到会话上限");
+  });
+
+  it("正常情况下更新计数器", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.sessionAutoMessageCount = 0;
+    platform.lastAutoContactTs = 0;
+
+    platform.enforceAutoContactSafety("message");
+
+    expect(platform.sessionAutoMessageCount).toBe(1);
+    expect(platform.lastAutoContactTs).toBeGreaterThan(0);
+  });
+});
+
+describe("BossPlatform.getStableJobRuntimeKey", () => {
+  it("优先使用 encryptJobId", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    const jobDetail = {
+      encryptJobId: "enc-123",
+      jobId: "job-456",
+      lid: "lid-789"
+    };
+
+    const key = platform.getStableJobRuntimeKey(jobDetail);
+    expect(key).toBe("encrypt:enc-123");
+  });
+
+  it("encryptJobId 不存在时使用 jobId", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    const jobDetail = {
+      jobId: "job-456",
+      lid: "lid-789"
+    };
+
+    const key = platform.getStableJobRuntimeKey(jobDetail);
+    expect(key).toBe("job:job-456");
+  });
+
+  it("jobId 不存在时使用 lid", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    const jobDetail = {
+      lid: "lid-789"
+    };
+
+    const key = platform.getStableJobRuntimeKey(jobDetail);
+    expect(key).toBe("lid:lid-789");
+  });
+
+  it("所有标识符都不存在时回退到 getJobKey", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.getJobKey = vi.fn(() => "fallback-key");
+    const jobDetail = {};
+
+    const key = platform.getStableJobRuntimeKey(jobDetail);
+    expect(key).toBe("fallback-key");
+    expect(platform.getJobKey).toHaveBeenCalledWith(jobDetail);
+  });
+});
+
+describe("BossPlatform.markJobProcessed", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("标记岗位为已处理并记录到 sessionProcessedJobKeys", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    const jobDetail: any = { encryptJobId: "job-1" };
+
+    platform.markJobProcessed(jobDetail);
+
+    expect(jobDetail.processed).toBe(true);
+    expect(platform.sessionProcessedJobKeys.has("encrypt:job-1")).toBe(true);
+  });
+
+  it("超过 MAX_PROCESSED_JOBS 时执行 LRU 清理", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs") as any;
+    platform.MAX_PROCESSED_JOBS = 3;
+
+    for (let i = 1; i <= 5; i++) {
+      const jobDetail: any = { encryptJobId: `job-${i}` };
+      platform.markJobProcessed(jobDetail);
+      if (i < 5) {
+        vi.advanceTimersByTime(1000);
+      }
+    }
+
+    expect(platform.sessionProcessedJobKeys.size).toBe(3);
+    expect(platform.sessionProcessedJobKeys.has("encrypt:job-1")).toBe(false);
+    expect(platform.sessionProcessedJobKeys.has("encrypt:job-2")).toBe(false);
+    expect(platform.sessionProcessedJobKeys.has("encrypt:job-3")).toBe(true);
+    expect(platform.sessionProcessedJobKeys.has("encrypt:job-4")).toBe(true);
+    expect(platform.sessionProcessedJobKeys.has("encrypt:job-5")).toBe(true);
+  });
+});
+
+describe("BossPlatform.getPlatformType", () => {
+  it("返回平台类型 0", () => {
+    const platform = new BossPlatform("https://www.zhipin.com/web/geek/jobs");
+    expect(platform.getPlatformType()).toBe(0);
   });
 });
