@@ -8,13 +8,7 @@
     "dev:preview": "node scripts/dev-preview.cmd",
     "build": "vite build",
     "preview": "vite preview",
-    "preview:test": "vite --config vite.preview.config.ts --host 127.0.0.1 --port 4173",
-    "type-check": "vue-tsc --noEmit",
-    "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:e2e:manual": "wait-on http://127.0.0.1:4173/preview.html && playwright test --config=playwright.manual.config.ts",
-    "test:e2e:ui": "playwright test --ui",
-    "test:coverage": "vitest run --coverage"
+    "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
     "axios": "^1.7.2",
@@ -25,16 +19,11 @@
     "vue": "3.4.21"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
     "@types/node": "^22.10.5",
     "@vitejs/plugin-vue": "^5.2.1",
-    "@vitest/coverage-v8": "^2.1.9",
-    "jsdom": "^28.1.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.0",
     "vite-plugin-monkey": "^5.0.8",
-    "vitest": "^2.1.8",
-    "vue-tsc": "^2.1.10",
-    "wait-on": "^9.0.4"
+    "vue-tsc": "^2.1.10"
   }
 }

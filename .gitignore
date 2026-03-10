@@ -1,5 +1,13 @@
 node_modules/
 dist/
 *.user.js
-log/*.log
-!log/.gitkeep
+
+# 测试和缓存目录
+coverage/
+test-results/
+log/
+logs/
+.ruff_cache/
+.VSCodeCounter/
+venv/
+.worktrees/
