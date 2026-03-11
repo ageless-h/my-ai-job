@@ -327,15 +327,15 @@ export class BossApiClient {
   }
 
   /**
-   * 从预览 API 获取简历文本
+   * 从预览 API 获取简历数据
    * 
-   * 通过 BOSS 直聘的简历预览 API 获取用户的简历内容。
+   * 通过 BOSS 直聘的简历预览 API 获取用户的简历结构化数据。
    * 此方法不使用缓存，每次调用都会从服务器获取最新数据。
    * 
-   * @returns {Promise<string>} 简历文本内容，如果获取失败则返回空字符串
+   * @returns {Promise<Record<string, unknown>>} 简历数据对象，包含 baseInfo, expectList, workExpList 等字段
    * @throws {Error} 当未找到认证令牌或网络请求失败时抛出
    */
-  async fetchRuntimeResumeTextFromPreviewApi(): Promise<string> {
+  async fetchRuntimeResumeTextFromPreviewApi(): Promise<Record<string, unknown>> {
     const url = "https://www.zhipin.com/wapi/zpgeek/resume/geek/preview/data.json";
     const token = Tools.getCookieValue("bst");
     
@@ -348,8 +348,7 @@ export class BossApiClient {
         headers: { Zp_token: token }
       });
 
-      const resumeText = response.data?.zpData?.resumeInfo?.resume || "";
-      return resumeText;
+      return response.data?.zpData || {};
     } catch (error: any) {
       logger.error("从预览 API 获取简历失败", error);
       throw error;

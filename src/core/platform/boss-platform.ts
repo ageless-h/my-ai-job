@@ -1,4 +1,3 @@
-import axios from "axios";
 import { AiPower } from "@/core/ai/ai-power";
 import { AbsPlatform, PushResultStatus, PushStatus, pushResultCounter, runtimeUserStore } from "@/core/engine/push-engine";
 import { Logger } from "@/shared/utils/logger";
@@ -179,6 +178,8 @@ export class BossPlatform extends AbsPlatform {
   private apiClient: BossApiClient;
 
   /**
+   * 创建 BOSS 平台适配器实例。
+   *
    * @param curUrl 当前页面地址。
    */
   constructor(curUrl: string) {
@@ -572,7 +573,7 @@ export class BossPlatform extends AbsPlatform {
   /**
    * 判断当前页面是否还可能存在下一批可获取的岗位数据。
    *
-   * jobs 与推荐页会结合卡片数量、尾部稳定键、首尾签名及滚动高度等多个指标，
+   * 职位列表页与推荐页会结合卡片数量、尾部稳定键、首尾签名及滚动高度等多个指标，
    * 尽量降低由于虚拟列表、懒加载或局部刷新造成的误判。
    *
    * @returns 若仍有机会获取到更多岗位则返回 `true`，否则返回 `false`。
@@ -766,7 +767,7 @@ export class BossPlatform extends AbsPlatform {
         const baseInfo = this.unpackBaseInfo(jobDetail);
         const extInfo = this.unpackExtInfo(jobDetailExt);
         const filterInput = buildAiDeliveryFilterJobInput(baseInfo, extInfo);
-        let judgeResult: { match: boolean; reason: string; valid: boolean; parseMode: string };
+        let judgeResult!: { match: boolean; reason: string; valid: boolean; parseMode: string };
         const judgeTraceId = this.buildAiJudgeTraceId();
         const filterPath = AiPower.getFilterPath();
         const aiJudgeStartedAt = Date.now();
@@ -777,8 +778,6 @@ export class BossPlatform extends AbsPlatform {
 
         // AI 判定采用有限次重试，缓解短暂网络抖动或模型服务瞬时失败。
         const MAX_AI_RETRIES = 3;
-        let lastError: any = null;
-
         for (let attempt = 1; attempt <= MAX_AI_RETRIES; attempt++) {
           try {
             const filterStartedAt = Date.now();
@@ -800,7 +799,6 @@ export class BossPlatform extends AbsPlatform {
             this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断完成${retryInfo} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`);
             break;
           } catch (error: any) {
-            lastError = error;
             if (attempt < MAX_AI_RETRIES) {
               const retryDelay = 1000 * attempt;
               this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 (尝试${attempt}/${MAX_AI_RETRIES}) trace=${judgeTraceId} 原因：${error?.message || "AI请求失败"}，${retryDelay}ms后重试`);
@@ -1879,7 +1877,11 @@ export class BossPlatform extends AbsPlatform {
     }
 
     try {
-      return await this.apiClient.obtainBossJobDetailExt(jobDetail);
+      return await this.apiClient.obtainBossJobDetailExt(
+        jobDetail.securityId,
+        jobDetail.encryptJobId,
+        jobDetail.lid
+      );
     } catch (error: any) {
       logger$1.debug("获取详情页异常正在重试:", error);
       return this.obtainBossJobDetailExt(jobDetail, error.message, retries - 1);
@@ -1895,6 +1897,7 @@ export class BossPlatform extends AbsPlatform {
   private async ensureRuntimeResumeNarrative(user: Record<string, unknown>): Promise<void> {
     const importedResume = (user.importedResume as Record<string, unknown>) || {};
     const currentText = `${importedResume.resumeText || ""}`.trim();
+    logger$1.debug(`检查运行时简历长度: ${currentText.length} 字符 (要求 >= 80)`);
     if (currentText.length >= 80) {
       return;
     }
@@ -1936,23 +1939,24 @@ export class BossPlatform extends AbsPlatform {
     let resumeTextSource = "";
 
     // 优先走预览接口，能直接拿到结构化数据并减少页面 HTML 解析成本。
-    const previewText = await this.fetchRuntimeResumeTextFromPreviewApi(token).catch(() => "");
-    if (previewText.length >= 60) {
+    const previewText = await this.fetchRuntimeResumeTextFromPreviewApi().catch(() => "");
+    if (previewText.length >= 80) {
       resumeText = previewText;
       resumeTextSource = "runtime-resume-preview-api";
     }
 
     if (!resumeText) {
       // 预览接口不可用时回退到页面 HTML 抽取，尽量保证 AI 仍能拿到简历摘要。
-      const pageHtml = await this.apiClient.fetchAndCacheRuntimeResumeText(token);
+      const pageHtml = await this.apiClient.fetchAndCacheRuntimeResumeText();
       const pageText = extractResumeTextFromHtml(pageHtml, 12_000);
-      if (pageText.length >= 60) {
+      if (pageText.length >= 80) {
         resumeText = pageText;
         resumeTextSource = "runtime-resume-page";
       }
     }
 
     if (!resumeText) {
+      logger$1.warn("简历获取失败：预览 API 和页面 HTML 均未返回足够长度的简历文本（要求 >= 80 字符）");
       return;
     }
 
@@ -1963,6 +1967,7 @@ export class BossPlatform extends AbsPlatform {
       resumeTextSource,
       importedAt: new Date().toISOString()
     };
+    logger$1.info(`简历更新成功: 来源=${resumeTextSource}, 长度=${resumeText.length} 字符`);
     if (runtimeUserStore?.user) {
       Tools.saveStoredUserProfile(runtimeUserStore.user);
     }
@@ -1971,11 +1976,10 @@ export class BossPlatform extends AbsPlatform {
   /**
    * 通过预览接口获取运行时简历文本。
    *
-   * @param token 页面上下文可用的身份令牌。
    * @returns 截断后的简历文本。
    */
-  private async fetchRuntimeResumeTextFromPreviewApi(token: string): Promise<string> {
-    const zpData = await this.apiClient.fetchRuntimeResumeTextFromPreviewApi(token);
+  private async fetchRuntimeResumeTextFromPreviewApi(): Promise<string> {
+    const zpData = await this.apiClient.fetchRuntimeResumeTextFromPreviewApi();
     return this.buildRuntimeResumeTextFromPreviewData(zpData, 12_000);
   }
 
@@ -2130,7 +2134,8 @@ export class BossPlatform extends AbsPlatform {
     }
 
     // 回退时需要完整执行传统基础与扩展规则，确保 AI 失败不会放宽既有约束。
-    this.applyTraditionalBaseChecks(jobDetail, jobTitle);
+    this.applyCommonHardConstraints(jobDetail, jobTitle);
+    this.applyTraditionalSoftFilters(jobDetail, jobTitle);
     this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
   }
 
@@ -2215,7 +2220,7 @@ export class BossPlatform extends AbsPlatform {
   /**
    * 执行传统投递基础检查。
    *
-   * @deprecated 建议直接使用 `applyCommonHardConstraints` 与 `applyTraditionalSoftFilters`。
+   * 该方法用于兼容旧调用路径；新代码优先直接使用 `applyCommonHardConstraints` 与 `applyTraditionalSoftFilters`。
    * @param jobDetail 岗位详情对象。
    * @param jobTitle 岗位可读标识。
    * @returns 无返回值。
