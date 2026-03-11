@@ -1000,21 +1000,34 @@ export class BossPlatform extends AbsPlatform {
    * @returns 仅包含基础字段的扁平对象。
    */
   unpackBaseInfo(jobDetail: any): Record<string, unknown> {
+    // 验证关键字段是否存在，记录缺失字段以便排查
+    const missingFields: string[] = [];
+    if (!jobDetail.jobName) missingFields.push('jobName');
+    if (!jobDetail.skills || (Array.isArray(jobDetail.skills) && jobDetail.skills.length === 0)) {
+      missingFields.push('skills');
+    }
+
+    if (missingFields.length > 0) {
+      logger$1.warn(
+        `岗位【${jobDetail.jobName || '未知'}】基础信息缺少关键字段: ${missingFields.join(', ')}，可能影响 AI 判断准确性`
+      );
+    }
+
     return {
-      jobName: jobDetail.jobName,
-      salaryDesc: jobDetail.salaryDesc,
-      jobLabels: jobDetail.jobLabels,
-      skills: jobDetail.skills,
-      jobExperience: jobDetail.jobExperience,
-      jobDegree: jobDetail.jobDegree,
-      cityName: jobDetail.cityName,
-      areaDistrict: jobDetail.areaDistrict,
-      businessDistrict: jobDetail.businessDistrict,
-      brandName: jobDetail.brandName,
-      brandStageName: jobDetail.brandStageName,
-      brandIndustry: jobDetail.brandIndustry,
-      brandScaleName: jobDetail.brandScaleName,
-      welfareList: jobDetail.welfareList,
+      jobName: jobDetail.jobName || '未知岗位',
+      salaryDesc: jobDetail.salaryDesc || '薪资面议',
+      jobLabels: jobDetail.jobLabels || [],
+      skills: jobDetail.skills || [],
+      jobExperience: jobDetail.jobExperience || '经验不限',
+      jobDegree: jobDetail.jobDegree || '学历不限',
+      cityName: jobDetail.cityName || '未知城市',
+      areaDistrict: jobDetail.areaDistrict || '',
+      businessDistrict: jobDetail.businessDistrict || '',
+      brandName: jobDetail.brandName || '未知公司',
+      brandStageName: jobDetail.brandStageName || '',
+      brandIndustry: jobDetail.brandIndustry || '',
+      brandScaleName: jobDetail.brandScaleName || '',
+      welfareList: jobDetail.welfareList || [],
     };
   }
 
@@ -1025,10 +1038,22 @@ export class BossPlatform extends AbsPlatform {
    * @returns 扩展字段组成的扁平对象。
    */
   unpackExtInfo(jobDetailExt: any): Record<string, unknown> {
+    // 验证关键字段是否存在，职位描述是 AI 判断的核心依据
+    const missingFields: string[] = [];
+    if (!jobDetailExt.postDescription || `${jobDetailExt.postDescription}`.trim().length === 0) {
+      missingFields.push('postDescription');
+    }
+
+    if (missingFields.length > 0) {
+      logger$1.warn(
+        `岗位详情扩展信息缺少关键字段: ${missingFields.join(', ')}，可能影响 AI 判断准确性`
+      );
+    }
+
     return {
-      postDescription: jobDetailExt.postDescription,
-      address: jobDetailExt.address,
-      activeTimeDesc: jobDetailExt.activeTimeDesc,
+      postDescription: jobDetailExt.postDescription || '未提供岗位描述',
+      address: jobDetailExt.address || '未知地址',
+      activeTimeDesc: jobDetailExt.activeTimeDesc || '活跃度未知',
     };
   }
 
@@ -2041,6 +2066,18 @@ export class BossPlatform extends AbsPlatform {
     if (retries === 0) {
       logger$1.warn(`获取工作详情扩展信息异常,用于活跃度过滤以及工作内容过滤; 原因：${message}`);
       throw new NotMatchError(this.getJobKey(jobDetail), message, '获取工作详情扩展信息异常');
+    }
+
+    // 验证必需参数是否存在
+    const missingParams: string[] = [];
+    if (!jobDetail.securityId) missingParams.push('securityId');
+    if (!jobDetail.encryptJobId) missingParams.push('encryptJobId');
+    if (!jobDetail.lid) missingParams.push('lid');
+
+    if (missingParams.length > 0) {
+      const errorMsg = `岗位信息缺少必需参数: ${missingParams.join(', ')}`;
+      logger$1.warn(`${errorMsg}，无法获取岗位详情扩展信息`);
+      throw new NotMatchError(this.getJobKey(jobDetail), errorMsg, '岗位信息不完整');
     }
 
     try {
