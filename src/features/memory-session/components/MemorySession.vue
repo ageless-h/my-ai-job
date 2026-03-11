@@ -1,3 +1,24 @@
+<!--
+/**
+ * MemorySession.vue - 对话与记忆策略组件
+ * 
+ * 提供 AI 代聊服务配置和对话记忆管理功能。
+ * 
+ * 主要功能：
+ * - AI 代聊服务开关
+ * - 延迟回复设置（模拟真人回复时间）
+ * - 对话记忆策略配置
+ * - 消息通知设置
+ * - 自动回复规则
+ * 
+ * 技术特性：
+ * - 实时同步配置到服务器
+ * - 对话上下文管理
+ * - 记忆策略持久化
+ * 
+ * @component
+ */
+-->
 <template>
   <div class="memory-session-tab">
     <div class="header-title">对话与记忆策略</div>
@@ -13,7 +34,10 @@
           active-text="开"
           inactive-text="关"
           inline-prompt
-          :style="{ '--el-switch-on-color': 'var(--boss-primary, #00bebd)', '--el-switch-off-color': '#dcdfe6' }"
+          :style="{
+            '--el-switch-on-color': 'var(--boss-primary, #00bebd)',
+            '--el-switch-off-color': '#dcdfe6',
+          }"
           @change="handleAISeatStatusChange"
         />
       </div>
@@ -48,17 +72,23 @@
               type="textarea"
               :rows="4"
               placeholder="例如：您好，请问该岗位双休吗？是否有加班补贴？"
-              @input="userStore.user.preference.ppE = userStore.user.preference.pp.trim().length > 0"
+              @input="
+                userStore.user.preference.ppE = userStore.user.preference.pp.trim().length > 0
+              "
             />
           </div>
           <div class="custom-chk-label">
-            <el-checkbox v-model="userStore.user.preference.rfE">婉拒回复术语 (手动拒绝时)</el-checkbox>
+            <el-checkbox v-model="userStore.user.preference.rfE"
+              >婉拒回复术语 (手动拒绝时)</el-checkbox
+            >
             <el-input
               v-model="userStore.user.preference.rf"
               type="textarea"
               :rows="4"
               placeholder="例如：非常感谢您的认可，但经过考虑我觉得该岗位与我目前的发展方向不太契合..."
-              @input="userStore.user.preference.rfE = userStore.user.preference.rf.trim().length > 0"
+              @input="
+                userStore.user.preference.rfE = userStore.user.preference.rf.trim().length > 0
+              "
             />
           </div>
         </div>
@@ -69,7 +99,9 @@
       <div class="card-title">高意向转换策略</div>
 
       <div class="mb-16">
-        <el-checkbox v-model="userStore.user.preference.hiaE">触发高意向后，自动暂停 AI 代聊交由人工接管</el-checkbox>
+        <el-checkbox v-model="userStore.user.preference.hiaE"
+          >触发高意向后，自动暂停 AI 代聊交由人工接管</el-checkbox
+        >
       </div>
 
       <div class="condition-box" :class="{ 'is-disabled': !userStore.user.preference.hiaE }">
@@ -110,8 +142,14 @@
       <div class="boss-card h-full">
         <div class="card-title">邮件通知设置</div>
         <div class="options-vert mt-12">
-          <el-checkbox v-model="userStore.user.preference.ermE" border>每轮对话均发送邮件通知</el-checkbox>
-          <el-checkbox v-model="userStore.user.preference.crE" border style="--el-checkbox-checked-text-color: #f56c6c;">
+          <el-checkbox v-model="userStore.user.preference.ermE" border
+            >每轮对话均发送邮件通知</el-checkbox
+          >
+          <el-checkbox
+            v-model="userStore.user.preference.crE"
+            border
+            style="--el-checkbox-checked-text-color: #f56c6c"
+          >
             仅在触发高意向时通知 (推荐)
           </el-checkbox>
         </div>
@@ -130,7 +168,11 @@
         <div class="memory-grid" :class="{ 'is-disabled': !memoryProfile.enabled }">
           <div class="grid-item">
             <span class="grid-label">作用域</span>
-            <el-select v-model="memoryProfile.scope" :disabled="!memoryProfile.enabled" :teleported="false">
+            <el-select
+              v-model="memoryProfile.scope"
+              :disabled="!memoryProfile.enabled"
+              :teleported="false"
+            >
               <el-option
                 v-for="opt in memoryScopeOptions"
                 :key="opt.value"
@@ -168,14 +210,18 @@
     <div class="boss-card mt-16 mb-24">
       <div class="card-title">
         无效会话清理
-        <el-tag size="small" type="info" class="ml-8" effect="plain">维持列表整洁，减少系统负荷</el-tag>
+        <el-tag size="small" type="info" class="ml-8" effect="plain"
+          >维持列表整洁，减少系统负荷</el-tag
+        >
       </div>
       <ConversationCleaner />
     </div>
 
     <div class="action-footer">
       <div class="buttons">
-        <el-button type="primary" class="save-btn" @click="handleSavePreference">保存全盘对话设置</el-button>
+        <el-button type="primary" class="save-btn" @click="handleSavePreference"
+          >保存全盘对话设置</el-button
+        >
       </div>
     </div>
   </div>
@@ -217,7 +263,12 @@ const normalizeMemoryScope = (scope: unknown): 'session' | 'job' | 'global' => {
   return 'session';
 };
 
-const normalizePositiveNumber = (value: unknown, defaultValue: number, min: number, max: number): number => {
+const normalizePositiveNumber = (
+  value: unknown,
+  defaultValue: number,
+  min: number,
+  max: number
+): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
     return defaultValue;
@@ -254,7 +305,8 @@ const ensureConversationPreferenceDefaults = () => {
   if (preference.ppE === undefined) preference.ppE = false;
   if (preference.pp === undefined) preference.pp = '';
   if (preference.rfE === undefined) preference.rfE = true;
-  if (preference.rf === undefined) preference.rf = '感谢您的回复，但我目前优先考虑离家近的机会，如果后续有机会再沟通！';
+  if (preference.rf === undefined)
+    preference.rf = '感谢您的回复，但我目前优先考虑离家近的机会，如果后续有机会再沟通！';
   if (preference.hiaE === undefined) preference.hiaE = true;
   if (preference.crC === undefined) preference.crC = 5;
   if (!Array.isArray(preference.crK)) preference.crK = ['面试', '微信', '电话', '简历'];
@@ -294,11 +346,15 @@ const saveMemoryProfile = () => {
 const handleAISeatStatusChange = async (val: boolean) => {
   if (!loginInterceptor()) return;
   try {
-    await axios2.post('/api/user/save/preference', {
-      aiSeatStatus: val ? 1 : 0,
-    }, {
-      timeout: PREFERENCE_SAVE_TIMEOUT_MS,
-    });
+    await axios2.post(
+      '/api/user/save/preference',
+      {
+        aiSeatStatus: val ? 1 : 0,
+      },
+      {
+        timeout: PREFERENCE_SAVE_TIMEOUT_MS,
+      }
+    );
   } catch (_error) {
     showAppMessage({ type: 'error', message: 'AI 对话开关保存失败，请重试' });
   }
@@ -307,14 +363,20 @@ const handleAISeatStatusChange = async (val: boolean) => {
 // ---- Save preference (subset) ----
 const handleSavePreference = async () => {
   if (!loginInterceptor()) return;
-  await axios2.post('/api/user/save/preference', {
-    ...userStore.user,
-    aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
-  }, {
-    timeout: PREFERENCE_SAVE_TIMEOUT_MS,
-  }).then(() => {
-    showAppMessage({ message: '对话与通知设置保存成功', type: 'success', duration: 2000 });
-  });
+  await axios2
+    .post(
+      '/api/user/save/preference',
+      {
+        ...userStore.user,
+        aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
+      },
+      {
+        timeout: PREFERENCE_SAVE_TIMEOUT_MS,
+      }
+    )
+    .then(() => {
+      showAppMessage({ message: '对话与通知设置保存成功', type: 'success', duration: 2000 });
+    });
 };
 
 onMounted(() => {

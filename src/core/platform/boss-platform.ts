@@ -1,50 +1,61 @@
-import { AiPower } from "@/core/ai/ai-power";
-import { AbsPlatform, PushResultStatus, PushStatus, pushResultCounter, runtimeUserStore } from "@/core/engine/push-engine";
-import { Logger } from "@/shared/utils/logger";
-import { Tools } from "@/shared/utils/tools";
-import { extractResumeTextFromHtml } from "@/shared/utils/resume";
-import { getPreferenceValue, normalizePreferenceBoolean } from "@/shared/utils/preference";
+import { AiPower } from '@/core/ai/ai-power';
+import {
+  AbsPlatform,
+  PushResultStatus,
+  PushStatus,
+  pushResultCounter,
+  runtimeUserStore,
+} from '@/core/engine/push-engine';
+import { Logger } from '@/shared/utils/logger';
+import { Tools } from '@/shared/utils/tools';
+import { extractResumeTextFromHtml } from '@/shared/utils/resume';
+import { getPreferenceValue, normalizePreferenceBoolean } from '@/shared/utils/preference';
 import {
   buildAiDeliveryFilterJobInput,
   buildAiDeliveryJudgePrompt,
   buildAiDeliveryUserProfile,
   buildTraditionalRuleSnapshot,
-  resolveAiDeliveryFallback
-} from "@/core/delivery/ai-delivery-builder";
-import { TampermonkeyApi } from "@/shared/utils/tampermonkey";
+  resolveAiDeliveryFallback,
+} from '@/core/delivery/ai-delivery-builder';
+import { TampermonkeyApi } from '@/shared/utils/tampermonkey';
 import {
   NotMatchError,
   PushRequestError,
   FavoriteRequestError,
   FetchJobDetailError,
   PushLimitError,
-  PushStopError
-} from "@/shared/errors";
-import { Message } from "@/core/protocol/message";
-import { simulateScrollToEnd } from "@/shared/utils/scroll";
-import { querySelectorWithFallback, querySelectorAllWithFallback } from "@/core/platform/boss-dom-adapter";
-import { BossApiClient } from "@/core/platform/boss-api-client";
+  PushStopError,
+} from '@/shared/errors';
+import { Message } from '@/core/protocol/message';
+import { simulateScrollToEnd } from '@/shared/utils/scroll';
+import {
+  querySelectorWithFallback,
+  querySelectorAllWithFallback,
+} from '@/core/platform/boss-dom-adapter';
+import { BossApiClient } from '@/core/platform/boss-api-client';
 
 const logger$1 = Logger.rootLogger;
 const AI_DELIVERY_JUDGE_TIMEOUT_MS = 12_000;
 const RUNTIME_RESUME_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const toText = (value: unknown, maxLength = 500): string => {
-  const text = `${value || ""}`.replace(/\s+/g, " ").trim();
+  const text = `${value || ''}`.replace(/\s+/g, ' ').trim();
   if (!text) {
-    return "";
+    return '';
   }
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 };
 
 const toRecord = (value: unknown): Record<string, unknown> => {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 };
 
 async function setChatWebsocket(): Promise<void> {
-  logger$1.info("check ChatWebsocket runtime channels");
+  logger$1.info('check ChatWebsocket runtime channels');
   if (!Tools.isBossDomainHost(Tools.getCurrentHostname())) {
-    logger$1.warn("当前域名不受信任，跳过消息通道初始化");
+    logger$1.warn('当前域名不受信任，跳过消息通道初始化');
     return;
   }
 
@@ -54,18 +65,18 @@ async function setChatWebsocket(): Promise<void> {
   };
   if (!runtimeWindow.ChatWebsocketImage && runtimeWindow.ChatWebsocket) {
     runtimeWindow.ChatWebsocketImage = runtimeWindow.ChatWebsocket;
-    logger$1.info("复用 ChatWebsocket 作为图片消息通道");
+    logger$1.info('复用 ChatWebsocket 作为图片消息通道');
     return;
   }
 
   if (runtimeWindow.ChatWebsocketImage) {
-    logger$1.info("图片消息通道已就绪");
+    logger$1.info('图片消息通道已就绪');
     return;
   }
 
   const scriptCandidates = [
-    "https://www.zhipin.com/web/common/security-js/socket.js",
-    "https://static.zhipin.com/web/common/security-js/socket.js"
+    'https://www.zhipin.com/web/common/security-js/socket.js',
+    'https://static.zhipin.com/web/common/security-js/socket.js',
   ];
 
   const loadScript = (src: string): Promise<boolean> => {
@@ -82,19 +93,25 @@ async function setChatWebsocket(): Promise<void> {
           return;
         }
 
-        existing.addEventListener("load", () => resolve(true), { once: true });
-        existing.addEventListener("error", () => resolve(false), { once: true });
-        window.setTimeout(() => resolve(!!(runtimeWindow.ChatWebsocketImage || runtimeWindow.ChatWebsocket)), 1800);
+        existing.addEventListener('load', () => resolve(true), { once: true });
+        existing.addEventListener('error', () => resolve(false), { once: true });
+        window.setTimeout(
+          () => resolve(!!(runtimeWindow.ChatWebsocketImage || runtimeWindow.ChatWebsocket)),
+          1800
+        );
         return;
       }
 
-      const script = document.createElement("script");
+      const script = document.createElement('script');
       script.src = src;
       script.async = true;
-      script.addEventListener("load", () => resolve(true), { once: true });
-      script.addEventListener("error", () => resolve(false), { once: true });
+      script.addEventListener('load', () => resolve(true), { once: true });
+      script.addEventListener('error', () => resolve(false), { once: true });
       document.head.appendChild(script);
-      window.setTimeout(() => resolve(!!(runtimeWindow.ChatWebsocketImage || runtimeWindow.ChatWebsocket)), 2500);
+      window.setTimeout(
+        () => resolve(!!(runtimeWindow.ChatWebsocketImage || runtimeWindow.ChatWebsocket)),
+        2500
+      );
     });
   };
 
@@ -109,12 +126,12 @@ async function setChatWebsocket(): Promise<void> {
     }
 
     if (runtimeWindow.ChatWebsocketImage) {
-      logger$1.info("图片消息通道已通过 socket.js 初始化");
+      logger$1.info('图片消息通道已通过 socket.js 初始化');
       return;
     }
   }
 
-  logger$1.warn("未发现可用消息通道，自动图片消息将跳过");
+  logger$1.warn('未发现可用消息通道，自动图片消息将跳过');
 }
 
 /**
@@ -137,9 +154,9 @@ export class BossPlatform extends AbsPlatform {
   /** 当前页面地址，用于识别所处页面场景。 */
   curUrl: string;
   /** 平台名称。 */
-  name = "Boss";
+  name = 'Boss';
   /** 平台匹配所使用的 URL 关键字。 */
-  urlList = ["/web/geek", "overseas"];
+  urlList = ['/web/geek', 'overseas'];
   /** 最近一次翻页前记录的列表滚动高度。 */
   lastHeight = 0;
   /** BOSS 详情缓存，按最近使用时间维护淘汰顺序。 */
@@ -155,15 +172,15 @@ export class BossPlatform extends AbsPlatform {
   /** 职位列表页上一次记录的岗位卡片数量。 */
   private lastJobCardCount = 0;
   /** 职位列表页上一次记录的尾部岗位稳定键。 */
-  private lastJobsTailKey = "";
+  private lastJobsTailKey = '';
   /** 推荐列表页上一次记录的岗位卡片数量。 */
   private lastRecommendCardCount = 0;
   /** 推荐列表页上一次记录的尾部岗位稳定键。 */
-  private lastRecommendTailKey = "";
+  private lastRecommendTailKey = '';
   /** 职位列表页上一次记录的首尾岗位签名。 */
-  private lastJobsListSignature = "";
+  private lastJobsListSignature = '';
   /** 推荐列表页上一次记录的首尾岗位签名。 */
-  private lastRecommendListSignature = "";
+  private lastRecommendListSignature = '';
   /** 推荐页连续未检测到增量数据的轮次计数。 */
   private recommendNoProgressRounds = 0;
   /** 当前会话内已处理岗位的稳定键集合，用于去重。 */
@@ -210,30 +227,42 @@ export class BossPlatform extends AbsPlatform {
       let count = 0;
       const interval = setInterval(() => {
         let element: Element | null = null;
-        let p = "";
+        let p = '';
 
-        if (this.curUrl.includes("www.zhipin.com/web/geek/chat")) {
-          element = querySelectorWithFallback([".chat-conversation", ".chat-container", ".geek-chat"]);
+        if (this.curUrl.includes('www.zhipin.com/web/geek/chat')) {
+          element = querySelectorWithFallback([
+            '.chat-conversation',
+            '.chat-container',
+            '.geek-chat',
+          ]);
         }
 
-        if (this.curUrl.includes("www.zhipin.com/web/geek/job-recommend")) {
-          element = querySelectorWithFallback([".recommend-search-inner", ".recommend-container", ".job-recommend"]);
-          p = "end";
+        if (this.curUrl.includes('www.zhipin.com/web/geek/job-recommend')) {
+          element = querySelectorWithFallback([
+            '.recommend-search-inner',
+            '.recommend-container',
+            '.job-recommend',
+          ]);
+          p = 'end';
         }
 
-        if (this.curUrl.includes("www.zhipin.com/web/geek/jobs")) {
-          element = querySelectorWithFallback([".job-recommend-result", ".job-result", ".jobs-container"]);
-        } else if (this.curUrl.includes("www.zhipin.com/web/geek/job")) {
-          element = querySelectorWithFallback([".page-job-inner", ".job-page", ".job-container"]);
+        if (this.curUrl.includes('www.zhipin.com/web/geek/jobs')) {
+          element = querySelectorWithFallback([
+            '.job-recommend-result',
+            '.job-result',
+            '.jobs-container',
+          ]);
+        } else if (this.curUrl.includes('www.zhipin.com/web/geek/job')) {
+          element = querySelectorWithFallback(['.page-job-inner', '.job-page', '.job-container']);
         }
 
-        if (this.curUrl.includes("www.zhipin.com/web/geek/resume")) {
+        if (this.curUrl.includes('www.zhipin.com/web/geek/resume')) {
           element = document.body;
-          p = "end";
+          p = 'end';
         }
 
-        if (this.curUrl.includes("overseas")) {
-          element = querySelectorWithFallback([".mod-header", ".header", ".page-header"]);
+        if (this.curUrl.includes('overseas')) {
+          element = querySelectorWithFallback(['.mod-header', '.header', '.page-header']);
         }
 
         if (element !== null) {
@@ -244,8 +273,8 @@ export class BossPlatform extends AbsPlatform {
 
         if (count >= 3) {
           clearInterval(interval);
-          logger$1.error(0, "获取平台挂载元素失败，回退挂载到 body");
-          resolve({ el: document.body || document.documentElement, p: "end" });
+          logger$1.error(0, '获取平台挂载元素失败，回退挂载到 body');
+          resolve({ el: document.body || document.documentElement, p: 'end' });
           return;
         }
 
@@ -262,11 +291,11 @@ export class BossPlatform extends AbsPlatform {
   startPreHandler(): void {
     this.lastHeight = 0;
     this.lastJobCardCount = 0;
-    this.lastJobsTailKey = "";
+    this.lastJobsTailKey = '';
     this.lastRecommendCardCount = 0;
-    this.lastRecommendTailKey = "";
-    this.lastJobsListSignature = "";
-    this.lastRecommendListSignature = "";
+    this.lastRecommendTailKey = '';
+    this.lastJobsListSignature = '';
+    this.lastRecommendListSignature = '';
     this.recommendNoProgressRounds = 0;
     this.sessionProcessedJobKeys.clear();
     this.sessionAutoMessageCount = 0;
@@ -275,22 +304,22 @@ export class BossPlatform extends AbsPlatform {
   }
 
   private getStableJobRuntimeKey(jobDetail: any): string {
-    const encryptJobId = `${jobDetail?.encryptJobId || ""}`.trim();
+    const encryptJobId = `${jobDetail?.encryptJobId || ''}`.trim();
     if (encryptJobId) {
       return `encrypt:${encryptJobId}`;
     }
 
-    const jobId = `${jobDetail?.jobId || ""}`.trim();
+    const jobId = `${jobDetail?.jobId || ''}`.trim();
     if (jobId) {
       return `job:${jobId}`;
     }
 
-    const lid = `${jobDetail?.lid || ""}`.trim();
+    const lid = `${jobDetail?.lid || ''}`.trim();
     if (lid) {
       return `lid:${lid}`;
     }
 
-    const securityId = `${jobDetail?.securityId || ""}`.trim();
+    const securityId = `${jobDetail?.securityId || ''}`.trim();
     if (securityId) {
       return `sec:${securityId}`;
     }
@@ -301,27 +330,31 @@ export class BossPlatform extends AbsPlatform {
   private getCardRuntimeKey(cardElement: any): string {
     const vueData = this.getCardVueData(cardElement) || {};
     const vueKey = this.getStableJobRuntimeKey(vueData);
-    if (vueKey && !vueKey.startsWith("undefined:")) {
+    if (vueKey && !vueKey.startsWith('undefined:')) {
       return vueKey;
     }
 
-    const href = `${cardElement?.querySelector("a.job-card-left,a.job-name,a")?.getAttribute("href") || ""}`.trim();
-    const jobName = `${cardElement?.querySelector(".job-name,.job-title,.job-info .job-name")?.textContent || ""}`
-      .replace(/\s+/g, " ")
-      .trim();
-    const companyName = `${cardElement?.querySelector(".boss-info,.company-name,.brand-name")?.textContent || ""}`
-      .replace(/\s+/g, " ")
-      .trim();
-    const location = `${cardElement?.querySelector(".company-location,.job-area")?.textContent || ""}`
-      .replace(/\s+/g, " ")
-      .trim();
+    const href =
+      `${cardElement?.querySelector('a.job-card-left,a.job-name,a')?.getAttribute('href') || ''}`.trim();
+    const jobName =
+      `${cardElement?.querySelector('.job-name,.job-title,.job-info .job-name')?.textContent || ''}`
+        .replace(/\s+/g, ' ')
+        .trim();
+    const companyName =
+      `${cardElement?.querySelector('.boss-info,.company-name,.brand-name')?.textContent || ''}`
+        .replace(/\s+/g, ' ')
+        .trim();
+    const location =
+      `${cardElement?.querySelector('.company-location,.job-area')?.textContent || ''}`
+        .replace(/\s+/g, ' ')
+        .trim();
 
     const keyParts = [href, jobName, companyName, location].filter(Boolean);
     if (keyParts.length > 0) {
-      return keyParts.join("|");
+      return keyParts.join('|');
     }
 
-    return `${cardElement?.textContent || ""}`.replace(/\s+/g, " ").trim().slice(0, 80);
+    return `${cardElement?.textContent || ''}`.replace(/\s+/g, ' ').trim().slice(0, 80);
   }
 
   private getCardVueData(cardElement: any): any | null {
@@ -329,39 +362,54 @@ export class BossPlatform extends AbsPlatform {
   }
 
   private markJobProcessed(jobDetail: any): void {
-    if (!jobDetail || typeof jobDetail !== "object") {
+    if (!jobDetail || typeof jobDetail !== 'object') {
       return;
     }
     jobDetail.processed = true;
     const key = this.getStableJobRuntimeKey(jobDetail);
     this.sessionProcessedJobKeys.set(key, Date.now());
-    
+
     // LRU清理：超过阈值时删除最早的记录
     if (this.sessionProcessedJobKeys.size > this.MAX_PROCESSED_JOBS) {
-      const sortedEntries = Array.from(this.sessionProcessedJobKeys.entries())
-        .sort((a, b) => a[1] - b[1]);
-      const toDelete = sortedEntries.slice(0, this.sessionProcessedJobKeys.size - this.MAX_PROCESSED_JOBS);
+      const sortedEntries = Array.from(this.sessionProcessedJobKeys.entries()).sort(
+        (a, b) => a[1] - b[1]
+      );
+      const toDelete = sortedEntries.slice(
+        0,
+        this.sessionProcessedJobKeys.size - this.MAX_PROCESSED_JOBS
+      );
       toDelete.forEach(([key]) => this.sessionProcessedJobKeys.delete(key));
     }
   }
 
   private buildListSignature(cardList: any[]): string {
     if (!cardList.length) {
-      return "";
+      return '';
     }
 
     const first = cardList.slice(0, 3).map((card) => this.getCardRuntimeKey(card));
-    const last = cardList.slice(Math.max(cardList.length - 3, 0)).map((card) => this.getCardRuntimeKey(card));
-    return [...first, ...last].join("||");
+    const last = cardList
+      .slice(Math.max(cardList.length - 3, 0))
+      .map((card) => this.getCardRuntimeKey(card));
+    return [...first, ...last].join('||');
   }
 
-  private getJobsPageMetrics(): { scrollHeight: number; cardCount: number; tailKey: string; listSignature: string } {
-    const listContainer = querySelectorWithFallback([".job-list-container", ".job-list", ".jobs-list"]) as HTMLElement | null;
+  private getJobsPageMetrics(): {
+    scrollHeight: number;
+    cardCount: number;
+    tailKey: string;
+    listSignature: string;
+  } {
+    const listContainer = querySelectorWithFallback([
+      '.job-list-container',
+      '.job-list',
+      '.jobs-list',
+    ]) as HTMLElement | null;
     const cardList = querySelectorAllWithFallback([
-      ".job-list-container .job-card-wrap",
-      ".job-list .job-card-wrap",
-      ".rec-job-list .job-card-wrap",
-      ".job-card-wrap"
+      '.job-list-container .job-card-wrap',
+      '.job-list .job-card-wrap',
+      '.rec-job-list .job-card-wrap',
+      '.job-card-wrap',
     ]) as any[];
     const tailCard = cardList[cardList.length - 1] as any;
     const tailKey = this.getCardRuntimeKey(tailCard);
@@ -370,15 +418,20 @@ export class BossPlatform extends AbsPlatform {
       scrollHeight: listContainer?.scrollHeight || 0,
       cardCount: cardList.length,
       tailKey,
-      listSignature: this.buildListSignature(cardList)
+      listSignature: this.buildListSignature(cardList),
     };
   }
 
-  private getRecommendPageMetrics(): { scrollHeight: number; cardCount: number; tailKey: string; listSignature: string } {
+  private getRecommendPageMetrics(): {
+    scrollHeight: number;
+    cardCount: number;
+    tailKey: string;
+    listSignature: string;
+  } {
     const cardList = querySelectorAllWithFallback([
-      ".job-list-container .job-card-wrap",
-      ".job-list .job-card-wrap",
-      ".job-card-wrap"
+      '.job-list-container .job-card-wrap',
+      '.job-list .job-card-wrap',
+      '.job-card-wrap',
     ]) as any[];
     const tailCard = cardList[cardList.length - 1] as any;
     const tailKey = this.getCardRuntimeKey(tailCard);
@@ -387,12 +440,16 @@ export class BossPlatform extends AbsPlatform {
       scrollHeight: this.getRecommendPageScrollHeight(),
       cardCount: cardList.length,
       tailKey,
-      listSignature: this.buildListSignature(cardList)
+      listSignature: this.buildListSignature(cardList),
     };
   }
 
   private async scrollJobsListToEnd(): Promise<void> {
-    const listContainer = querySelectorWithFallback([".job-list-container", ".job-list", ".jobs-list"]) as HTMLElement | null;
+    const listContainer = querySelectorWithFallback([
+      '.job-list-container',
+      '.job-list',
+      '.jobs-list',
+    ]) as HTMLElement | null;
     if (!listContainer || listContainer.clientHeight <= 0) {
       await simulateScrollToEnd();
       return;
@@ -412,7 +469,7 @@ export class BossPlatform extends AbsPlatform {
 
       // 优先把容器滚到理论底部，触发页面内部的懒加载逻辑。
       listContainer.scrollTop = targetTop;
-      listContainer.dispatchEvent(new Event("scroll", { bubbles: true }));
+      listContainer.dispatchEvent(new Event('scroll', { bubbles: true }));
       await Tools.sleep(220);
 
       const pendingDistance = Math.abs(targetTop - beforeTop);
@@ -429,11 +486,12 @@ export class BossPlatform extends AbsPlatform {
       if (Math.abs(listContainer.scrollTop - afterTargetTop) > 2) {
         // 列表高度在滚动后发生变化时，再次对齐到新的底部，确保继续触发增量加载。
         listContainer.scrollTop = afterTargetTop;
-        listContainer.dispatchEvent(new Event("scroll", { bubbles: true }));
+        listContainer.dispatchEvent(new Event('scroll', { bubbles: true }));
         await Tools.sleep(160);
       }
 
-      const atBottom = listContainer.scrollTop + listContainer.clientHeight >= listContainer.scrollHeight - 4;
+      const atBottom =
+        listContainer.scrollTop + listContainer.clientHeight >= listContainer.scrollHeight - 4;
       const heightStable = Math.abs(afterHeight - beforeHeight) <= 2;
       if (atBottom && heightStable) {
         // 连续多轮“到底且高度稳定”才视为真正无更多数据，避免误判瞬时抖动。
@@ -456,15 +514,17 @@ export class BossPlatform extends AbsPlatform {
    * @returns 无返回值。
    * @throws {Error} 当发送过快或超过当前会话的安全上限时抛出。
    */
-  private enforceAutoContactSafety(_kind: "message" | "image"): void {
+  private enforceAutoContactSafety(_kind: 'message' | 'image'): void {
     const safety = this.getAutoContactSafetyConfig();
     const now = Date.now();
     const elapsedSec = (now - this.lastAutoContactTs) / 1000;
     if (this.lastAutoContactTs > 0 && elapsedSec < safety.minIntervalSec) {
-      throw new Error(`自动${_kind === "image" ? "发图" : "发消息"}触发过快，需间隔至少${safety.minIntervalSec}秒`);
+      throw new Error(
+        `自动${_kind === 'image' ? '发图' : '发消息'}触发过快，需间隔至少${safety.minIntervalSec}秒`
+      );
     }
 
-    if (_kind === "message") {
+    if (_kind === 'message') {
       if (this.sessionAutoMessageCount >= safety.maxMessagesPerSession) {
         throw new Error(`自动消息达到会话上限(${safety.maxMessagesPerSession})`);
       }
@@ -497,7 +557,7 @@ export class BossPlatform extends AbsPlatform {
     return {
       minIntervalSec: Math.max(5, toNumberOr(preference.autoContactMinIntervalSec, 10)),
       maxMessagesPerSession: Math.max(1, toNumberOr(preference.maxAutoMessagePerSession, 30)),
-      maxResumesPerSession: Math.max(1, toNumberOr(preference.maxAutoResumePerSession, 18))
+      maxResumesPerSession: Math.max(1, toNumberOr(preference.maxAutoResumePerSession, 18)),
     };
   }
 
@@ -523,48 +583,47 @@ export class BossPlatform extends AbsPlatform {
    * @returns 当前页面可供处理的岗位数据数组。
    */
   getJobList(): any[] {
-    if (this.curUrl.includes("jobs")) {
-      const elementNodeList2 = document.querySelectorAll(".job-card-wrap");
+    if (this.curUrl.includes('jobs')) {
+      const elementNodeList2 = document.querySelectorAll('.job-card-wrap');
       const allJobs = Array.from(elementNodeList2)
         .map((item: any) => this.getCardVueData(item))
         .filter((job: any) => !!job);
-      const jobList = allJobs
-        .filter((job: any) => {
-          if (job?.processed) {
-            return false;
-          }
-          const runtimeKey = this.getStableJobRuntimeKey(job);
-          return !this.sessionProcessedJobKeys.has(runtimeKey);
-        });
+      const jobList = allJobs.filter((job: any) => {
+        if (job?.processed) {
+          return false;
+        }
+        const runtimeKey = this.getStableJobRuntimeKey(job);
+        return !this.sessionProcessedJobKeys.has(runtimeKey);
+      });
 
       if (elementNodeList2.length !== 0 && allJobs.length === 0) {
-        this.preferenceLogRecorder.warn("当前岗位卡片未提取到可用数据，已跳过无效卡片");
+        this.preferenceLogRecorder.warn('当前岗位卡片未提取到可用数据，已跳过无效卡片');
       }
 
       if (elementNodeList2.length !== 0 && jobList.length === 0) {
-        this.preferenceLogRecorder.info("当前筛选条件下岗位均已投递");
+        this.preferenceLogRecorder.info('当前筛选条件下岗位均已投递');
       }
 
       return jobList;
     }
 
-    if (this.curUrl.includes("job-recommend")) {
-      const elementNodeList2 = document.querySelectorAll(".job-card-wrap");
+    if (this.curUrl.includes('job-recommend')) {
+      const elementNodeList2 = document.querySelectorAll('.job-card-wrap');
       return Array.from(elementNodeList2)
         .map((item: any) => this.getCardVueData(item))
         .filter((job: any) => !!job)
         .filter((job: any) => !job.contact);
     }
 
-    if (this.curUrl.includes("overseas")) {
-      const elementNodeList2 = document.querySelectorAll(".job-card-box");
+    if (this.curUrl.includes('overseas')) {
+      const elementNodeList2 = document.querySelectorAll('.job-card-box');
       return Array.from(elementNodeList2)
         .map((item: any) => this.getCardVueData(item))
         .filter((job: any) => !!job)
         .filter((job: any) => !job.contact);
     }
 
-    const elementNodeList = document.querySelectorAll(".job-card-wrapper");
+    const elementNodeList = document.querySelectorAll('.job-card-wrapper');
     return Array.from(elementNodeList)
       .map((item: any) => this.getCardVueData(item))
       .filter((job: any) => !!job);
@@ -579,9 +638,9 @@ export class BossPlatform extends AbsPlatform {
    * @returns 若仍有机会获取到更多岗位则返回 `true`，否则返回 `false`。
    */
   hasNext(): boolean {
-    logger$1.debug("hasNext");
+    logger$1.debug('hasNext');
 
-    if (this.curUrl.includes("jobs")) {
+    if (this.curUrl.includes('jobs')) {
       const metrics = this.getJobsPageMetrics();
       if (this.lastHeight <= 0 && this.lastJobCardCount <= 0) {
         return metrics.cardCount > 0 || metrics.scrollHeight > 0;
@@ -606,11 +665,11 @@ export class BossPlatform extends AbsPlatform {
       return metrics.scrollHeight > this.lastHeight + 120;
     }
 
-    if (this.curUrl.includes("overseas")) {
-      return this.lastHeight !== document.querySelector(".job-list")?.scrollHeight;
+    if (this.curUrl.includes('overseas')) {
+      return this.lastHeight !== document.querySelector('.job-list')?.scrollHeight;
     }
 
-    if (this.curUrl.includes("job-recommend")) {
+    if (this.curUrl.includes('job-recommend')) {
       const metrics = this.getRecommendPageMetrics();
       if (this.lastHeight <= 0 && this.lastRecommendCardCount <= 0) {
         return metrics.cardCount > 0 || metrics.scrollHeight > 0;
@@ -618,10 +677,10 @@ export class BossPlatform extends AbsPlatform {
 
       // 推荐页会综合多种增量信号，防止某个单一指标失效时过早停止。
       const hasProgress =
-        metrics.cardCount > this.lastRecommendCardCount
-        || (!!metrics.tailKey && metrics.tailKey !== this.lastRecommendTailKey)
-        || (!!metrics.listSignature && metrics.listSignature !== this.lastRecommendListSignature)
-        || (metrics.scrollHeight > this.lastHeight + 120 && metrics.cardCount > 0);
+        metrics.cardCount > this.lastRecommendCardCount ||
+        (!!metrics.tailKey && metrics.tailKey !== this.lastRecommendTailKey) ||
+        (!!metrics.listSignature && metrics.listSignature !== this.lastRecommendListSignature) ||
+        (metrics.scrollHeight > this.lastHeight + 120 && metrics.cardCount > 0);
 
       if (hasProgress) {
         this.recommendNoProgressRounds = 0;
@@ -632,11 +691,11 @@ export class BossPlatform extends AbsPlatform {
       this.recommendNoProgressRounds += 1;
       if (this.recommendNoProgressRounds < 2) {
         logger$1.info(
-          `推荐页未检测到新岗位，进行第${this.recommendNoProgressRounds}次重试滚动 `
-          + `count=${metrics.cardCount}/${this.lastRecommendCardCount} `
-          + `tail=${metrics.tailKey === this.lastRecommendTailKey ? "same" : "changed"} `
-          + `signature=${metrics.listSignature === this.lastRecommendListSignature ? "same" : "changed"} `
-          + `height=${metrics.scrollHeight}/${this.lastHeight}`
+          `推荐页未检测到新岗位，进行第${this.recommendNoProgressRounds}次重试滚动 ` +
+            `count=${metrics.cardCount}/${this.lastRecommendCardCount} ` +
+            `tail=${metrics.tailKey === this.lastRecommendTailKey ? 'same' : 'changed'} ` +
+            `signature=${metrics.listSignature === this.lastRecommendListSignature ? 'same' : 'changed'} ` +
+            `height=${metrics.scrollHeight}/${this.lastHeight}`
         );
         return true;
       }
@@ -644,12 +703,12 @@ export class BossPlatform extends AbsPlatform {
       return false;
     }
 
-    const nextPageBtn = document.querySelector(".ui-icon-arrow-right");
+    const nextPageBtn = document.querySelector('.ui-icon-arrow-right');
     if (nextPageBtn === null) {
       return false;
     }
 
-    return (nextPageBtn.parentElement as HTMLElement).className !== "disabled";
+    return (nextPageBtn.parentElement as HTMLElement).className !== 'disabled';
   }
 
   /**
@@ -662,7 +721,7 @@ export class BossPlatform extends AbsPlatform {
       return;
     }
 
-    if (this.curUrl.includes("jobs")) {
+    if (this.curUrl.includes('jobs')) {
       const metrics = this.getJobsPageMetrics();
 
       // 先记录翻页前的基线指标，供 hasNext 在滚动后判断是否真正拿到了新数据。
@@ -672,14 +731,14 @@ export class BossPlatform extends AbsPlatform {
       this.lastJobsListSignature = metrics.listSignature;
       try {
         await this.scrollJobsListToEnd();
-        logger$1.info("获取下一页成功");
+        logger$1.info('获取下一页成功');
       } catch (e) {
-        this.preferenceLogRecorder.warn("获取下一页失败", e);
+        this.preferenceLogRecorder.warn('获取下一页失败', e);
       }
       return;
     }
 
-    if (this.curUrl.includes("job-recommend")) {
+    if (this.curUrl.includes('job-recommend')) {
       const metrics = this.getRecommendPageMetrics();
 
       // 推荐页同样要保存滚动前快照，以便后续结合多指标判断是否还有新岗位。
@@ -689,25 +748,25 @@ export class BossPlatform extends AbsPlatform {
       this.lastRecommendListSignature = metrics.listSignature;
       try {
         await this.scrollJobsListToEnd();
-        logger$1.info("获取下一页成功");
+        logger$1.info('获取下一页成功');
       } catch (e) {
-        this.preferenceLogRecorder.warn("获取下一页失败", e);
+        this.preferenceLogRecorder.warn('获取下一页失败', e);
       }
       return;
     }
 
-    if (this.curUrl.includes("overseas")) {
-      this.lastHeight = document.querySelector(".job-list")?.scrollHeight || 0;
+    if (this.curUrl.includes('overseas')) {
+      this.lastHeight = document.querySelector('.job-list')?.scrollHeight || 0;
       try {
         await simulateScrollToEnd();
-        logger$1.info("获取下一页成功");
+        logger$1.info('获取下一页成功');
       } catch (e) {
-        this.preferenceLogRecorder.warn("获取下一页失败", e);
+        this.preferenceLogRecorder.warn('获取下一页失败', e);
       }
       return;
     }
 
-    (document.querySelector(".ui-icon-arrow-right") as HTMLElement).click();
+    (document.querySelector('.ui-icon-arrow-right') as HTMLElement).click();
   }
 
   /**
@@ -725,7 +784,7 @@ export class BossPlatform extends AbsPlatform {
 
     try {
       if (jobDetail.contact) {
-        throw new NotMatchError(jobTitle, jobDetail.contact, "已经沟通过");
+        throw new NotMatchError(jobTitle, jobDetail.contact, '已经沟通过');
       }
 
       const aiFilterModeEnabled = this.shouldEnableAiDeliveryJudge();
@@ -743,7 +802,10 @@ export class BossPlatform extends AbsPlatform {
 
       // 扩展详情包含活跃度、职位描述等列表页没有的关键信息，是后续过滤的重要输入。
       const jobDetailExt = await this.obtainBossJobDetailExt(jobDetail);
-      logger$1.debug(`获取工作【${jobTitle}】详情扩展信息用于${aiFilterModeEnabled ? "AI过滤" : "常规过滤"} `, jobDetail);
+      logger$1.debug(
+        `获取工作【${jobTitle}】详情扩展信息用于${aiFilterModeEnabled ? 'AI过滤' : '常规过滤'} `,
+        jobDetail
+      );
 
       if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
         this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
@@ -751,7 +813,7 @@ export class BossPlatform extends AbsPlatform {
 
       // 详情接口也可能返回“已沟通”状态，因此需要二次兜底判断。
       if (this.isCommunication(jobDetailExt)) {
-        throw new NotMatchError(jobTitle, jobDetailExt.friendStatus, "已经沟通过");
+        throw new NotMatchError(jobTitle, jobDetailExt.friendStatus, '已经沟通过');
       }
 
       if (aiFilterModeEnabled) {
@@ -773,8 +835,12 @@ export class BossPlatform extends AbsPlatform {
         const aiJudgeStartedAt = Date.now();
         const maskedUserProfile = this.maskAiDeliveryUserProfile(userProfile);
 
-        this.preferenceLogRecorder.info(`工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${AI_DELIVERY_JUDGE_TIMEOUT_MS} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`);
-        this.preferenceLogRecorder.info(`工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} includeTraditionalSnapshot=${aiConfig.includeTraditionalSnapshot} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(",")} extKeys=${Object.keys(extInfo).join(",")}`);
+        this.preferenceLogRecorder.info(
+          `工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${AI_DELIVERY_JUDGE_TIMEOUT_MS} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`
+        );
+        this.preferenceLogRecorder.info(
+          `工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} includeTraditionalSnapshot=${aiConfig.includeTraditionalSnapshot} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(',')} extKeys=${Object.keys(extInfo).join(',')}`
+        );
 
         // AI 判定采用有限次重试，缓解短暂网络抖动或模型服务瞬时失败。
         const MAX_AI_RETRIES = 3;
@@ -795,28 +861,42 @@ export class BossPlatform extends AbsPlatform {
             const parseElapsed = Date.now() - parseStartedAt;
             const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
             const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
-            const retryInfo = attempt > 1 ? ` (重试${attempt - 1}次后成功)` : "";
-            this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断完成${retryInfo} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`);
+            const retryInfo = attempt > 1 ? ` (重试${attempt - 1}次后成功)` : '';
+            this.preferenceLogRecorder.info(
+              `工作【${jobTitle}】AI投递判断完成${retryInfo} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`
+            );
             break;
           } catch (error: any) {
             if (attempt < MAX_AI_RETRIES) {
               const retryDelay = 1000 * attempt;
-              this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 (尝试${attempt}/${MAX_AI_RETRIES}) trace=${judgeTraceId} 原因：${error?.message || "AI请求失败"}，${retryDelay}ms后重试`);
+              this.preferenceLogRecorder.warn(
+                `工作【${jobTitle}】AI投递判断失败 (尝试${attempt}/${MAX_AI_RETRIES}) trace=${judgeTraceId} 原因：${error?.message || 'AI请求失败'}，${retryDelay}ms后重试`
+              );
               await Tools.sleep(retryDelay);
             } else {
               // 所有 AI 重试都失败时，根据用户配置决定是否退回传统规则继续判断。
               const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
               const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
-              const aiErrorMessage = `${error?.message || "AI请求失败"}`;
-              this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 (已重试${MAX_AI_RETRIES}次) trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) onAiError=${aiConfig.onAiError} 原因：${aiErrorMessage}`);
-              const aiErrorFallback = resolveAiDeliveryFallback(aiConfig.onAiError, "ai-error");
+              const aiErrorMessage = `${error?.message || 'AI请求失败'}`;
+              this.preferenceLogRecorder.warn(
+                `工作【${jobTitle}】AI投递判断失败 (已重试${MAX_AI_RETRIES}次) trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) onAiError=${aiConfig.onAiError} 原因：${aiErrorMessage}`
+              );
+              const aiErrorFallback = resolveAiDeliveryFallback(aiConfig.onAiError, 'ai-error');
               if (aiErrorFallback.enabled) {
                 const fallbackReason = this.normalizeAiJudgeReason(
                   `[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则：${aiErrorMessage}`,
-                  "[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则"
+                  '[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则'
                 );
-                this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`);
-                this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
+                this.preferenceLogRecorder.warn(
+                  `工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`
+                );
+                this.applyTraditionalFallbackChecks(
+                  traditionalDeliveryEnabled,
+                  jobDetail,
+                  jobDetailExt,
+                  jobTitle,
+                  fallbackReason
+                );
                 jobDetail.aiDeliveryJudge = {
                   traceId: judgeTraceId,
                   path: filterPath,
@@ -824,12 +904,14 @@ export class BossPlatform extends AbsPlatform {
                   reason: fallbackReason,
                   valid: true,
                   parseMode: aiErrorFallback.parseMode,
-                  judgedAt: new Date().toISOString()
+                  judgedAt: new Date().toISOString(),
                 };
-                this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
+                this.preferenceLogRecorder.info(
+                  `工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`
+                );
                 return true;
               }
-              throw new NotMatchError(jobTitle, aiErrorMessage, "AI投递判断异常");
+              throw new NotMatchError(jobTitle, aiErrorMessage, 'AI投递判断异常');
             }
           }
         }
@@ -842,19 +924,31 @@ export class BossPlatform extends AbsPlatform {
           reason: judgeResult.reason,
           valid: judgeResult.valid,
           parseMode: judgeResult.parseMode,
-          judgedAt: new Date().toISOString()
+          judgedAt: new Date().toISOString(),
         };
 
         if (!judgeResult.valid) {
           // 当模型结果不可解析时，仍可按配置退回传统规则，避免单次格式异常导致完全跳过岗位。
-          const invalidResultFallback = resolveAiDeliveryFallback(aiConfig.onInvalidResult, "invalid-result", judgeResult.parseMode);
+          const invalidResultFallback = resolveAiDeliveryFallback(
+            aiConfig.onInvalidResult,
+            'invalid-result',
+            judgeResult.parseMode
+          );
           if (invalidResultFallback.enabled) {
             const fallbackReason = this.normalizeAiJudgeReason(
               `[FALLBACK_TRADITIONAL] AI结果不可解析，回退传统规则：${judgeResult.reason}`,
-              "[FALLBACK_TRADITIONAL] AI结果不可解析，回退传统规则"
+              '[FALLBACK_TRADITIONAL] AI结果不可解析，回退传统规则'
             );
-            this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI结果不可解析触发传统规则回退 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} reason=${fallbackReason}`);
-            this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
+            this.preferenceLogRecorder.warn(
+              `工作【${jobTitle}】AI结果不可解析触发传统规则回退 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} reason=${fallbackReason}`
+            );
+            this.applyTraditionalFallbackChecks(
+              traditionalDeliveryEnabled,
+              jobDetail,
+              jobDetailExt,
+              jobTitle,
+              fallbackReason
+            );
             jobDetail.aiDeliveryJudge = {
               traceId: judgeTraceId,
               path: filterPath,
@@ -862,21 +956,29 @@ export class BossPlatform extends AbsPlatform {
               reason: fallbackReason,
               valid: true,
               parseMode: invalidResultFallback.parseMode,
-              judgedAt: new Date().toISOString()
+              judgedAt: new Date().toISOString(),
             };
-            this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
+            this.preferenceLogRecorder.info(
+              `工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`
+            );
             return true;
           }
-          this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI判定结果不可解析 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} onInvalidResult=${aiConfig.onInvalidResult} reason=${judgeResult.reason}`);
-          throw new NotMatchError(jobTitle, judgeResult.reason, "AI投递判断结果不可解析");
+          this.preferenceLogRecorder.warn(
+            `工作【${jobTitle}】AI判定结果不可解析 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} onInvalidResult=${aiConfig.onInvalidResult} reason=${judgeResult.reason}`
+          );
+          throw new NotMatchError(jobTitle, judgeResult.reason, 'AI投递判断结果不可解析');
         }
 
         if (!judgeResult.match) {
-          this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断不通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
-          throw new NotMatchError(jobTitle, judgeResult.reason, "AI投递判断不通过");
+          this.preferenceLogRecorder.info(
+            `工作【${jobTitle}】AI投递判断不通过 trace=${judgeTraceId} reason=${judgeResult.reason}`
+          );
+          throw new NotMatchError(jobTitle, judgeResult.reason, 'AI投递判断不通过');
         }
 
-        this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
+        this.preferenceLogRecorder.info(
+          `工作【${jobTitle}】AI投递判断通过 trace=${judgeTraceId} reason=${judgeResult.reason}`
+        );
       }
 
       // 只有在“明确已处理”时才记录岗位，避免未知异常导致永久跳过该岗位。
@@ -912,7 +1014,7 @@ export class BossPlatform extends AbsPlatform {
       brandStageName: jobDetail.brandStageName,
       brandIndustry: jobDetail.brandIndustry,
       brandScaleName: jobDetail.brandScaleName,
-      welfareList: jobDetail.welfareList
+      welfareList: jobDetail.welfareList,
     };
   }
 
@@ -926,7 +1028,7 @@ export class BossPlatform extends AbsPlatform {
     return {
       postDescription: jobDetailExt.postDescription,
       address: jobDetailExt.address,
-      activeTimeDesc: jobDetailExt.activeTimeDesc
+      activeTimeDesc: jobDetailExt.activeTimeDesc,
     };
   }
 
@@ -946,7 +1048,13 @@ export class BossPlatform extends AbsPlatform {
    * @returns 由岗位名称与地区信息拼接而成的可读字符串。
    */
   getJobKey(jobDetail: any): string {
-    return jobDetail.jobName + "-" + jobDetail.cityName + jobDetail.areaDistrict + jobDetail.businessDistrict;
+    return (
+      jobDetail.jobName +
+      '-' +
+      jobDetail.cityName +
+      jobDetail.areaDistrict +
+      jobDetail.businessDistrict
+    );
   }
 
   /**
@@ -958,7 +1066,7 @@ export class BossPlatform extends AbsPlatform {
   isLimit(_jobDetail: any): { limit: boolean; msg: string } {
     return {
       limit: TampermonkeyApi.GmGetValue(TampermonkeyApi.PUSH_LIMIT, false),
-      msg: "Boss投递限制每天150次"
+      msg: 'Boss投递限制每天150次',
     };
   }
 
@@ -976,30 +1084,32 @@ export class BossPlatform extends AbsPlatform {
    * @throws {PushStopError} 当平台要求人工验证时抛出。
    * @throws {PushLimitError} 当识别到当日沟通人数已达上限时抛出。
    */
-  async doPush(jobDetail: any, errorMsg = "", retries = 3): Promise<any> {
+  async doPush(jobDetail: any, errorMsg = '', retries = 3): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
-      throw new PushRequestError(jobTitle, errorMsg || "投递重试多次失败");
+      throw new PushRequestError(jobTitle, errorMsg || '投递重试多次失败');
     }
 
-    logger$1.debug("正在投递：" + jobTitle);
+    logger$1.debug('正在投递：' + jobTitle);
 
     // 无论前一条岗位是否成功，都要遵守用户配置的投递节奏，降低平台风控概率。
     const preference = runtimeUserStore?.user?.preference || {};
-    const pushIntervalSec = Number(getPreferenceValue(preference, "pushIntervalSec", "pi")) || 3;
+    const pushIntervalSec = Number(getPreferenceValue(preference, 'pushIntervalSec', 'pi')) || 3;
     await Tools.sleep(pushIntervalSec * 1000);
 
-    let pushResp: any = { code: PushResultStatus.NOT_START, message: "" };
+    let pushResp: any = { code: PushResultStatus.NOT_START, message: '' };
     try {
       // 统一由当前方法控制重试节奏，底层客户端只负责单次 HTTP 请求。
       pushResp = await this.apiClient.doPush(jobDetail, 1);
     } catch (error: any) {
-      const latestError = `${error?.message || "投递请求失败"}`;
+      const latestError = `${error?.message || '投递请求失败'}`;
 
       // 仅对网络层失败进行递归重试，业务性失败由上层直接感知并处理。
       if (this.isNetworkError(error) && retries > 1) {
         const retryDelay = (4 - retries) * 1000;
-        logger$1.debug(`工作【${jobTitle}】投递失败 (尝试${4 - retries}/3); 正在等待重试; 原因：${latestError}`);
+        logger$1.debug(
+          `工作【${jobTitle}】投递失败 (尝试${4 - retries}/3); 正在等待重试; 原因：${latestError}`
+        );
         await Tools.sleep(retryDelay);
         return await this.doPush(jobDetail, latestError, retries - 1);
       }
@@ -1008,8 +1118,11 @@ export class BossPlatform extends AbsPlatform {
     }
 
     // 某些失败会通过提醒弹窗文本返回，需要在这里识别出人工验证和每日上限等特殊状态。
-    if (pushResp.code === PushResultStatus.FAIL && pushResp?.zpData?.bizData?.chatRemindDialog?.content) {
-      const remindContent = `${pushResp?.zpData?.bizData?.chatRemindDialog?.content || ""}`;
+    if (
+      pushResp.code === PushResultStatus.FAIL &&
+      pushResp?.zpData?.bizData?.chatRemindDialog?.content
+    ) {
+      const remindContent = `${pushResp?.zpData?.bizData?.chatRemindDialog?.content || ''}`;
       if (this.isManualVerificationText(remindContent)) {
         throw new PushStopError(this.getManualVerificationReason() || remindContent);
       }
@@ -1023,7 +1136,7 @@ export class BossPlatform extends AbsPlatform {
       // 其余提醒内容统一回传给上层，由上层决定如何展示或记录。
       return {
         code: 1,
-        message: pushResp?.zpData?.bizData?.chatRemindDialog?.content
+        message: pushResp?.zpData?.bizData?.chatRemindDialog?.content,
       };
     }
 
@@ -1040,15 +1153,15 @@ export class BossPlatform extends AbsPlatform {
    * @returns 匹配到的岗位卡片元素；未找到时返回 `null`。
    */
   findJobCardByJobDetail(jobDetail: any): any {
-    const cardSelectors = [".job-card-wrapper", ".job-card-wrap", ".job-card-box"];
+    const cardSelectors = ['.job-card-wrapper', '.job-card-wrap', '.job-card-box'];
     for (const selector of cardSelectors) {
       const cards = Array.from(document.querySelectorAll(selector));
       const targetCard = cards.find((card: any) => {
         const cardData = card?.__vue__?.data;
-        const detailEncryptJobId = `${jobDetail.encryptJobId || ""}`;
-        const detailJobId = `${jobDetail.jobId || ""}`;
-        const cardEncryptJobId = `${cardData?.encryptJobId || ""}`;
-        const cardJobId = `${cardData?.jobId || ""}`;
+        const detailEncryptJobId = `${jobDetail.encryptJobId || ''}`;
+        const detailJobId = `${jobDetail.jobId || ''}`;
+        const cardEncryptJobId = `${cardData?.encryptJobId || ''}`;
+        const cardJobId = `${cardData?.jobId || ''}`;
 
         if (detailEncryptJobId && cardEncryptJobId === detailEncryptJobId) {
           return true;
@@ -1062,7 +1175,8 @@ export class BossPlatform extends AbsPlatform {
           return true;
         }
 
-        const href = (card.querySelector("a.job-card-left,a.job-name")?.getAttribute("href")?.toString()) || "";
+        const href =
+          card.querySelector('a.job-card-left,a.job-name')?.getAttribute('href')?.toString() || '';
         if (!href) {
           return false;
         }
@@ -1071,7 +1185,7 @@ export class BossPlatform extends AbsPlatform {
           return true;
         }
 
-        const detailLid = `${jobDetail.lid || ""}`;
+        const detailLid = `${jobDetail.lid || ''}`;
         return !!(detailLid && href.includes(detailLid));
       });
 
@@ -1092,14 +1206,14 @@ export class BossPlatform extends AbsPlatform {
   getFavoriteHint(element: any): string {
     const attrs = [
       element?.textContent,
-      element?.getAttribute("title"),
-      element?.getAttribute("aria-label"),
-      element?.getAttribute("data-title"),
-      element?.getAttribute("ka"),
-      element?.className
+      element?.getAttribute('title'),
+      element?.getAttribute('aria-label'),
+      element?.getAttribute('data-title'),
+      element?.getAttribute('ka'),
+      element?.className,
     ].filter(Boolean);
 
-    return attrs.join(" ").replace(/\s+/g, " ").trim();
+    return attrs.join(' ').replace(/\s+/g, ' ').trim();
   }
 
   /**
@@ -1109,8 +1223,8 @@ export class BossPlatform extends AbsPlatform {
    * @returns 若已收藏或可见取消收藏语义则返回 `true`。
    */
   isFavoriteDoneByHint(hint: string): boolean {
-    const text = (hint || "").replace(/\s+/g, "");
-    return text.includes("已收藏") || text.includes("取消收藏") || text.includes("已感兴趣");
+    const text = (hint || '').replace(/\s+/g, '');
+    return text.includes('已收藏') || text.includes('取消收藏') || text.includes('已感兴趣');
   }
 
   /**
@@ -1123,8 +1237,10 @@ export class BossPlatform extends AbsPlatform {
     const card = this.findJobCardByJobDetail(jobDetail);
     const detailScopes = this.findRelatedDetailScopes(jobDetail);
     return {
-      cardText: (card?.textContent || "").replace(/\s+/g, ""),
-      detailText: detailScopes.map((scope: any) => (scope.textContent || "").replace(/\s+/g, "")).join(" ")
+      cardText: (card?.textContent || '').replace(/\s+/g, ''),
+      detailText: detailScopes
+        .map((scope: any) => (scope.textContent || '').replace(/\s+/g, ''))
+        .join(' '),
     };
   }
 
@@ -1135,7 +1251,9 @@ export class BossPlatform extends AbsPlatform {
    * @returns 任一观察区域出现“已收藏”语义时返回 `true`。
    */
   isFavoriteConfirmedBySnapshot(snapshot: { cardText: string; detailText: string }): boolean {
-    return this.isFavoriteDoneByHint(snapshot.cardText) || this.isFavoriteDoneByHint(snapshot.detailText);
+    return (
+      this.isFavoriteDoneByHint(snapshot.cardText) || this.isFavoriteDoneByHint(snapshot.detailText)
+    );
   }
 
   /**
@@ -1145,7 +1263,10 @@ export class BossPlatform extends AbsPlatform {
    * @param waitMs 最长等待时间，单位毫秒。
    * @returns 是否确认收藏成功及对应时刻的快照。
    */
-  async waitFavoriteConfirmed(jobDetail: any, waitMs = 1200): Promise<{ confirmed: boolean; snapshot: { cardText: string; detailText: string } }> {
+  async waitFavoriteConfirmed(
+    jobDetail: any,
+    waitMs = 1200
+  ): Promise<{ confirmed: boolean; snapshot: { cardText: string; detailText: string } }> {
     const startTs = Date.now();
     let snapshot = this.getFavoriteStateSnapshot(jobDetail);
     if (this.isFavoriteConfirmedBySnapshot(snapshot)) {
@@ -1170,13 +1291,19 @@ export class BossPlatform extends AbsPlatform {
    * @returns 若文本更像“收藏”而非“沟通/投递”按钮则返回 `true`。
    */
   isFavoriteActionByHint(hint: string): boolean {
-    const text = (hint || "").replace(/\s+/g, "");
+    const text = (hint || '').replace(/\s+/g, '');
     const lowerText = text.toLowerCase();
-    if (text.includes("沟通") || text.includes("投递") || text.includes("简历")) {
+    if (text.includes('沟通') || text.includes('投递') || text.includes('简历')) {
       return false;
     }
 
-    return text.includes("收藏") || text.includes("感兴趣") || lowerText.includes("collect") || lowerText.includes("favorite") || lowerText.includes("star");
+    return (
+      text.includes('收藏') ||
+      text.includes('感兴趣') ||
+      lowerText.includes('collect') ||
+      lowerText.includes('favorite') ||
+      lowerText.includes('star')
+    );
   }
 
   /**
@@ -1190,12 +1317,12 @@ export class BossPlatform extends AbsPlatform {
       return true;
     }
 
-    if (element.hasAttribute("disabled") || element.getAttribute("aria-disabled") === "true") {
+    if (element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true') {
       return false;
     }
 
     const style = window.getComputedStyle(element);
-    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
       return false;
     }
 
@@ -1211,16 +1338,16 @@ export class BossPlatform extends AbsPlatform {
    */
   findRelatedDetailScopes(jobDetail: any): any[] {
     const scopes = [
-      document.querySelector(".job-detail-box"),
-      document.querySelector(".job-detail"),
-      document.querySelector(".job-detail-container")
+      document.querySelector('.job-detail-box'),
+      document.querySelector('.job-detail'),
+      document.querySelector('.job-detail-container'),
     ].filter(Boolean);
 
     if (scopes.length === 0) {
       return [];
     }
 
-    const normalize = (text: string) => (text || "").replace(/\s+/g, "");
+    const normalize = (text: string) => (text || '').replace(/\s+/g, '');
     const jobName = normalize(jobDetail.jobName);
     const brandName = normalize(jobDetail.brandName);
     const matchedScopes = scopes.filter((scope: any) => {
@@ -1263,7 +1390,8 @@ export class BossPlatform extends AbsPlatform {
    * @returns 是否已处于收藏态以及可点击的收藏按钮。
    */
   findFavoriteButtonInScope(scope: Element, sampleHints: string[]): { done: boolean; button: any } {
-    const candidateSelector = "button,a,[role='button'],[class*='collect'],[class*='favorite'],[class*='star']";
+    const candidateSelector =
+      "button,a,[role='button'],[class*='collect'],[class*='favorite'],[class*='star']";
     const candidates = Array.from(new Set(Array.from(scope.querySelectorAll(candidateSelector))));
     let favoriteButton: any = null;
 
@@ -1277,7 +1405,10 @@ export class BossPlatform extends AbsPlatform {
         continue;
       }
 
-      if ((this.isFavoriteActionByHint(hint) || this.isFavoriteDoneByHint(hint)) && sampleHints.length < 8) {
+      if (
+        (this.isFavoriteActionByHint(hint) || this.isFavoriteDoneByHint(hint)) &&
+        sampleHints.length < 8
+      ) {
         sampleHints.push(hint.slice(0, 80));
       }
 
@@ -1305,16 +1436,16 @@ export class BossPlatform extends AbsPlatform {
   async triggerFavoriteByDom(jobDetail: any): Promise<FavoriteResp> {
     const card = this.findJobCardByJobDetail(jobDetail);
     if (!card) {
-      return { success: false, message: "未定位到岗位卡片" };
+      return { success: false, message: '未定位到岗位卡片' };
     }
 
     const beforeCheck = await this.waitFavoriteConfirmed(jobDetail, 120);
     if (beforeCheck.confirmed) {
-      return { success: true, verified: true, channel: "dom-already", message: "Success" };
+      return { success: true, verified: true, channel: 'dom-already', message: 'Success' };
     }
 
     const sampleHints: string[] = [];
-    const hoverEvents = ["mouseenter", "mouseover", "mousemove"];
+    const hoverEvents = ['mouseenter', 'mouseover', 'mousemove'];
 
     // 先触发悬浮事件，尽可能唤起卡片级操作栏，兼容鼠标悬停后才显示收藏按钮的页面实现。
     hoverEvents.forEach((eventName) => {
@@ -1323,7 +1454,7 @@ export class BossPlatform extends AbsPlatform {
 
     const cardClickable = card.querySelector("a.job-card-left,a.job-name,[class*='job-card-left']");
     const clickTarget = cardClickable || card;
-    clickTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await Tools.sleep(300);
 
     // 同时在卡片区和详情区查找收藏入口，覆盖不同页面布局下按钮位置差异。
@@ -1335,7 +1466,7 @@ export class BossPlatform extends AbsPlatform {
     for (const scope of uniqueScopeList) {
       const result = this.findFavoriteButtonInScope(scope as Element, sampleHints);
       if (result.done) {
-        return { success: true, verified: true, channel: "dom-done-mark", message: "Success" };
+        return { success: true, verified: true, channel: 'dom-done-mark', message: 'Success' };
       }
 
       if (result.button) {
@@ -1345,19 +1476,21 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (!favoriteBtn) {
-      const detailText = detailScopes.map((scope: any) => (scope.textContent || "").replace(/\s+/g, "")).join(" ");
-      if (detailText.includes("已收藏") || detailText.includes("取消收藏")) {
-        return { success: true, verified: true, channel: "dom-detail-mark", message: "Success" };
+      const detailText = detailScopes
+        .map((scope: any) => (scope.textContent || '').replace(/\s+/g, ''))
+        .join(' ');
+      if (detailText.includes('已收藏') || detailText.includes('取消收藏')) {
+        return { success: true, verified: true, channel: 'dom-detail-mark', message: 'Success' };
       }
 
-      const debugHint = sampleHints.length > 0 ? `;候选:${sampleHints.join(" | ")}` : "";
+      const debugHint = sampleHints.length > 0 ? `;候选:${sampleHints.join(' | ')}` : '';
       return { success: false, message: `未找到收藏按钮${debugHint}` };
     }
 
-    if (typeof favoriteBtn.click === "function") {
+    if (typeof favoriteBtn.click === 'function') {
       favoriteBtn.click();
     } else {
-      favoriteBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      favoriteBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     }
 
     await Tools.sleep(250);
@@ -1366,10 +1499,10 @@ export class BossPlatform extends AbsPlatform {
 
     // 按钮提示与页面文本任一出现收藏态，都视为本次 DOM 操作成功。
     if (afterCheck.confirmed || this.isFavoriteDoneByHint(btnHintAfterClick)) {
-      return { success: true, verified: true, channel: "dom-click", message: "Success" };
+      return { success: true, verified: true, channel: 'dom-click', message: 'Success' };
     }
 
-    const afterHint = `button=${btnHintAfterClick.slice(0, 60)};card=${(afterCheck.snapshot.cardText || "").slice(0, 60)};detail=${(afterCheck.snapshot.detailText || "").slice(0, 60)}`;
+    const afterHint = `button=${btnHintAfterClick.slice(0, 60)};card=${(afterCheck.snapshot.cardText || '').slice(0, 60)};detail=${(afterCheck.snapshot.detailText || '').slice(0, 60)}`;
     return { success: false, verified: false, message: `点击收藏后未观察到收藏态;${afterHint}` };
   }
 
@@ -1385,10 +1518,10 @@ export class BossPlatform extends AbsPlatform {
    * @returns 收藏结果对象。
    * @throws {FavoriteRequestError} 当收藏在多次重试后仍失败时抛出。
    */
-  async doCollect(jobDetail: any, errorMsg = "", retries = 2): Promise<any> {
+  async doCollect(jobDetail: any, errorMsg = '', retries = 2): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
-      throw new FavoriteRequestError(jobTitle, errorMsg || "收藏重试多次失败");
+      throw new FavoriteRequestError(jobTitle, errorMsg || '收藏重试多次失败');
     }
 
     let latestError = errorMsg;
@@ -1398,9 +1531,9 @@ export class BossPlatform extends AbsPlatform {
       if (beforeState.confirmed) {
         return {
           code: 0,
-          message: "Success",
+          message: 'Success',
           verified: true,
-          channel: "already"
+          channel: 'already',
         };
       }
 
@@ -1409,9 +1542,9 @@ export class BossPlatform extends AbsPlatform {
       if (domResult.success && domResult.verified !== false) {
         return {
           code: 0,
-          message: "Success",
+          message: 'Success',
           verified: true,
-          channel: domResult.channel || "dom"
+          channel: domResult.channel || 'dom',
         };
       }
 
@@ -1422,9 +1555,9 @@ export class BossPlatform extends AbsPlatform {
       }
 
       const preference = runtimeUserStore?.user?.preference || {};
-      const pushIntervalSec = Number(getPreferenceValue(preference, "pushIntervalSec", "pi")) || 3;
+      const pushIntervalSec = Number(getPreferenceValue(preference, 'pushIntervalSec', 'pi')) || 3;
       await Tools.sleep(Math.max(500, pushIntervalSec * 600));
-      
+
       try {
         // DOM 通道失败后再回退到接口调用，并通过页面状态再次确认收藏是否真正成功。
         const apiResp = await this.apiClient.doCollect(jobDetail, retries);
@@ -1433,17 +1566,17 @@ export class BossPlatform extends AbsPlatform {
           if (confirmCheck.confirmed) {
             return {
               code: 0,
-              message: "Success",
+              message: 'Success',
               verified: true,
-              channel: "api"
+              channel: 'api',
             };
           }
-          latestError = "接口返回成功但未观察到收藏态";
+          latestError = '接口返回成功但未观察到收藏态';
         } else {
-          latestError = `${((apiResp?.message) || `收藏接口异常(${apiResp?.code || "unknown"})`).toString()}`;
+          latestError = `${(apiResp?.message || `收藏接口异常(${apiResp?.code || 'unknown'})`).toString()}`;
         }
       } catch (error: any) {
-        latestError = error?.message || "收藏接口请求失败";
+        latestError = error?.message || '收藏接口请求失败';
       }
     } catch (error: any) {
       latestError = error?.message || latestError;
@@ -1463,7 +1596,7 @@ export class BossPlatform extends AbsPlatform {
    */
   async requestBossDataByCache(jobDetail: any): Promise<any> {
     const cacheKey = `${jobDetail.encryptBossId}-${jobDetail.securityId}`;
-    
+
     if (this.bossDataCache.has(cacheKey)) {
       const cached = this.bossDataCache.get(cacheKey)!;
 
@@ -1475,15 +1608,16 @@ export class BossPlatform extends AbsPlatform {
 
     const result = await this.requestBossData(jobDetail);
     this.bossDataCache.set(cacheKey, { data: result, timestamp: Date.now() });
-    
+
     // 超出容量时移除最久未使用的数据，控制会话缓存体积。
     if (this.bossDataCache.size > this.MAX_BOSS_CACHE) {
-      const sortedEntries = Array.from(this.bossDataCache.entries())
-        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const sortedEntries = Array.from(this.bossDataCache.entries()).sort(
+        (a, b) => a[1].timestamp - b[1].timestamp
+      );
       const toDelete = sortedEntries.slice(0, this.bossDataCache.size - this.MAX_BOSS_CACHE);
       toDelete.forEach(([key]) => this.bossDataCache.delete(key));
     }
-    
+
     return result;
   }
 
@@ -1496,10 +1630,10 @@ export class BossPlatform extends AbsPlatform {
    * @returns BOSS 数据接口返回结果。
    * @throws {FetchJobDetailError} 当请求在多次重试后仍失败时抛出。
    */
-  async requestBossData(jobDetail: any, errorMsg = "", retries = 3): Promise<any> {
+  async requestBossData(jobDetail: any, errorMsg = '', retries = 3): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
-      throw new FetchJobDetailError(jobTitle, errorMsg || "获取boss数据重试多次失败");
+      throw new FetchJobDetailError(jobTitle, errorMsg || '获取boss数据重试多次失败');
     }
 
     try {
@@ -1520,7 +1654,7 @@ export class BossPlatform extends AbsPlatform {
       return false;
     }
 
-    if (channel.client && typeof channel.client.isConnected === "function") {
+    if (channel.client && typeof channel.client.isConnected === 'function') {
       try {
         return channel.client.isConnected();
       } catch (_e) {
@@ -1528,7 +1662,7 @@ export class BossPlatform extends AbsPlatform {
       }
     }
 
-    return typeof channel.send === "function";
+    return typeof channel.send === 'function';
   }
 
   /**
@@ -1538,7 +1672,7 @@ export class BossPlatform extends AbsPlatform {
    * @returns 通道存在且连接正常时返回 `true`。
    */
   isGeekChannelConnected(geekCore: any): boolean {
-    if (!geekCore || typeof geekCore.getInstance !== "function") {
+    if (!geekCore || typeof geekCore.getInstance !== 'function') {
       return false;
     }
 
@@ -1546,19 +1680,19 @@ export class BossPlatform extends AbsPlatform {
       const instance = geekCore.getInstance?.();
       const clientWrapper = instance?.getClient?.();
       const client = clientWrapper?.client;
-      if (!client || typeof client.send !== "function") {
+      if (!client || typeof client.send !== 'function') {
         return false;
       }
 
-      if (typeof client.isConnected === "function") {
+      if (typeof client.isConnected === 'function') {
         return !!client.isConnected();
       }
 
-      if (typeof client.connected === "boolean") {
+      if (typeof client.connected === 'boolean') {
         return client.connected;
       }
 
-      if (typeof client.readyState === "number") {
+      if (typeof client.readyState === 'number') {
         return client.readyState === 1;
       }
 
@@ -1573,7 +1707,14 @@ export class BossPlatform extends AbsPlatform {
    *
    * @returns 图片、文本和 Geek 通道的状态快照。
    */
-  getSendChannelState(): { imageExists: boolean; imageConnected: boolean; textExists: boolean; textConnected: boolean; geekExists: boolean; geekConnected: boolean } {
+  getSendChannelState(): {
+    imageExists: boolean;
+    imageConnected: boolean;
+    textExists: boolean;
+    textConnected: boolean;
+    geekExists: boolean;
+    geekConnected: boolean;
+  } {
     const geekCore = Tools.window.GeekChatCore;
     return {
       imageExists: !!Tools.window.ChatWebsocketImage,
@@ -1581,7 +1722,7 @@ export class BossPlatform extends AbsPlatform {
       textExists: !!Tools.window.ChatWebsocket,
       textConnected: this.isSendChannelConnected(Tools.window.ChatWebsocket),
       geekExists: !!geekCore,
-      geekConnected: this.isGeekChannelConnected(geekCore)
+      geekConnected: this.isGeekChannelConnected(geekCore),
     };
   }
 
@@ -1591,22 +1732,29 @@ export class BossPlatform extends AbsPlatform {
    * @param state 消息通道状态对象。
    * @returns 适合输出到日志或异常信息中的紧凑状态串。
    */
-  formatSendChannelState(state: { imageExists: boolean; imageConnected: boolean; textExists: boolean; textConnected: boolean; geekExists: boolean; geekConnected: boolean }): string {
-    return `image(${state.imageExists ? "Y" : "N"}/${state.imageConnected ? "on" : "off"}),text(${state.textExists ? "Y" : "N"}/${state.textConnected ? "on" : "off"}),geek(${state.geekExists ? "Y" : "N"}/${state.geekConnected ? "on" : "off"})`;
+  formatSendChannelState(state: {
+    imageExists: boolean;
+    imageConnected: boolean;
+    textExists: boolean;
+    textConnected: boolean;
+    geekExists: boolean;
+    geekConnected: boolean;
+  }): string {
+    return `image(${state.imageExists ? 'Y' : 'N'}/${state.imageConnected ? 'on' : 'off'}),text(${state.textExists ? 'Y' : 'N'}/${state.textConnected ? 'on' : 'off'}),geek(${state.geekExists ? 'Y' : 'N'}/${state.geekConnected ? 'on' : 'off'})`;
   }
 
   private getPageUidString(): string {
     const uidValue = Tools.getPageUidString();
     if (!uidValue) {
-      throw new Error("页面上下文 uid 为空");
+      throw new Error('页面上下文 uid 为空');
     }
     return uidValue;
   }
 
   private getBossTokenPreferCookie(): string {
     const pageMeta = Tools.window?._PAGE as { token?: unknown } | undefined;
-    const token = Tools.getCookieValue("bst") || Tools.getPageToken() || `${pageMeta?.token || ""}`;
-    return `${token || ""}`.trim();
+    const token = Tools.getCookieValue('bst') || Tools.getPageToken() || `${pageMeta?.token || ''}`;
+    return `${token || ''}`.trim();
   }
 
   /**
@@ -1619,12 +1767,12 @@ export class BossPlatform extends AbsPlatform {
    * @returns 任一发送通道准备就绪时返回 `true`，否则返回 `false`。
    */
   async ensureSendChannelReady(waitMs = 4500): Promise<boolean> {
-    if (!Tools.window.ChatWebsocketImage && typeof setChatWebsocket === "function") {
+    if (!Tools.window.ChatWebsocketImage && typeof setChatWebsocket === 'function') {
       await setChatWebsocket();
     }
 
     const tryInit = (channel: any) => {
-      if (!channel || typeof channel.init !== "function") {
+      if (!channel || typeof channel.init !== 'function') {
         return;
       }
 
@@ -1635,7 +1783,7 @@ export class BossPlatform extends AbsPlatform {
       try {
         channel.init();
       } catch (e) {
-        logger$1.debug("初始化消息通道失败", e);
+        logger$1.debug('初始化消息通道失败', e);
       }
     };
 
@@ -1655,10 +1803,10 @@ export class BossPlatform extends AbsPlatform {
       if (Date.now() - reconnectTs > 1000) {
         const reconnectChannels: Array<{ reConnection?: () => void } | undefined> = [
           Tools.window.ChatWebsocketImage as { reConnection?: () => void } | undefined,
-          Tools.window.ChatWebsocket as { reConnection?: () => void } | undefined
+          Tools.window.ChatWebsocket as { reConnection?: () => void } | undefined,
         ];
         reconnectChannels.forEach((channel) => {
-          if (!channel || typeof channel.reConnection !== "function") {
+          if (!channel || typeof channel.reConnection !== 'function') {
             return;
           }
 
@@ -1666,7 +1814,7 @@ export class BossPlatform extends AbsPlatform {
             // 对仍未连通的通道周期性发起重连，兼容页面懒初始化或掉线重连场景。
             channel.reConnection();
           } catch (e) {
-            logger$1.debug("消息通道重连触发失败", e);
+            logger$1.debug('消息通道重连触发失败', e);
           }
         });
         reconnectTs = Date.now();
@@ -1680,10 +1828,10 @@ export class BossPlatform extends AbsPlatform {
 
   private getRecommendPageScrollHeight(): number {
     const selectors = [
-      ".job-list-container",
-      ".job-list",
-      ".recommend-job-list",
-      ".recommend-search-inner"
+      '.job-list-container',
+      '.job-list',
+      '.recommend-job-list',
+      '.recommend-search-inner',
     ];
     const heights = selectors
       .map((selector) => document.querySelector(selector) as HTMLElement | null)
@@ -1707,9 +1855,9 @@ export class BossPlatform extends AbsPlatform {
    */
   async pushAfterHandler(pushResult: any, jobDetail: any): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
-    if (pushResult.message === "Success" && pushResult.code === 0) {
+    if (pushResult.message === 'Success' && pushResult.code === 0) {
       pushResultCounter.successIncr();
-      const aiJudgeReason = `${jobDetail?.aiDeliveryJudge?.reason || ""}`.trim();
+      const aiJudgeReason = `${jobDetail?.aiDeliveryJudge?.reason || ''}`.trim();
       if (aiJudgeReason) {
         this.preferenceLogRecorder.info(`工作【${jobTitle}】 投递成功 AI理由：${aiJudgeReason}`);
       } else {
@@ -1720,20 +1868,24 @@ export class BossPlatform extends AbsPlatform {
       try {
         await this.pushAfterSendImage(jobDetail);
       } catch (e: any) {
-        this.preferenceLogRecorder.warn(`工作【${jobTitle}】发送图片简历失败 原因：${e?.message || e}`);
+        this.preferenceLogRecorder.warn(
+          `工作【${jobTitle}】发送图片简历失败 原因：${e?.message || e}`
+        );
       }
 
       try {
         await this.pushAfterSendMsg(jobDetail);
       } catch (e: any) {
-        this.preferenceLogRecorder.warn(`工作【${jobTitle}】发送自定义消息失败 原因：${e?.message || e}`);
+        this.preferenceLogRecorder.warn(
+          `工作【${jobTitle}】发送自定义消息失败 原因：${e?.message || e}`
+        );
       }
 
       jobDetail.contact = true;
       return jobDetail;
     }
 
-    if (pushResult.message.includes("今日沟通人数已达上限")) {
+    if (pushResult.message.includes('今日沟通人数已达上限')) {
       throw new PushLimitError(pushResult.message);
     }
 
@@ -1749,31 +1901,39 @@ export class BossPlatform extends AbsPlatform {
    */
   async pushAfterSendMsg(jobDetail: any): Promise<void> {
     const preference = runtimeUserStore?.user?.preference || {};
-    const customGreetingEnabled = normalizePreferenceBoolean(getPreferenceValue(preference, "customGreetingEnabled", "cgE"), false);
+    const customGreetingEnabled = normalizePreferenceBoolean(
+      getPreferenceValue(preference, 'customGreetingEnabled', 'cgE'),
+      false
+    );
     if (!customGreetingEnabled || this._pushMock) {
       return;
     }
 
     await Tools.sleep(Tools.getRandomNumber(700, 2200));
-    this.enforceAutoContactSafety("message");
+    this.enforceAutoContactSafety('message');
 
     // 发送前先确保页面运行时消息通道已就绪，避免直接丢消息。
     const ready = await this.ensureSendChannelReady();
     if (!ready) {
-      throw new Error(`消息发送通道不可用(${this.formatSendChannelState(this.getSendChannelState())})`);
+      throw new Error(
+        `消息发送通道不可用(${this.formatSendChannelState(this.getSendChannelState())})`
+      );
     }
 
     const bossData = await this.requestBossDataByCache(jobDetail);
-    const customGreetingRaw = getPreferenceValue(preference, "customGreeting", "cg");
-    const customGreeting = typeof customGreetingRaw === "string"
-      ? customGreetingRaw
-      : (customGreetingRaw == null ? void 0 : `${customGreetingRaw}`);
+    const customGreetingRaw = getPreferenceValue(preference, 'customGreeting', 'cg');
+    const customGreeting =
+      typeof customGreetingRaw === 'string'
+        ? customGreetingRaw
+        : customGreetingRaw == null
+          ? void 0
+          : `${customGreetingRaw}`;
     const message = new Message({
       form_uid: this.getPageUidString(),
       to_uid: bossData.data.bossId.toString(),
       to_name: jobDetail.encryptBossId,
       content: customGreeting,
-      image: void 0
+      image: void 0,
     });
 
     let sendOk = message.send();
@@ -1798,27 +1958,32 @@ export class BossPlatform extends AbsPlatform {
    */
   async pushAfterSendImage(jobDetail: any): Promise<void> {
     const preference = runtimeUserStore?.user?.preference || {};
-    const customImageEnabled = normalizePreferenceBoolean(getPreferenceValue(preference, "customImageEnabled", "cIE"), false);
+    const customImageEnabled = normalizePreferenceBoolean(
+      getPreferenceValue(preference, 'customImageEnabled', 'cIE'),
+      false
+    );
     if (!customImageEnabled || this._pushMock) {
       return;
     }
 
     await Tools.sleep(Tools.getRandomNumber(900, 2400));
-    this.enforceAutoContactSafety("image");
+    this.enforceAutoContactSafety('image');
 
-    const customerImageSet = `${getPreferenceValue(preference, "customImageSet", "cI") || ""}`;
+    const customerImageSet = `${getPreferenceValue(preference, 'customImageSet', 'cI') || ''}`;
     if (!customerImageSet) {
       return;
     }
 
-    const [originImage, tinyImage] = customerImageSet.split("===");
+    const [originImage, tinyImage] = customerImageSet.split('===');
     if (!originImage || !tinyImage) {
-      throw new Error("图片简历配置格式异常，请重新上传图片简历");
+      throw new Error('图片简历配置格式异常，请重新上传图片简历');
     }
 
     const ready = await this.ensureSendChannelReady(5500);
     if (!ready) {
-      throw new Error(`图片消息发送通道不可用(${this.formatSendChannelState(this.getSendChannelState())})`);
+      throw new Error(
+        `图片消息发送通道不可用(${this.formatSendChannelState(this.getSendChannelState())})`
+      );
     }
 
     const bossData = await this.requestBossDataByCache(jobDetail);
@@ -1826,11 +1991,11 @@ export class BossPlatform extends AbsPlatform {
       form_uid: this.getPageUidString(),
       to_uid: bossData.data.bossId.toString(),
       to_name: jobDetail.encryptBossId,
-      content: "",
+      content: '',
       image: {
         originImage,
-        tinyImage
-      }
+        tinyImage,
+      },
     });
 
     let sendOk = message.send();
@@ -1842,7 +2007,9 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (!sendOk) {
-      throw new Error(`图片消息发送失败(${this.formatSendChannelState(this.getSendChannelState())})`);
+      throw new Error(
+        `图片消息发送失败(${this.formatSendChannelState(this.getSendChannelState())})`
+      );
     }
   }
 
@@ -1870,10 +2037,10 @@ export class BossPlatform extends AbsPlatform {
    * @returns 岗位详情扩展信息。
    * @throws {NotMatchError} 当扩展信息在多次重试后仍无法获取时抛出。
    */
-  async obtainBossJobDetailExt(jobDetail: any, message = "", retries = 3): Promise<any> {
+  async obtainBossJobDetailExt(jobDetail: any, message = '', retries = 3): Promise<any> {
     if (retries === 0) {
       logger$1.warn(`获取工作详情扩展信息异常,用于活跃度过滤以及工作内容过滤; 原因：${message}`);
-      throw new NotMatchError(this.getJobKey(jobDetail), message, "获取工作详情扩展信息异常");
+      throw new NotMatchError(this.getJobKey(jobDetail), message, '获取工作详情扩展信息异常');
     }
 
     try {
@@ -1883,7 +2050,7 @@ export class BossPlatform extends AbsPlatform {
         jobDetail.lid
       );
     } catch (error: any) {
-      logger$1.debug("获取详情页异常正在重试:", error);
+      logger$1.debug('获取详情页异常正在重试:', error);
       return this.obtainBossJobDetailExt(jobDetail, error.message, retries - 1);
     }
   }
@@ -1896,7 +2063,7 @@ export class BossPlatform extends AbsPlatform {
    */
   private async ensureRuntimeResumeNarrative(user: Record<string, unknown>): Promise<void> {
     const importedResume = (user.importedResume as Record<string, unknown>) || {};
-    const currentText = `${importedResume.resumeText || ""}`.trim();
+    const currentText = `${importedResume.resumeText || ''}`.trim();
     logger$1.debug(`检查运行时简历长度: ${currentText.length} 字符 (要求 >= 80)`);
     if (currentText.length >= 80) {
       return;
@@ -1915,7 +2082,7 @@ export class BossPlatform extends AbsPlatform {
     this.lastRuntimeResumeRefreshTs = now;
     this.runtimeResumeRefreshPromise = this.fetchAndCacheRuntimeResumeText(user)
       .catch((error: any) => {
-        logger$1.debug("运行时刷新简历文本失败", error?.message || error);
+        logger$1.debug('运行时刷新简历文本失败', error?.message || error);
       })
       .finally(() => {
         this.runtimeResumeRefreshPromise = null;
@@ -1935,14 +2102,14 @@ export class BossPlatform extends AbsPlatform {
       return;
     }
 
-    let resumeText = "";
-    let resumeTextSource = "";
+    let resumeText = '';
+    let resumeTextSource = '';
 
     // 优先走预览接口，能直接拿到结构化数据并减少页面 HTML 解析成本。
-    const previewText = await this.fetchRuntimeResumeTextFromPreviewApi().catch(() => "");
+    const previewText = await this.fetchRuntimeResumeTextFromPreviewApi().catch(() => '');
     if (previewText.length >= 80) {
       resumeText = previewText;
-      resumeTextSource = "runtime-resume-preview-api";
+      resumeTextSource = 'runtime-resume-preview-api';
     }
 
     if (!resumeText) {
@@ -1951,12 +2118,14 @@ export class BossPlatform extends AbsPlatform {
       const pageText = extractResumeTextFromHtml(pageHtml, 12_000);
       if (pageText.length >= 80) {
         resumeText = pageText;
-        resumeTextSource = "runtime-resume-page";
+        resumeTextSource = 'runtime-resume-page';
       }
     }
 
     if (!resumeText) {
-      logger$1.warn("简历获取失败：预览 API 和页面 HTML 均未返回足够长度的简历文本（要求 >= 80 字符）");
+      logger$1.warn(
+        '简历获取失败：预览 API 和页面 HTML 均未返回足够长度的简历文本（要求 >= 80 字符）'
+      );
       return;
     }
 
@@ -1965,7 +2134,7 @@ export class BossPlatform extends AbsPlatform {
       ...importedResume,
       resumeText,
       resumeTextSource,
-      importedAt: new Date().toISOString()
+      importedAt: new Date().toISOString(),
     };
     logger$1.info(`简历更新成功: 来源=${resumeTextSource}, 长度=${resumeText.length} 字符`);
     if (runtimeUserStore?.user) {
@@ -1990,7 +2159,10 @@ export class BossPlatform extends AbsPlatform {
    * @param maxLength 输出文本最大长度。
    * @returns 结构化拼接后的简历文本；若无有效内容则返回空字符串。
    */
-  private buildRuntimeResumeTextFromPreviewData(dataInput: Record<string, unknown>, maxLength = 12_000): string {
+  private buildRuntimeResumeTextFromPreviewData(
+    dataInput: Record<string, unknown>,
+    maxLength = 12_000
+  ): string {
     const data = toRecord(dataInput);
     const baseInfo = toRecord(data.baseInfo);
     const expectList = Array.isArray(data.expectList) ? data.expectList : [];
@@ -2005,18 +2177,26 @@ export class BossPlatform extends AbsPlatform {
       `姓名：${toText(baseInfo.nickName, 80)}`,
       `工作年限：${toText(baseInfo.workYearDesc, 60)}`,
       `学历：${toText(baseInfo.degreeCategory, 60)}`,
-      `求职状态：${toText(data.applyStatusDesc, 80)}`
-    ].filter((line) => line.split("：")[1]);
+      `求职状态：${toText(data.applyStatusDesc, 80)}`,
+    ].filter((line) => line.split('：')[1]);
     if (basicLines.length) {
-      sections.push(`基本信息\n${basicLines.join("\n")}`);
+      sections.push(`基本信息\n${basicLines.join('\n')}`);
     }
 
     const expectRows = expectList
       .filter((item: any) => Number(item?.positionType ?? 0) === 0)
-      .map((item: any) => [toText(item?.positionName, 80), toText(item?.cityName || item?.locationName, 80), toText(item?.salaryDesc, 80)].filter(Boolean).join(" / "))
+      .map((item: any) =>
+        [
+          toText(item?.positionName, 80),
+          toText(item?.cityName || item?.locationName, 80),
+          toText(item?.salaryDesc, 80),
+        ]
+          .filter(Boolean)
+          .join(' / ')
+      )
       .filter(Boolean);
     if (expectRows.length) {
-      sections.push(`期望职位\n${expectRows.map((row) => `- ${row}`).join("\n")}`);
+      sections.push(`期望职位\n${expectRows.map((row) => `- ${row}`).join('\n')}`);
     }
 
     const userDesc = toText(data.userDesc || data.selfIntroduction, 1600);
@@ -2026,40 +2206,69 @@ export class BossPlatform extends AbsPlatform {
 
     const workRows = workExpList
       .map((item: any) => {
-        const title = [toText(item?.companyName, 100), toText(item?.positionName, 100)].filter(Boolean).join(" - ");
-        const period = [toText(item?.startDate || item?.startYear, 40), toText(item?.endDate || item?.endYear, 40)].filter(Boolean).join(" ~ ");
-        const content = [toText(item?.workContent, 1200), toText(item?.workPerformance, 1200)].filter(Boolean).join("\n");
-        const block = [title, period, content].filter(Boolean).join("\n");
-        return block ? `- ${block}` : "";
+        const title = [toText(item?.companyName, 100), toText(item?.positionName, 100)]
+          .filter(Boolean)
+          .join(' - ');
+        const period = [
+          toText(item?.startDate || item?.startYear, 40),
+          toText(item?.endDate || item?.endYear, 40),
+        ]
+          .filter(Boolean)
+          .join(' ~ ');
+        const content = [toText(item?.workContent, 1200), toText(item?.workPerformance, 1200)]
+          .filter(Boolean)
+          .join('\n');
+        const block = [title, period, content].filter(Boolean).join('\n');
+        return block ? `- ${block}` : '';
       })
       .filter(Boolean);
     if (workRows.length) {
-      sections.push(`工作经历\n${workRows.join("\n\n")}`);
+      sections.push(`工作经历\n${workRows.join('\n\n')}`);
     }
 
     const projectRows = projectExpList
       .map((item: any) => {
-        const title = [toText(item?.name, 120), toText(item?.roleName, 80)].filter(Boolean).join(" - ");
-        const period = [toText(item?.startDate, 40), toText(item?.endDate, 40)].filter(Boolean).join(" ~ ");
-        const content = [toText(item?.projectDesc, 1200), toText(item?.performance, 1200)].filter(Boolean).join("\n");
-        const block = [title, period, content].filter(Boolean).join("\n");
-        return block ? `- ${block}` : "";
+        const title = [toText(item?.name, 120), toText(item?.roleName, 80)]
+          .filter(Boolean)
+          .join(' - ');
+        const period = [toText(item?.startDate, 40), toText(item?.endDate, 40)]
+          .filter(Boolean)
+          .join(' ~ ');
+        const content = [toText(item?.projectDesc, 1200), toText(item?.performance, 1200)]
+          .filter(Boolean)
+          .join('\n');
+        const block = [title, period, content].filter(Boolean).join('\n');
+        return block ? `- ${block}` : '';
       })
       .filter(Boolean);
     if (projectRows.length) {
-      sections.push(`项目经历\n${projectRows.join("\n\n")}`);
+      sections.push(`项目经历\n${projectRows.join('\n\n')}`);
     }
 
     const educationRows = educationExpList
-      .map((item: any) => [toText(item?.school || item?.schoolName, 120), toText(item?.major || item?.majorName, 120), toText(item?.degreeName, 60), [toText(item?.startYear || item?.startDate, 40), toText(item?.endYear || item?.endDate, 40)].filter(Boolean).join(" ~ ")].filter(Boolean).join(" / "))
+      .map((item: any) =>
+        [
+          toText(item?.school || item?.schoolName, 120),
+          toText(item?.major || item?.majorName, 120),
+          toText(item?.degreeName, 60),
+          [
+            toText(item?.startYear || item?.startDate, 40),
+            toText(item?.endYear || item?.endDate, 40),
+          ]
+            .filter(Boolean)
+            .join(' ~ '),
+        ]
+          .filter(Boolean)
+          .join(' / ')
+      )
       .filter(Boolean);
     if (educationRows.length) {
-      sections.push(`教育经历\n${educationRows.map((row) => `- ${row}`).join("\n")}`);
+      sections.push(`教育经历\n${educationRows.map((row) => `- ${row}`).join('\n')}`);
     }
 
-    const finalText = sections.join("\n\n").trim();
+    const finalText = sections.join('\n\n').trim();
     if (!finalText) {
-      return "";
+      return '';
     }
     return finalText.length > maxLength ? `${finalText.slice(0, maxLength)}...` : finalText;
   }
@@ -2076,15 +2285,15 @@ export class BossPlatform extends AbsPlatform {
     const checkMonth = normalizePreferenceBoolean(activePreference.acM, true);
     const checkYear = normalizePreferenceBoolean(activePreference.acY, true);
 
-    if (checkWeek && activeText.includes("周")) {
+    if (checkWeek && activeText.includes('周')) {
       return false;
     }
 
-    if (checkMonth && activeText.includes("月")) {
+    if (checkMonth && activeText.includes('月')) {
       return false;
     }
 
-    if (checkYear && activeText.includes("年")) {
+    if (checkYear && activeText.includes('年')) {
       return false;
     }
 
@@ -2130,7 +2339,7 @@ export class BossPlatform extends AbsPlatform {
     fallbackReason: string
   ): void {
     if (!traditionalDeliveryEnabled) {
-      throw new NotMatchError(jobTitle, fallbackReason, "AI回退传统投递失败：未开启传统投递规则");
+      throw new NotMatchError(jobTitle, fallbackReason, 'AI回退传统投递失败：未开启传统投递规则');
     }
 
     // 回退时需要完整执行传统基础与扩展规则，确保 AI 失败不会放宽既有约束。
@@ -2149,47 +2358,50 @@ export class BossPlatform extends AbsPlatform {
    */
   private applyCommonHardConstraints(jobDetail: any, jobTitle: string): void {
     const preference = runtimeUserStore?.user?.preference || {};
-    
+
     // 过滤猎头
     if (preference.fhE && jobDetail.goldHunter === 1) {
-      throw new NotMatchError(jobTitle, jobDetail.goldHunter, "过滤猎头");
+      throw new NotMatchError(jobTitle, jobDetail.goldHunter, '过滤猎头');
     }
 
     // 仅投递在线 BOSS
     if (preference.polE && !jobDetail.bossOnline) {
-      throw new NotMatchError(jobTitle, jobDetail.bossOnline, "仅投递在线boss");
+      throw new NotMatchError(jobTitle, jobDetail.bossOnline, '仅投递在线boss');
     }
 
     // 公司名排除（黑名单）
     const companyNameExclude = preference.cne;
     if (preference.cneE && Tools.fuzzyMatch(companyNameExclude, jobDetail.brandName, false)) {
-      throw new NotMatchError(jobTitle, jobDetail.brandName, "满足排除公司名");
+      throw new NotMatchError(jobTitle, jobDetail.brandName, '满足排除公司名');
     }
 
     // 岗位名排除（黑名单）
     const jobNameExclude = preference.jne;
     if (preference.jneE && Tools.fuzzyMatch(jobNameExclude, jobDetail.jobName, false)) {
-      throw new NotMatchError(jobTitle, jobDetail.jobName, "满足排除工作名");
+      throw new NotMatchError(jobTitle, jobDetail.jobName, '满足排除工作名');
     }
 
     // 薪资范围检查
-    const pageSalaryRange = `${jobDetail.salaryDesc || ""}`.split(".")[0];
+    const pageSalaryRange = `${jobDetail.salaryDesc || ''}`.split('.')[0];
     if (preference.srE) {
-      const salaryFilterType = `${preference.srT || "1"}`;
+      const salaryFilterType = `${preference.srT || '1'}`;
       if (!Tools.isSalaryTypeSupportedForFilter(pageSalaryRange, salaryFilterType)) {
-        throw new NotMatchError(jobTitle, pageSalaryRange, "薪资类型不匹配");
+        throw new NotMatchError(jobTitle, pageSalaryRange, '薪资类型不匹配');
       }
 
-      const comparableSalaryRange = Tools.getComparableSalaryRange(pageSalaryRange, salaryFilterType);
+      const comparableSalaryRange = Tools.getComparableSalaryRange(
+        pageSalaryRange,
+        salaryFilterType
+      );
       if (!Tools.isSalaryRangeMatched(preference.sr, comparableSalaryRange)) {
-        throw new NotMatchError(jobTitle, pageSalaryRange, "不满足薪资范围");
+        throw new NotMatchError(jobTitle, pageSalaryRange, '不满足薪资范围');
       }
     }
 
     // 公司规模范围检查
     const pageCompanyScaleRange = preference.csr;
     if (preference.csrE && !Tools.isRangeOverlap(pageCompanyScaleRange, jobDetail.brandScaleName)) {
-      throw new NotMatchError(jobTitle, jobDetail.brandScaleName, "不满足公司规模范围");
+      throw new NotMatchError(jobTitle, jobDetail.brandScaleName, '不满足公司规模范围');
     }
   }
 
@@ -2203,17 +2415,17 @@ export class BossPlatform extends AbsPlatform {
    */
   private applyTraditionalSoftFilters(jobDetail: any, jobTitle: string): void {
     const preference = runtimeUserStore?.user?.preference || {};
-    
+
     // 公司名包含（白名单）
     const companyNameInclude = preference.cni;
     if (preference.cniE && !Tools.fuzzyMatch(companyNameInclude, jobDetail.brandName, true)) {
-      throw new NotMatchError(jobTitle, jobDetail.brandName, "不满足配置公司名");
+      throw new NotMatchError(jobTitle, jobDetail.brandName, '不满足配置公司名');
     }
 
     // 岗位名包含（白名单）
     const jobNameInclude = preference.jni;
     if (preference.jniE && !Tools.fuzzyMatch(jobNameInclude, jobDetail.jobName, true)) {
-      throw new NotMatchError(jobTitle, jobDetail.jobName, "不满足配置工作名");
+      throw new NotMatchError(jobTitle, jobDetail.jobName, '不满足配置工作名');
     }
   }
 
@@ -2246,7 +2458,7 @@ export class BossPlatform extends AbsPlatform {
 
     // 活跃度规则用于过滤长时间未上线的招聘方，降低低响应岗位占比。
     if (isActiveFilterEnabled && !this.bossIsActive(activeTimeDesc, preference)) {
-      throw new NotMatchError(jobTitle, activeTimeDesc, "不满足活跃度检查");
+      throw new NotMatchError(jobTitle, activeTimeDesc, '不满足活跃度检查');
     }
 
     const jobContent = jobDetailExt.postDescription;
@@ -2254,12 +2466,12 @@ export class BossPlatform extends AbsPlatform {
 
     // 先执行职位描述黑名单，再执行白名单，避免命中排除项时被白名单误放行。
     if (preference.jceE && Tools.fuzzyMatch(jobContentExclude, jobContent, false)) {
-      throw new NotMatchError(jobTitle, jobContent, "满足排除工作内容");
+      throw new NotMatchError(jobTitle, jobContent, '满足排除工作内容');
     }
 
     const jobContentInclude = preference.jci;
     if (preference.jciE && !Tools.fuzzyMatch(jobContentInclude, jobContent, true)) {
-      throw new NotMatchError(jobTitle, jobContent, "不满足工作内容");
+      throw new NotMatchError(jobTitle, jobContent, '不满足工作内容');
     }
   }
 
@@ -2271,14 +2483,14 @@ export class BossPlatform extends AbsPlatform {
    */
   private maskAiDeliveryUserProfile(userProfile: Record<string, unknown>): Record<string, unknown> {
     const maskText = (value: unknown, keepStart = 2, keepEnd = 2): string => {
-      const text = `${value || ""}`;
+      const text = `${value || ''}`;
       if (!text) {
-        return "";
+        return '';
       }
       if (text.length <= keepStart + keepEnd) {
-        return `${"*".repeat(Math.max(1, text.length - 1))}${text.slice(-1)}`;
+        return `${'*'.repeat(Math.max(1, text.length - 1))}${text.slice(-1)}`;
       }
-      return `${text.slice(0, keepStart)}${"*".repeat(text.length - keepStart - keepEnd)}${text.slice(-keepEnd)}`;
+      return `${text.slice(0, keepStart)}${'*'.repeat(text.length - keepStart - keepEnd)}${text.slice(-keepEnd)}`;
     };
 
     return {
@@ -2286,9 +2498,9 @@ export class BossPlatform extends AbsPlatform {
       phone: maskText(userProfile.phone),
       email: maskText(userProfile.email, 2, 4),
       resumeId: maskText(userProfile.resumeId, 1, 2),
-      importedResumeTextSource: `${userProfile.importedResumeTextSource || ""}`.slice(0, 80),
-      importedResumeTextSnippet: `${userProfile.importedResumeTextSnippet || ""}`.slice(0, 180),
-      resumeNarrative: `${userProfile.resumeNarrative || ""}`.slice(0, 180)
+      importedResumeTextSource: `${userProfile.importedResumeTextSource || ''}`.slice(0, 80),
+      importedResumeTextSnippet: `${userProfile.importedResumeTextSnippet || ''}`.slice(0, 180),
+      resumeNarrative: `${userProfile.resumeNarrative || ''}`.slice(0, 180),
     };
   }
 
@@ -2300,7 +2512,7 @@ export class BossPlatform extends AbsPlatform {
    * @returns 清洗并截断后的理由文本。
    */
   private normalizeAiJudgeReason(reason: unknown, fallback: string): string {
-    const normalized = `${reason || ""}`.replace(/\s+/g, " ").trim();
+    const normalized = `${reason || ''}`.replace(/\s+/g, ' ').trim();
     if (normalized) {
       return normalized.slice(0, 360);
     }
@@ -2316,57 +2528,81 @@ export class BossPlatform extends AbsPlatform {
    * @param filterResp AI 过滤接口返回结果。
    * @returns 包含是否匹配、理由、有效性和解析模式的统一结果对象。
    */
-  private parseAiDeliveryJudgeResult(filterResp: any): { match: boolean; reason: string; valid: boolean; parseMode: string } {
+  private parseAiDeliveryJudgeResult(filterResp: any): {
+    match: boolean;
+    reason: string;
+    valid: boolean;
+    parseMode: string;
+  } {
     const raw = filterResp?.data?.data;
     if (!raw) {
-      return { match: false, reason: "AI判定返回为空", valid: false, parseMode: "empty" };
+      return { match: false, reason: 'AI判定返回为空', valid: false, parseMode: 'empty' };
     }
 
-    if (typeof raw === "object") {
-      if (typeof raw.match === "boolean") {
+    if (typeof raw === 'object') {
+      if (typeof raw.match === 'boolean') {
         return {
           match: raw.match,
-          reason: this.normalizeAiJudgeReason(raw.reason, "[NO_REASON] AI未提供理由，已按判定结果执行"),
+          reason: this.normalizeAiJudgeReason(
+            raw.reason,
+            '[NO_REASON] AI未提供理由，已按判定结果执行'
+          ),
           valid: true,
-          parseMode: "object.match"
+          parseMode: 'object.match',
         };
       }
-      if (typeof raw.filter === "boolean") {
+      if (typeof raw.filter === 'boolean') {
         return {
           match: !raw.filter,
-          reason: this.normalizeAiJudgeReason(raw.reason, "[NO_REASON] AI未提供理由，已按过滤结果执行"),
+          reason: this.normalizeAiJudgeReason(
+            raw.reason,
+            '[NO_REASON] AI未提供理由，已按过滤结果执行'
+          ),
           valid: true,
-          parseMode: "object.filter"
+          parseMode: 'object.filter',
         };
       }
     }
 
-    if (typeof raw === "string") {
+    if (typeof raw === 'string') {
       const text = raw.trim();
       try {
         // 优先按 JSON 字符串解析，兼容模型返回被包裹成文本的结构化结果。
         const parsed = JSON.parse(text);
-        if (typeof parsed.match === "boolean") {
+        if (typeof parsed.match === 'boolean') {
           return {
             match: parsed.match,
-            reason: this.normalizeAiJudgeReason(parsed.reason, "[NO_REASON] AI未提供理由，已按判定结果执行"),
+            reason: this.normalizeAiJudgeReason(
+              parsed.reason,
+              '[NO_REASON] AI未提供理由，已按判定结果执行'
+            ),
             valid: true,
-            parseMode: "json-string.match"
+            parseMode: 'json-string.match',
           };
         }
       } catch (_e) {
         // JSON 解析失败时再做轻量启发式识别，尽量从非标准输出中恢复结论。
         const lower = text.toLowerCase();
-        if (lower.includes("\"match\":true") || lower.includes("match:true")) {
-          return { match: true, reason: "AI文本判定为可投递", valid: true, parseMode: "heuristic-string.true" };
+        if (lower.includes('"match":true') || lower.includes('match:true')) {
+          return {
+            match: true,
+            reason: 'AI文本判定为可投递',
+            valid: true,
+            parseMode: 'heuristic-string.true',
+          };
         }
-        if (lower.includes("\"match\":false") || lower.includes("match:false")) {
-          return { match: false, reason: "AI文本判定为不投递", valid: true, parseMode: "heuristic-string.false" };
+        if (lower.includes('"match":false') || lower.includes('match:false')) {
+          return {
+            match: false,
+            reason: 'AI文本判定为不投递',
+            valid: true,
+            parseMode: 'heuristic-string.false',
+          };
         }
       }
     }
 
-    return { match: false, reason: "AI判定结果无法解析", valid: false, parseMode: "invalid" };
+    return { match: false, reason: 'AI判定结果无法解析', valid: false, parseMode: 'invalid' };
   }
 
   /**

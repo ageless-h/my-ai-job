@@ -1,3 +1,24 @@
+<!--
+/**
+ * RunRecord.vue - 运行日志与投递记录组件
+ * 
+ * 显示用户脚本的运行日志和投递历史记录。
+ * 
+ * 主要功能：
+ * - 日志过滤（时间范围、日志级别、关键词搜索）
+ * - 日志分页显示
+ * - 日志级别标识（Error/Warn/Info/Debug）
+ * - 清空日志功能
+ * - 投递记录查看
+ * 
+ * 技术特性：
+ * - 虚拟滚动优化大量日志显示
+ * - 实时日志更新
+ * - localStorage 持久化日志
+ * 
+ * @component
+ */
+-->
 <template>
   <div class="run-record-tab">
     <div class="header-title">运行日志与投递记录</div>
@@ -37,12 +58,7 @@
 
         <div class="spacer"></div>
 
-        <el-button 
-          type="danger" 
-          plain 
-          :disabled="totalLogs === 0"
-          @click="clearLogs"
-        >
+        <el-button type="danger" plain :disabled="totalLogs === 0" @click="clearLogs">
           <el-icon class="mr-4"><Delete /></el-icon>清空日志
         </el-button>
       </div>
@@ -59,33 +75,62 @@
             <el-empty description="暂无日志数据" :image-size="80" />
           </template>
 
-          <el-table-column prop="timestamp" label="记录时间" width="160" class-name="col-timestamp" />
+          <el-table-column
+            prop="timestamp"
+            label="记录时间"
+            width="160"
+            class-name="col-timestamp"
+          />
 
           <el-table-column prop="level" label="级别" width="100" class-name="col-level">
             <template #default="scope">
-              <el-tag :type="getLevelTagType(scope.row.level)" size="small" effect="plain" class="level-tag">
+              <el-tag
+                :type="getLevelTagType(scope.row.level)"
+                size="small"
+                effect="plain"
+                class="level-tag"
+              >
                 {{ String(scope.row.level || '').toUpperCase() }}
               </el-tag>
             </template>
           </el-table-column>
 
-          <el-table-column prop="aiDecision" label="AI 判定" width="120" class-name="col-ai-decision">
+          <el-table-column
+            prop="aiDecision"
+            label="AI 判定"
+            width="120"
+            class-name="col-ai-decision"
+          >
             <template #default="scope">
-              <span v-if="scope.row.aiDecision" :class="['decision-text', getDecisionClass(scope.row.aiDecision)]">
+              <span
+                v-if="scope.row.aiDecision"
+                :class="['decision-text', getDecisionClass(scope.row.aiDecision)]"
+              >
                 {{ scope.row.aiDecision }}
               </span>
               <span v-else class="text-muted">-</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="aiReason" label="判定理由 / 提示" width="240" show-overflow-tooltip class-name="col-ai-reason">
+          <el-table-column
+            prop="aiReason"
+            label="判定理由 / 提示"
+            width="240"
+            show-overflow-tooltip
+            class-name="col-ai-reason"
+          >
             <template #default="scope">
               <span class="reason-text" v-if="scope.row.aiReason">{{ scope.row.aiReason }}</span>
               <span v-else class="text-muted">-</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="message" label="详细内容" min-width="300" class-name="col-message" />
+          <el-table-column
+            prop="message"
+            label="详细内容"
+            min-width="300"
+            class-name="col-message"
+          />
         </el-table>
       </div>
 
@@ -132,7 +177,7 @@ const filter = reactive<{
 }>({
   timeRange: [],
   level: '',
-  keyword: ''
+  keyword: '',
 });
 
 const parseAiJudgeInfo = (message: string) => {
@@ -189,7 +234,8 @@ const parseTimestampToMs = (timestamp: string): number | null => {
   return ((hours * 60 + minutes) * 60 + seconds) * 1000 + milliseconds;
 };
 
-const minuteStartMs = (date: Date): number => ((date.getHours() * 60 + date.getMinutes()) * 60) * 1000;
+const minuteStartMs = (date: Date): number =>
+  (date.getHours() * 60 + date.getMinutes()) * 60 * 1000;
 const minuteEndMs = (date: Date): number => minuteStartMs(date) + 59 * 1000 + 999;
 
 const fetchLogs = () => {
@@ -197,10 +243,11 @@ const fetchLogs = () => {
 
   if (filter.timeRange.length === 2) {
     const [startDate, endDate] = filter.timeRange;
-    const hasValidRange = startDate instanceof Date
-      && !Number.isNaN(startDate.getTime())
-      && endDate instanceof Date
-      && !Number.isNaN(endDate.getTime());
+    const hasValidRange =
+      startDate instanceof Date &&
+      !Number.isNaN(startDate.getTime()) &&
+      endDate instanceof Date &&
+      !Number.isNaN(endDate.getTime());
 
     if (hasValidRange) {
       const startMs = minuteStartMs(startDate);
@@ -229,7 +276,7 @@ const fetchLogs = () => {
     return {
       ...log,
       aiDecision: aiInfo.decision,
-      aiReason: aiInfo.reason
+      aiReason: aiInfo.reason,
     };
   });
 };

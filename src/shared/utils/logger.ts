@@ -6,27 +6,27 @@ export enum LogLevel {
   Info = 3,
   Debug = 4,
   Trace = 5,
-  OriginalTrace = 6
+  OriginalTrace = 6,
 }
 
 let globalLogLevel: LogLevel = LogLevel.Info;
 const loggerInstances: Logger[] = [];
 
 const logStyles = {
-  error: "\x1B[31m%s\x1B[0m",
-  warn: "\x1B[33m%s\x1B[0m",
-  info: "\x1B[32m%s\x1B[0m",
-  debug: "\x1B[36m%s\x1B[0m",
-  trace: "\x1B[34m%s\x1B[0m"
+  error: '\x1B[31m%s\x1B[0m',
+  warn: '\x1B[33m%s\x1B[0m',
+  info: '\x1B[32m%s\x1B[0m',
+  debug: '\x1B[36m%s\x1B[0m',
+  trace: '\x1B[34m%s\x1B[0m',
 };
 
 export class Logger {
-  static rootLogger = new Logger("root");
+  static rootLogger = new Logger('root');
 
   name: string;
   logLevel: LogLevel;
 
-  constructor(name = "", logLevel: LogLevel = globalLogLevel) {
+  constructor(name = '', logLevel: LogLevel = globalLogLevel) {
     this.name = name;
     this.logLevel = logLevel;
     loggerInstances.push(this);

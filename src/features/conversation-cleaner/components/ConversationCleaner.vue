@@ -1,3 +1,24 @@
+<!--
+/**
+ * ConversationCleaner.vue - 对话清理器组件
+ * 
+ * 提供批量清理 BOSS 直聘对话记录的功能。
+ * 
+ * 主要功能：
+ * - 扫描待清理会话
+ * - 批量选择会话
+ * - 批量删除会话
+ * - 删除进度显示
+ * - 删除结果统计
+ * 
+ * 技术特性：
+ * - 异步扫描会话列表
+ * - 批量删除优化
+ * - 进度条实时更新
+ * 
+ * @component
+ */
+-->
 <template>
   <div class="cleaner-wrapper">
     <!-- 操作栏 -->
@@ -24,7 +45,7 @@
       v-if="scanning && progress.total > 0"
       :percentage="Math.round((progress.current / progress.total) * 100)"
       :stroke-width="6"
-      style="margin:8px 0;"
+      style="margin: 8px 0"
     />
 
     <!-- 结果列表 -->
@@ -36,13 +57,18 @@
       <div v-for="(item, idx) in candidates" :key="item.friendId" class="cleaner-card">
         <el-checkbox v-model="item.selected" class="cleaner-card__check" />
         <div class="cleaner-card__info">
-          <div class="cleaner-card__name">{{ item.name }} · {{ item.brandName }} · {{ item.title }}</div>
+          <div class="cleaner-card__name">
+            {{ item.name }} · {{ item.brandName }} · {{ item.title }}
+          </div>
           <div class="cleaner-card__detail">
-            <el-tag size="small" :type="reasonTagType(item.reason)">{{ reasonLabel(item.reason) }}</el-tag>
+            <el-tag size="small" :type="reasonTagType(item.reason)">{{
+              reasonLabel(item.reason)
+            }}</el-tag>
             <span class="cleaner-card__reason">{{ item.reasonDetail }}</span>
           </div>
           <div class="cleaner-card__meta">
-            最后活跃: {{ formatTime(item.updateTime) }} · 最后消息: {{ (item.lastText || '(无文本)').substring(0, 50) }}
+            最后活跃: {{ formatTime(item.updateTime) }} · 最后消息:
+            {{ (item.lastText || '(无文本)').substring(0, 50) }}
           </div>
         </div>
       </div>
@@ -62,7 +88,10 @@ import {
   scanConversations,
   batchDelete,
 } from '@/features/conversation-cleaner/services/conversation-cleaner';
-import type { CleanCandidate, ScanProgress } from '@/features/conversation-cleaner/services/conversation-cleaner';
+import type {
+  CleanCandidate,
+  ScanProgress,
+} from '@/features/conversation-cleaner/services/conversation-cleaner';
 
 import { showAppMessage } from '@/core/http/request';
 import { ElMessageBox } from 'element-plus';
@@ -150,7 +179,7 @@ async function confirmDelete() {
     await ElMessageBox.confirm(
       `确认删除选中的 ${count} 个会话？删除后将从 BOSS 直聘列表中移除，同时删除聊天记录。`,
       '批量删除确认',
-      { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' },
+      { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' }
     );
   } catch {
     return;
@@ -168,7 +197,7 @@ async function confirmDelete() {
           cancelButtonText: '取消',
           inputPlaceholder: `请输入${confirmWord}`,
           inputErrorMessage: '确认词不匹配',
-        },
+        }
       );
       if ((value || '').trim() !== confirmWord) {
         showAppMessage({ type: 'warning', message: '确认词不匹配，已取消删除' });
@@ -184,7 +213,7 @@ async function confirmDelete() {
 
   try {
     const selectedBeforeDelete = new Set(
-      candidates.value.filter((c) => c.selected).map((c) => c.securityId),
+      candidates.value.filter((c) => c.selected).map((c) => c.securityId)
     );
 
     const { success, failed, lastError, topFailReason, successSecurityIds } = await batchDelete(
@@ -194,7 +223,7 @@ async function confirmDelete() {
           ? `删除中 ${cur}/${total}: ${name} — 失败: ${failReason}`
           : `删除中 ${cur}/${total}: ${name}`;
       },
-      { manualConfirmed: true },
+      { manualConfirmed: true }
     );
     const successSet = new Set(successSecurityIds);
     const failReasonText = topFailReason || lastError;
@@ -213,18 +242,77 @@ async function confirmDelete() {
 </script>
 
 <style scoped>
-.cleaner-wrapper{padding:0}
-.cleaner-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.cleaner-result{font-size:12px;color:#67c23a}
-.cleaner-list{margin-top:10px;max-height:400px;overflow-y:auto}
-.cleaner-list-header{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--ai-border,#ebeef5)}
-.cleaner-list-count{font-size:12px;color:#909399}
-.cleaner-card{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--ai-border,#ebeef5)}
-.cleaner-card__check{flex-shrink:0;margin-top:2px}
-.cleaner-card__info{flex:1;min-width:0}
-.cleaner-card__name{font-size:13px;font-weight:500;color:var(--ai-text,#303133)}
-.cleaner-card__detail{display:flex;align-items:center;gap:6px;margin-top:4px}
-.cleaner-card__reason{font-size:12px;color:#606266;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cleaner-card__meta{font-size:11px;color:#909399;margin-top:3px}
-.cleaner-empty{text-align:center;padding:20px;color:#909399;font-size:13px}
+.cleaner-wrapper {
+  padding: 0;
+}
+.cleaner-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cleaner-result {
+  font-size: 12px;
+  color: #67c23a;
+}
+.cleaner-list {
+  margin-top: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.cleaner-list-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ai-border, #ebeef5);
+}
+.cleaner-list-count {
+  font-size: 12px;
+  color: #909399;
+}
+.cleaner-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ai-border, #ebeef5);
+}
+.cleaner-card__check {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.cleaner-card__info {
+  flex: 1;
+  min-width: 0;
+}
+.cleaner-card__name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ai-text, #303133);
+}
+.cleaner-card__detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.cleaner-card__reason {
+  font-size: 12px;
+  color: #606266;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cleaner-card__meta {
+  font-size: 11px;
+  color: #909399;
+  margin-top: 3px;
+}
+.cleaner-empty {
+  text-align: center;
+  padding: 20px;
+  color: #909399;
+  font-size: 13px;
+}
 </style>

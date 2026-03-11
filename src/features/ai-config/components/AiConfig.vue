@@ -1,3 +1,26 @@
+<!--
+/**
+ * AiConfig.vue - AI 配置面板组件
+ * 
+ * 提供 AI 模型配置、API 密钥管理、提示词预设等功能。
+ * 
+ * 主要功能：
+ * - AI 供应商选择（Deepseek、火山引擎、硅基流动、月之暗面、Open Router）
+ * - 模型配置（模型名称、API Key、Base URL、超时设置）
+ * - API 连接测试
+ * - 提示词预设管理（全局预设、模型专属预设）
+ * - AI 投递判断提示词配置
+ * - 调试控制台（查看 AI 请求/响应历史）
+ * 
+ * 技术特性：
+ * - 配置持久化到 localStorage
+ * - 支持多供应商配置切换
+ * - 实时预览最终提示词
+ * - API 配置测试验证
+ * 
+ * @component
+ */
+-->
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
@@ -33,7 +56,8 @@ const availableModels = ref([]);
 const providerDetails = ref({});
 const lastFetchedConfig = ref(null);
 const hasShownConfigFallbackWarning = ref(false);
-const isPreviewMode = typeof window !== 'undefined' && window.location.pathname.includes('preview.html');
+const isPreviewMode =
+  typeof window !== 'undefined' && window.location.pathname.includes('preview.html');
 
 const getErrorMessage = (error) => {
   return error?.response?.data?.message || error?.message || '未知错误';
@@ -64,8 +88,8 @@ const aiDeliveryPromptEditForm = ref({
   extraPrompt: '',
 });
 
-
-const buildCurrentModelChannelKey = () => Tools.buildModelChannelKey(form.value.provider, form.value.modelName);
+const buildCurrentModelChannelKey = () =>
+  Tools.buildModelChannelKey(form.value.provider, form.value.modelName);
 
 const ensureAiConfigExtSchema = () => {
   if (!aiConfigExt.value) {
@@ -90,7 +114,8 @@ const ensureAiConfigExtSchema = () => {
     aiConfigExt.value.promptPresetStore.global = [];
   }
   if (typeof aiConfigExt.value.promptPresetStore.globalPresetInitialized !== 'boolean') {
-    aiConfigExt.value.promptPresetStore.globalPresetInitialized = aiConfigExt.value.promptPresetStore.global.length > 0;
+    aiConfigExt.value.promptPresetStore.globalPresetInitialized =
+      aiConfigExt.value.promptPresetStore.global.length > 0;
   }
   if (!aiConfigExt.value.promptPresetStore.personal) {
     aiConfigExt.value.promptPresetStore.personal = {};
@@ -104,7 +129,10 @@ const ensureAiConfigExtSchema = () => {
   if (!aiConfigExt.value.uiLayout.style) {
     aiConfigExt.value.uiLayout.style = 'dashboard-2col';
   }
-  if (!aiConfigExt.value.aiDeliveryPromptStore || typeof aiConfigExt.value.aiDeliveryPromptStore !== 'object') {
+  if (
+    !aiConfigExt.value.aiDeliveryPromptStore ||
+    typeof aiConfigExt.value.aiDeliveryPromptStore !== 'object'
+  ) {
     aiConfigExt.value.aiDeliveryPromptStore = { items: [], activePromptId: '' };
   }
   if (!Array.isArray(aiConfigExt.value.aiDeliveryPromptStore.items)) {
@@ -160,11 +188,12 @@ const getCurrentChannelPresetList = () => {
 
 const getMergedPresetList = () => {
   const ext = ensureAiConfigExtSchema();
-  const channelPresetList = getCurrentChannelPresetList().map((preset) => ({ ...preset, scope: 'personal' }));
+  const channelPresetList = getCurrentChannelPresetList().map((preset) => ({
+    ...preset,
+    scope: 'personal',
+  }));
   const channelNameSet = new Set(
-    channelPresetList
-      .map((preset) => `${preset.name || ''}`.trim())
-      .filter((name) => !!name)
+    channelPresetList.map((preset) => `${preset.name || ''}`.trim()).filter((name) => !!name)
   );
   const globalPresetList = (ext.promptPresetStore.global || [])
     .filter((preset) => {
@@ -192,12 +221,13 @@ const presetOptions = computed(() => {
 const finalPromptPreview = computed(() => {
   const enabledMergedText = getMergedPresetList()
     .filter((preset) => preset.enabled !== false)
-    .map((preset, index) => `# ${preset.scope === 'personal' ? '模型' : '全局'}预设${index + 1} ${preset.name}\n${preset.content}`)
+    .map(
+      (preset, index) =>
+        `# ${preset.scope === 'personal' ? '模型' : '全局'}预设${index + 1} ${preset.name}\n${preset.content}`
+    )
     .join('\n\n');
   return enabledMergedText || '暂无可用提示词内容';
 });
-
-
 
 const syncCurrentChannelToExt = () => {
   const ext = ensureAiConfigExtSchema();
@@ -301,12 +331,16 @@ const fetchConfig = async () => {
       form.value = { ...form.value, ...config };
       lastFetchedConfig.value = { ...config };
       const ext = ensureAiConfigExtSchema();
-      if (!form.value.modelName && ext?.currentConfig && ext.currentConfig.provider === form.value.provider && ext.currentConfig.modelName) {
+      if (
+        !form.value.modelName &&
+        ext?.currentConfig &&
+        ext.currentConfig.provider === form.value.provider &&
+        ext.currentConfig.modelName
+      ) {
         form.value.modelName = ext.currentConfig.modelName;
       }
       handleProviderChange(form.value.provider, true);
       syncCurrentChannelToExt();
-
     }
   } catch (error) {
     console.warn('[AI对话] 获取配置失败，已降级到本地配置', error);
@@ -388,14 +422,18 @@ const handleSavePrompt = async () => {
 
   try {
     const composedPrompt = finalPromptPreview.value || '';
-    const resp = await request.post('/api/user/ai/config/temp/save', {
-      userPrompt: composedPrompt,
-      userId: form.value.userId,
-    }, {
-      silentErrorToast: true,
-      silentTimeoutToast: true,
-      silentNetworkToast: true,
-    });
+    const resp = await request.post(
+      '/api/user/ai/config/temp/save',
+      {
+        userPrompt: composedPrompt,
+        userId: form.value.userId,
+      },
+      {
+        silentErrorToast: true,
+        silentTimeoutToast: true,
+        silentNetworkToast: true,
+      }
+    );
     if (resp.data.code === 200) {
       syncCurrentChannelToExt();
       showAppMessage({ type: 'success', message: '保存成功' });
@@ -405,7 +443,8 @@ const handleSavePrompt = async () => {
   }
 };
 
-const buildAiDeliveryPromptId = () => `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const buildAiDeliveryPromptId = () =>
+  `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const getAiDeliveryPromptStore = () => {
   const ext = ensureAiConfigExtSchema();
@@ -465,7 +504,10 @@ const loadAiDeliveryPromptConfig = () => {
     ];
     store.activePromptId = store.items[0].id;
     persistAiConfigExt();
-  } else if (!store.activePromptId || !store.items.some((item) => item.id === store.activePromptId)) {
+  } else if (
+    !store.activePromptId ||
+    !store.items.some((item) => item.id === store.activePromptId)
+  ) {
     store.activePromptId = store.items[0].id;
     persistAiConfigExt();
   }
@@ -543,7 +585,10 @@ const saveAiDeliveryPromptItem = () => {
 
   persistAiConfigExt();
   syncAiDeliveryPromptToJudgeConfig(false);
-  showAppMessage({ type: 'success', message: editingAiDeliveryPromptId.value ? '提示词已更新' : '提示词已创建并启用' });
+  showAppMessage({
+    type: 'success',
+    message: editingAiDeliveryPromptId.value ? '提示词已更新' : '提示词已创建并启用',
+  });
   backToAiDeliveryPromptList();
 };
 
@@ -566,12 +611,11 @@ const deleteAiDeliveryPrompt = async (id) => {
   if (!item) {
     return;
   }
-  const confirmed = await ElMessageBox
-    .confirm(`确认删除提示词【${item.name}】？`, '删除确认', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+  const confirmed = await ElMessageBox.confirm(`确认删除提示词【${item.name}】？`, '删除确认', {
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
     .then(() => true)
     .catch(() => false);
 
@@ -683,117 +727,152 @@ onMounted(async () => {
         <div class="nested-title">提示词预设管理</div>
         <div class="nested-desc">管理全局与模型预设，启用后自动合并到系统提示词。</div>
         <div class="nested-body">
-            <PromptPresetManager />
+          <PromptPresetManager />
         </div>
         <div class="nested-actions">
-            <el-button type="primary" @click="handleSavePrompt">保存</el-button>
-            <el-button type="warning" @click="openDebugDialog">调试</el-button>
+          <el-button type="primary" @click="handleSavePrompt">保存</el-button>
+          <el-button type="warning" @click="openDebugDialog">调试</el-button>
         </div>
       </div>
     </div>
 
     <div class="boss-card mt-16">
       <div class="card-title">AI投递判定提示词</div>
-      <div class="ai-section-desc">统一维护岗位级 AI 判定提示词与附加指令；判定开关请在「AI 投递判定」Tab 中打开。</div>
+      <div class="ai-section-desc">
+        统一维护岗位级 AI 判定提示词与附加指令；判定开关请在「AI 投递判定」Tab 中打开。
+      </div>
       <div class="nested-card">
         <div class="nested-body">
-            <div :class="['delivery-view-wrapper', aiDeliveryPromptView === 'edit' ? 'is-edit' : '']">
-              <div class="delivery-view-panels">
-                <div class="delivery-view-list">
-                  <div class="delivery-list-header">
-                    <span class="delivery-list-tip">支持多套判定策略，按需开启生效</span>
-                    <el-button class="boss-btn-primary" @click="startNewAiDeliveryPrompt">
-                      <el-icon class="mr-4"><Plus /></el-icon>新增判定提示词
-                    </el-button>
-                  </div>
-
-                  <template v-if="aiDeliveryPromptList.length">
-                    <div
-                      v-for="item in aiDeliveryPromptList"
-                      :key="item.id"
-                      class="inner-card delivery-prompt-card"
-                    >
-                      <div class="inner-title">{{ item.name }}</div>
-                      <div class="inner-desc">
-                        {{
-                          (item.prompt || '').length > 90
-                            ? `${(item.prompt || '').slice(0, 90)}...`
-                            : item.prompt || '暂无判断提示词'
-                        }}
-                      </div>
-                      <div class="inner-extra">
-                        <span class="extra-label">附加指令：</span>
-                        <span class="extra-val">{{ item.extraPrompt || '无' }}</span>
-                      </div>
-                      <div class="inner-actions">
-                        <div class="delivery-prompt-card__status inner-status">
-                          <el-switch
-                            :model-value="activeAiDeliveryPromptId === item.id"
-                            size="small"
-                            @update:model-value="(value) => value && activateAiDeliveryPrompt(item.id)"
-                          />
-                          <span class="status-text" :class="activeAiDeliveryPromptId === item.id ? 'is-active' : 'is-inactive'">
-                            {{ activeAiDeliveryPromptId === item.id ? '当前生效中' : '未启用' }}
-                          </span>
-                        </div>
-                        <div class="inner-buttons">
-                          <el-button size="small" class="boss-btn-text" type="primary" link @click="startEditAiDeliveryPrompt(item.id)">修改策略</el-button>
-                          <div class="divider-v" />
-                          <el-button size="small" class="boss-btn-text" type="danger" link @click="deleteAiDeliveryPrompt(item.id)">删除</el-button>
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-                  <el-empty v-else description="暂无判定提示词，点击右上角新增" :image-size="60" />
+          <div :class="['delivery-view-wrapper', aiDeliveryPromptView === 'edit' ? 'is-edit' : '']">
+            <div class="delivery-view-panels">
+              <div class="delivery-view-list">
+                <div class="delivery-list-header">
+                  <span class="delivery-list-tip">支持多套判定策略，按需开启生效</span>
+                  <el-button class="boss-btn-primary" @click="startNewAiDeliveryPrompt">
+                    <el-icon class="mr-4"><Plus /></el-icon>新增判定提示词
+                  </el-button>
                 </div>
 
-                <div class="delivery-view-edit">
-                  <div class="boss-edit-header">
-                    <el-button class="boss-btn-back" @click="backToAiDeliveryPromptList">
-                      <el-icon class="mr-4"><Back /></el-icon>返回策略列表
-                    </el-button>
-                    <div class="boss-edit-divider" />
-                    <span class="boss-edit-title mb-0">{{ editingAiDeliveryPromptId ? '编辑判定规则' : '新增判定规则' }}</span>
+                <template v-if="aiDeliveryPromptList.length">
+                  <div
+                    v-for="item in aiDeliveryPromptList"
+                    :key="item.id"
+                    class="inner-card delivery-prompt-card"
+                  >
+                    <div class="inner-title">{{ item.name }}</div>
+                    <div class="inner-desc">
+                      {{
+                        (item.prompt || '').length > 90
+                          ? `${(item.prompt || '').slice(0, 90)}...`
+                          : item.prompt || '暂无判断提示词'
+                      }}
+                    </div>
+                    <div class="inner-extra">
+                      <span class="extra-label">附加指令：</span>
+                      <span class="extra-val">{{ item.extraPrompt || '无' }}</span>
+                    </div>
+                    <div class="inner-actions">
+                      <div class="delivery-prompt-card__status inner-status">
+                        <el-switch
+                          :model-value="activeAiDeliveryPromptId === item.id"
+                          size="small"
+                          @update:model-value="
+                            (value) => value && activateAiDeliveryPrompt(item.id)
+                          "
+                        />
+                        <span
+                          class="status-text"
+                          :class="
+                            activeAiDeliveryPromptId === item.id ? 'is-active' : 'is-inactive'
+                          "
+                        >
+                          {{ activeAiDeliveryPromptId === item.id ? '当前生效中' : '未启用' }}
+                        </span>
+                      </div>
+                      <div class="inner-buttons">
+                        <el-button
+                          size="small"
+                          class="boss-btn-text"
+                          type="primary"
+                          link
+                          @click="startEditAiDeliveryPrompt(item.id)"
+                          >修改策略</el-button
+                        >
+                        <div class="divider-v" />
+                        <el-button
+                          size="small"
+                          class="boss-btn-text"
+                          type="danger"
+                          link
+                          @click="deleteAiDeliveryPrompt(item.id)"
+                          >删除</el-button
+                        >
+                      </div>
+                    </div>
                   </div>
+                </template>
+                <el-empty v-else description="暂无判定提示词，点击右上角新增" :image-size="60" />
+              </div>
 
-                  <el-form label-position="top" class="delivery-edit-form mt-16">
-                    <el-form-item label="提示词名称" class="mb-24">
-                      <el-input v-model="aiDeliveryPromptEditForm.name" placeholder="例如：宽松地域策略" />
-                    </el-form-item>
+              <div class="delivery-view-edit">
+                <div class="boss-edit-header">
+                  <el-button class="boss-btn-back" @click="backToAiDeliveryPromptList">
+                    <el-icon class="mr-4"><Back /></el-icon>返回策略列表
+                  </el-button>
+                  <div class="boss-edit-divider" />
+                  <span class="boss-edit-title mb-0">{{
+                    editingAiDeliveryPromptId ? '编辑判定规则' : '新增判定规则'
+                  }}</span>
+                </div>
 
-                    <el-form-item label="核心判断提示词" class="mb-24">
-                      <el-input
-                        v-model="aiDeliveryPromptEditForm.prompt"
-                        type="textarea"
-                        :rows="7"
-                        :maxlength="5000"
-                        show-word-limit
-                        placeholder='示例：你是求职投递决策助手。请根据岗位信息和求职者个人信息判断是否建议投递。只输出JSON：{"match":true|false,"reason":"原因"}。'
-                      />
-                    </el-form-item>
+                <el-form label-position="top" class="delivery-edit-form mt-16">
+                  <el-form-item label="提示词名称" class="mb-24">
+                    <el-input
+                      v-model="aiDeliveryPromptEditForm.name"
+                      placeholder="例如：宽松地域策略"
+                    />
+                  </el-form-item>
 
-                    <el-form-item label="附加过滤指令（可选）" class="mb-24">
-                      <el-input
-                        v-model="aiDeliveryPromptEditForm.extraPrompt"
-                        type="textarea"
-                        :rows="3"
-                        :maxlength="2000"
-                        show-word-limit
-                        placeholder="例如：办公地点不进行限制，只要在国内即可"
-                      />
-                    </el-form-item>
-                  </el-form>
+                  <el-form-item label="核心判断提示词" class="mb-24">
+                    <el-input
+                      v-model="aiDeliveryPromptEditForm.prompt"
+                      type="textarea"
+                      :rows="7"
+                      :maxlength="5000"
+                      show-word-limit
+                      placeholder='示例：你是求职投递决策助手。请根据岗位信息和求职者个人信息判断是否建议投递。只输出JSON：{"match":true|false,"reason":"原因"}。'
+                    />
+                  </el-form-item>
 
-                  <div class="boss-edit-actions">
-                    <el-button class="boss-btn-text" style="margin-right: auto;" @click="backToAiDeliveryPromptList">放弃修改</el-button>
-                    <el-button class="boss-btn-primary" @click="saveAiDeliveryPromptItem">确定保存策略</el-button>
-                  </div>
+                  <el-form-item label="附加过滤指令（可选）" class="mb-24">
+                    <el-input
+                      v-model="aiDeliveryPromptEditForm.extraPrompt"
+                      type="textarea"
+                      :rows="3"
+                      :maxlength="2000"
+                      show-word-limit
+                      placeholder="例如：办公地点不进行限制，只要在国内即可"
+                    />
+                  </el-form-item>
+                </el-form>
+
+                <div class="boss-edit-actions">
+                  <el-button
+                    class="boss-btn-text"
+                    style="margin-right: auto"
+                    @click="backToAiDeliveryPromptList"
+                    >放弃修改</el-button
+                  >
+                  <el-button class="boss-btn-primary" @click="saveAiDeliveryPromptItem"
+                    >确定保存策略</el-button
+                  >
                 </div>
               </div>
             </div>
+          </div>
         </div>
         <div class="nested-actions">
-            <el-button type="primary" @click="handleSaveAiDeliveryPrompt">保存AI投递提示词</el-button>
+          <el-button type="primary" @click="handleSaveAiDeliveryPrompt">保存AI投递提示词</el-button>
         </div>
       </div>
     </div>

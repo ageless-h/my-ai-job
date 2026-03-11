@@ -12,8 +12,9 @@
 
 declare const unsafeWindow: Window & Record<string, unknown>;
 
-const _unsafeWindow =
-  (typeof unsafeWindow !== "undefined" ? unsafeWindow : window) as unknown as Window & Record<string, unknown>;
+const _unsafeWindow = (typeof unsafeWindow !== 'undefined'
+  ? unsafeWindow
+  : window) as unknown as Window & Record<string, unknown>;
 
 /**
  * 默认允许访问的出站主机白名单。
@@ -22,14 +23,14 @@ const _unsafeWindow =
  * 通过集中维护白名单的方式，降低请求被重定向到恶意目标的风险。
  */
 const OUTBOUND_HOST_ALLOWLIST_DEFAULT = [
-  "zhipin.com",
-  "43.138.246.37",
-  "api.openai.com",
-  "openrouter.ai",
-  "api.deepseek.com",
-  "api.siliconflow.cn",
-  "api.moonshot.cn",
-  "ark.cn-beijing.volces.com"
+  'zhipin.com',
+  '43.138.246.37',
+  'api.openai.com',
+  'openrouter.ai',
+  'api.deepseek.com',
+  'api.siliconflow.cn',
+  'api.moonshot.cn',
+  'ark.cn-beijing.volces.com',
 ];
 
 /**
@@ -38,19 +39,19 @@ const OUTBOUND_HOST_ALLOWLIST_DEFAULT = [
  * 用于从弹窗文本、iframe 地址、节点内容中识别验证码、人机校验、风控挑战等场景。
  */
 const MANUAL_VERIFY_KEYWORDS = [
-  "验证码",
-  "滑块",
-  "人机",
-  "安全验证",
-  "请完成验证",
-  "行为验证",
-  "点选验证",
-  "拖动",
-  "captcha",
-  "challenge",
-  "verify",
-  "geetest",
-  "yidun"
+  '验证码',
+  '滑块',
+  '人机',
+  '安全验证',
+  '请完成验证',
+  '行为验证',
+  '点选验证',
+  '拖动',
+  'captcha',
+  'challenge',
+  'verify',
+  'geetest',
+  'yidun',
 ];
 
 /**
@@ -63,13 +64,13 @@ const MANUAL_VERIFY_KEYWORDS = [
  */
 export function getCurrentHostname(): string {
   // 优先读取真实页面上下文，避免用户脚本沙箱环境与页面上下文不一致导致域名判断失真。
-  const hostFromUnsafe = `${_unsafeWindow?.location?.hostname || ""}`.trim();
+  const hostFromUnsafe = `${_unsafeWindow?.location?.hostname || ''}`.trim();
   if (hostFromUnsafe) {
     return hostFromUnsafe.toLowerCase();
   }
 
   // 当 unsafeWindow 不可用时，回退到当前窗口对象，保证函数始终返回可预测结果。
-  return `${window.location.hostname || ""}`.trim().toLowerCase();
+  return `${window.location.hostname || ''}`.trim().toLowerCase();
 }
 
 /**
@@ -82,7 +83,7 @@ export function getCurrentHostname(): string {
  * @returns 规范化后的主机名；当输入为空值时返回空字符串。
  */
 export function normalizeHostname(hostname: string | null | undefined): string {
-  return `${hostname || ""}`.trim().toLowerCase();
+  return `${hostname || ''}`.trim().toLowerCase();
 }
 
 /**
@@ -101,12 +102,17 @@ export function isPrivateOrLocalHost(hostname: string | null | undefined): boole
     return true;
   }
 
-  if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
     // 明确拦截常见回环地址，避免脚本访问宿主机本地服务。
     return true;
   }
 
-  if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^0\.0\.0\.0$/.test(host)) {
+  if (
+    /^127\./.test(host) ||
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^0\.0\.0\.0$/.test(host)
+  ) {
     // 过滤典型 IPv4 回环地址、私有网段以及无效绑定地址，避免出站请求落到内网目标。
     return true;
   }
@@ -146,9 +152,9 @@ export function getTrustedOutboundHosts(
   const apiConfigHosts = Array.isArray(aiConfigExt.apiConfigs)
     ? (aiConfigExt.apiConfigs as Array<Record<string, unknown>>)
         .map((config) => {
-          const baseUrl = `${config?.baseUrl || ""}`.trim();
+          const baseUrl = `${config?.baseUrl || ''}`.trim();
           if (!baseUrl) {
-            return "";
+            return '';
           }
           try {
             // 将配置中的基础地址统一解析为 URL，既支持完整协议地址，也兼容只填写主机名的场景。
@@ -158,18 +164,23 @@ export function getTrustedOutboundHosts(
             return normalizeHostname(parsed.hostname);
           } catch (_e) {
             // 非法地址不参与白名单构建，避免异常配置污染最终的可信主机集合。
-            return "";
+            return '';
           }
         })
         // 即使来自配置项，也必须再次过滤本地/私有地址，防止用户误配置将请求导向内网。
         .filter((host) => !!host && !isPrivateOrLocalHost(host))
     : [];
   const customHosts = Array.isArray(aiConfigExt.trustedApiHosts)
-    ? aiConfigExt.trustedApiHosts.map((host) => normalizeHostname(`${host || ""}`)).filter(Boolean)
+    ? aiConfigExt.trustedApiHosts.map((host) => normalizeHostname(`${host || ''}`)).filter(Boolean)
     : [];
 
   // 合并默认白名单、配置白名单与临时白名单，并统一做规范化和去重，保证匹配行为稳定一致。
-  const merged = [...OUTBOUND_HOST_ALLOWLIST_DEFAULT, ...apiConfigHosts, ...customHosts, ...extraHosts]
+  const merged = [
+    ...OUTBOUND_HOST_ALLOWLIST_DEFAULT,
+    ...apiConfigHosts,
+    ...customHosts,
+    ...extraHosts,
+  ]
     .map((host) => normalizeHostname(host))
     .filter(Boolean);
 
@@ -198,7 +209,7 @@ export function isAllowedNetworkUrl(
   try {
     // 统一将输入解析为标准 URL 对象，确保后续协议、主机名校验都基于浏览器规范结果执行。
     const parsed = /^https?:\/\//i.test(url) ? new URL(url) : new URL(url, window.location.origin);
-    if (parsed.protocol !== "https:") {
+    if (parsed.protocol !== 'https:') {
       // 强制要求 HTTPS，避免敏感数据通过明文 HTTP 发送。
       return false;
     }
@@ -211,7 +222,9 @@ export function isAllowedNetworkUrl(
 
     const trustedHosts = getTrustedOutboundHosts(aiConfigExt, extraHosts);
     // 仅允许访问白名单主机或其明确子域名，避免通过相似域名绕过安全校验。
-    return trustedHosts.some((trustedHost) => host === trustedHost || host.endsWith(`.${trustedHost}`));
+    return trustedHosts.some(
+      (trustedHost) => host === trustedHost || host.endsWith(`.${trustedHost}`)
+    );
   } catch (_e) {
     // 无法解析的 URL 一律按不可信处理，保持“默认拒绝”的安全策略。
     return false;
@@ -252,7 +265,7 @@ export function ensureAllowedNetworkUrl(
  * @returns 如果命中人工验证关键词则返回 `true`；否则返回 `false`。
  */
 export function isManualVerificationText(text: string | null | undefined): boolean {
-  const value = `${text || ""}`.trim().toLowerCase();
+  const value = `${text || ''}`.trim().toLowerCase();
   if (!value) {
     return false;
   }
@@ -275,15 +288,15 @@ export function getManualVerificationReason(): string | null {
   }
 
   const overlaySelectors = [
-    ".geetest_panel",
-    ".geetest_widget",
-    ".yidun_tips",
-    ".yidun_modal",
+    '.geetest_panel',
+    '.geetest_widget',
+    '.yidun_tips',
+    '.yidun_modal',
     "[class*='captcha']",
     "[class*='verify']",
     "[class*='risk']",
     "[id*='captcha']",
-    "[id*='verify']"
+    "[id*='verify']",
   ];
 
   for (const selector of overlaySelectors) {
@@ -293,24 +306,24 @@ export function getManualVerificationReason(): string | null {
     }
 
     const style = window.getComputedStyle(element);
-    if (style.display === "none" || style.visibility === "hidden") {
+    if (style.display === 'none' || style.visibility === 'hidden') {
       // 已隐藏的节点通常不代表当前正在阻塞流程的验证弹层，因此忽略不可见元素。
       continue;
     }
 
-    const text = `${element.textContent || ""}`.trim();
-    if (isManualVerificationText(text) || !!element.querySelector("iframe")) {
+    const text = `${element.textContent || ''}`.trim();
+    if (isManualVerificationText(text) || !!element.querySelector('iframe')) {
       // 同时检查节点文本和内嵌 iframe，覆盖滑块、图形点选、第三方验证码组件等多种实现方式。
       return `检测到验证弹窗(${selector})`;
     }
   }
 
-  const iframes = Array.from(document.querySelectorAll("iframe"));
+  const iframes = Array.from(document.querySelectorAll('iframe'));
   for (const frame of iframes) {
-    const src = `${frame.getAttribute("src") || ""}`;
+    const src = `${frame.getAttribute('src') || ''}`;
     if (isManualVerificationText(src)) {
       // 某些验证码会以内嵌 iframe 承载，其地址本身就包含 captcha / verify 等关键字。
-      return "检测到验证 iframe";
+      return '检测到验证 iframe';
     }
   }
 
@@ -345,7 +358,7 @@ export function ensureNoManualVerificationOrThrow(action: string): void {
  */
 export function isBossDomainHost(hostname: string | null | undefined): boolean {
   const host = normalizeHostname(hostname);
-  return host === "www.zhipin.com" || host === "zhipin.com";
+  return host === 'www.zhipin.com' || host === 'zhipin.com';
 }
 
 /**
@@ -358,7 +371,7 @@ export function isBossDomainHost(hostname: string | null | undefined): boolean {
  */
 export function isTrustedBossStaticHost(hostname: string | null | undefined): boolean {
   const host = normalizeHostname(hostname);
-  return host === "static.zhipin.com" || isBossDomainHost(host);
+  return host === 'static.zhipin.com' || isBossDomainHost(host);
 }
 
 /**
@@ -409,7 +422,7 @@ export function isTrustedBossStaticUrl(url: string): boolean {
 export function ensureBossDomainOrThrow(action: string): void {
   const host = getCurrentHostname();
   if (!isBossDomainHost(host)) {
-    throw new Error(`${action}仅允许在BOSS官方域名执行，当前域名: ${host || "unknown"}`);
+    throw new Error(`${action}仅允许在BOSS官方域名执行，当前域名: ${host || 'unknown'}`);
   }
 }
 
@@ -423,19 +436,19 @@ export function ensureBossDomainOrThrow(action: string): void {
  */
 export function getSafePageContext(): { token?: string; uid?: string | number } {
   const page = (_unsafeWindow as { _PAGE?: unknown })._PAGE;
-  if (!page || typeof page !== "object") {
+  if (!page || typeof page !== 'object') {
     return {};
   }
 
   // 仅在确认 _PAGE 为对象后再做字段读取，避免对未知值执行不安全的属性访问。
   const raw = page as Record<string, unknown>;
   // token 只接受字符串，防止异常结构或恶意注入值进入后续鉴权流程。
-  const token = typeof raw.token === "string" ? raw.token : undefined;
+  const token = typeof raw.token === 'string' ? raw.token : undefined;
   // uid 仅允许字符串或数字，保证下游消费时的类型边界明确可控。
-  const uid = typeof raw.uid === "string" || typeof raw.uid === "number" ? raw.uid : undefined;
+  const uid = typeof raw.uid === 'string' || typeof raw.uid === 'number' ? raw.uid : undefined;
   return {
     token,
-    uid
+    uid,
   };
 }
 
@@ -448,7 +461,7 @@ export function getSafePageContext(): { token?: string; uid?: string | number } 
  */
 export function getPageUidString(): string {
   const uid = getSafePageContext().uid;
-  return uid === undefined ? "" : String(uid);
+  return uid === undefined ? '' : String(uid);
 }
 
 /**
@@ -460,5 +473,5 @@ export function getPageUidString(): string {
  * @returns 页面 `token` 字符串；如果不存在则返回空字符串。
  */
 export function getPageToken(): string {
-  return `${getSafePageContext().token || ""}`;
+  return `${getSafePageContext().token || ''}`;
 }

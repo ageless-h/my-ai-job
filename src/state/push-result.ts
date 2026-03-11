@@ -1,15 +1,17 @@
 // -*- coding: utf-8 -*-
-import { defineStore } from "pinia";
-import { ref } from "vue";
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
 import { TampermonkeyApi } from '@/shared/utils/tampermonkey';
 
-export const usePushResultStore = defineStore("ai-push-result", () => {
+export const usePushResultStore = defineStore('ai-push-result', () => {
   const notMatchCount = ref(0);
   const successCount = ref(TampermonkeyApi.GmGetValue(TampermonkeyApi.PUSH_SUCCESS_COUNT, 0));
   const onceSuccessCount = ref(0);
   const failCount = ref(TampermonkeyApi.GmGetValue(TampermonkeyApi.PUSH_FAIL_COUNT, 0));
-  
-  const collectSuccessCount = ref(TampermonkeyApi.GmGetValue(TampermonkeyApi.COLLECT_SUCCESS_COUNT, 0));
+
+  const collectSuccessCount = ref(
+    TampermonkeyApi.GmGetValue(TampermonkeyApi.COLLECT_SUCCESS_COUNT, 0)
+  );
   const collectFailCount = ref(TampermonkeyApi.GmGetValue(TampermonkeyApi.COLLECT_FAIL_COUNT, 0));
   const onceCollectSuccessCount = ref(0);
 
@@ -76,7 +78,7 @@ export const usePushResultStore = defineStore("ai-push-result", () => {
     collectFailIncr,
     onceCollectSuccessCount,
     clearOnceCollectSuccessCount,
-    clearCounts
+    clearCounts,
   };
 });
 

@@ -1,3 +1,25 @@
+<!--
+/**
+ * Account.vue - 账户与数据管理组件
+ * 
+ * 提供用户账户信息管理和简历数据导入功能。
+ * 
+ * 主要功能：
+ * - 基本信息编辑（手机号、邮箱）
+ * - 在线简历导入（从 BOSS 个人主页抓取）
+ * - 简历内容查看
+ * - 附件简历上传（PDF/Word）
+ * - 数据同步到服务器
+ * 
+ * 技术特性：
+ * - 简历文本自动提取
+ * - 附件简历解析（PDF/Word）
+ * - 简历数据持久化
+ * - 导入状态实时反馈
+ * 
+ * @component
+ */
+-->
 <template>
   <div class="account-tab">
     <div class="header-title">账户与数据</div>
@@ -8,12 +30,20 @@
         <el-row :gutter="40">
           <el-col :span="12">
             <el-form-item label="手机号码" prop="phone">
-              <el-input v-model="userStore.user.phone" placeholder="用于异常通知短信提醒" data-testid="phone-input" />
+              <el-input
+                v-model="userStore.user.phone"
+                placeholder="用于异常通知短信提醒"
+                data-testid="phone-input"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="通知邮箱" prop="email">
-              <el-input v-model="userStore.user.email" placeholder="用于接收每日总结及高意向提醒" data-testid="email-input" />
+              <el-input
+                v-model="userStore.user.email"
+                placeholder="用于接收每日总结及高意向提醒"
+                data-testid="email-input"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -23,19 +53,32 @@
     <div class="boss-card mt-16">
       <div class="card-title">
         在线简历库
-        <el-tag size="small" type="primary" class="ml-8" effect="plain" v-if="hasResume">已就绪</el-tag>
+        <el-tag size="small" type="primary" class="ml-8" effect="plain" v-if="hasResume"
+          >已就绪</el-tag
+        >
       </div>
 
       <div class="resume-manage-box">
         <div class="resume-type-group">
           <div class="group-header">
             <div class="group-title">个人主页简历 (文本)</div>
-            <div class="group-desc">导入在线个人主页简历信息，用于 AI 职位匹配与定制化对话回复。</div>
+            <div class="group-desc">
+              导入在线个人主页简历信息，用于 AI 职位匹配与定制化对话回复。
+            </div>
           </div>
 
           <div class="resume-actions">
-            <el-tooltip content="将前往 BOSS 个人主页后台抓取最新的简历数据" placement="top" :show-after="300">
-              <el-button type="primary" :loading="importResumeLoading" data-testid="import-resume-button" @click="handlerImportResume">
+            <el-tooltip
+              content="将前往 BOSS 个人主页后台抓取最新的简历数据"
+              placement="top"
+              :show-after="300"
+            >
+              <el-button
+                type="primary"
+                :loading="importResumeLoading"
+                data-testid="import-resume-button"
+                @click="handlerImportResume"
+              >
                 <el-icon class="mr-4"><Refresh /></el-icon>直接从 BOSS 导入
               </el-button>
             </el-tooltip>
@@ -55,7 +98,9 @@
           </div>
 
           <div class="resume-actions-col">
-            <el-checkbox v-model="userStore.user.preference.cIE" border>启用图片简历发送</el-checkbox>
+            <el-checkbox v-model="userStore.user.preference.cIE" border
+              >启用图片简历发送</el-checkbox
+            >
 
             <div class="resume-btn-row">
               <el-upload
@@ -66,16 +111,33 @@
                 :data="uploadData"
                 :headers="{ Zp_token: Tools.getCookieValue('bst') }"
               >
-                <el-button type="primary" plain size="small" :disabled="!userStore.user.preference.cIE">
+                <el-button
+                  type="primary"
+                  plain
+                  size="small"
+                  :disabled="!userStore.user.preference.cIE"
+                >
                   <el-icon class="mr-4"><Upload /></el-icon>上传简历图片
                 </el-button>
               </el-upload>
 
-              <el-button plain size="small" @click="handleViewResumeImage" :disabled="!hasImageResume">
+              <el-button
+                plain
+                size="small"
+                @click="handleViewResumeImage"
+                :disabled="!hasImageResume"
+              >
                 <el-icon class="mr-4"><Picture /></el-icon>预览当前图片
               </el-button>
 
-              <el-tag v-if="hasImageResume" type="success" effect="light" size="small" class="border-none">已有图片记录</el-tag>
+              <el-tag
+                v-if="hasImageResume"
+                type="success"
+                effect="light"
+                size="small"
+                class="border-none"
+                >已有图片记录</el-tag
+              >
             </div>
           </div>
         </div>
@@ -84,13 +146,29 @@
 
     <div class="boss-card mt-16 mb-24">
       <div class="card-title">投递配置备份</div>
-      <div class="sub-desc mb-16">可以导出您多年精心调教的投递偏好设置、提示词和参数，随时更换设备或分享给朋友。</div>
+      <div class="sub-desc mb-16">
+        可以导出您多年精心调教的投递偏好设置、提示词和参数，随时更换设备或分享给朋友。
+      </div>
 
       <div class="data-actions">
-        <el-button type="warning" plain size="small" class="shadow-sm" data-testid="export-config-button" @click="exportSetting">
+        <el-button
+          type="warning"
+          plain
+          size="small"
+          class="shadow-sm"
+          data-testid="export-config-button"
+          @click="exportSetting"
+        >
           <el-icon class="mr-4"><Download /></el-icon>导出所有配置文件
         </el-button>
-        <el-button type="info" plain size="small" class="shadow-sm" data-testid="import-config-button" @click="importSetting">
+        <el-button
+          type="info"
+          plain
+          size="small"
+          class="shadow-sm"
+          data-testid="import-config-button"
+          @click="importSetting"
+        >
           <el-icon class="mr-4"><UploadFilled /></el-icon>导入外部设置
         </el-button>
       </div>
@@ -101,11 +179,11 @@
       <div class="sub-desc mb-16">清除本地存储的简历内容和 API 密钥，保护您的隐私安全。</div>
 
       <div class="data-actions">
-        <el-button 
-          type="danger" 
-          plain 
-          size="small" 
-          class="shadow-sm" 
+        <el-button
+          type="danger"
+          plain
+          size="small"
+          class="shadow-sm"
           :loading="isClearingData"
           @click="handleClearSensitiveData"
         >
@@ -116,9 +194,9 @@
 
     <div class="action-footer">
       <div class="buttons">
-        <el-button 
-          type="primary" 
-          class="save-btn shadow-sm" 
+        <el-button
+          type="primary"
+          class="save-btn shadow-sm"
           :loading="isSaving"
           @click="handleSave"
         >
@@ -127,8 +205,19 @@
       </div>
     </div>
 
-    <el-dialog v-model="resumeTextPreviewVisible" title="简历全量文本预览" width="760px" class="boss-dialog">
-      <el-input v-model="resumeTextPreviewContent" type="textarea" :rows="18" readonly class="preview-textarea" />
+    <el-dialog
+      v-model="resumeTextPreviewVisible"
+      title="简历全量文本预览"
+      width="760px"
+      class="boss-dialog"
+    >
+      <el-input
+        v-model="resumeTextPreviewContent"
+        type="textarea"
+        :rows="18"
+        readonly
+        class="preview-textarea"
+      />
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="resumeTextPreviewVisible = false">关闭预览</el-button>
@@ -210,7 +299,10 @@ const getResumeFetchFailureReason = (error: any): string => {
   return getErrorText(error) || '请求失败';
 };
 
-const runWithRetry = async <T>(requestFn: () => Promise<T>, maxRetry = RESUME_IMPORT_MAX_RETRY): Promise<T> => {
+const runWithRetry = async <T,>(
+  requestFn: () => Promise<T>,
+  maxRetry = RESUME_IMPORT_MAX_RETRY
+): Promise<T> => {
   let lastError: any;
   for (let attempt = 1; attempt <= maxRetry; attempt++) {
     try {
@@ -233,7 +325,11 @@ const toPlainRecord = (value: unknown): Record<string, unknown> => {
   return {};
 };
 
-const pickFirstNonEmptyText = (sources: Array<Record<string, unknown>>, keys: string[], maxLength = 8000): string => {
+const pickFirstNonEmptyText = (
+  sources: Array<Record<string, unknown>>,
+  keys: string[],
+  maxLength = 8000
+): string => {
   for (const source of sources) {
     for (const key of keys) {
       const text = `${source?.[key] ?? ''}`.replace(/\s+/g, ' ').trim();
@@ -246,17 +342,18 @@ const pickFirstNonEmptyText = (sources: Array<Record<string, unknown>>, keys: st
 };
 
 const normalizePreviewMultiline = (value: unknown, maxLength = 20000): string => {
-  const text = `${value ?? ''}`
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .trim();
+  const text = `${value ?? ''}`.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
   if (!text) {
     return '';
   }
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 };
 
-const pickFirstNonEmptyMultiline = (sources: Array<Record<string, unknown>>, keys: string[], maxLength = 20000): string => {
+const pickFirstNonEmptyMultiline = (
+  sources: Array<Record<string, unknown>>,
+  keys: string[],
+  maxLength = 20000
+): string => {
   for (const source of sources) {
     for (const key of keys) {
       const text = normalizePreviewMultiline(source?.[key], maxLength);
@@ -288,7 +385,7 @@ const getResumeTextForPreview = (): string => {
       'parsedResumeText',
       'resumeNarrative',
       'text',
-      'content'
+      'content',
     ],
     20000
   );
@@ -451,7 +548,9 @@ const buildResumeTextFromPreviewData = (rawData: unknown, maxLength = 12000): st
       const degree = `${item?.degreeName || ''}`.trim();
       const start = `${item?.startYear || item?.startDate || ''}`.trim();
       const end = `${item?.endYear || item?.endDate || ''}`.trim();
-      return [school, major, degree, [start, end].filter(Boolean).join(' ~ ')].filter(Boolean).join(' / ');
+      return [school, major, degree, [start, end].filter(Boolean).join(' ~ ')]
+        .filter(Boolean)
+        .join(' / ');
     })
     .filter(Boolean);
   if (eduRows.length) {
@@ -498,11 +597,16 @@ const fetchResumePreviewProfile = async (token: string) => {
   const zpData = toPlainRecord(resp?.data?.zpData);
   const baseInfo = toPlainRecord(zpData.baseInfo);
   const expectList = Array.isArray(zpData.expectList) ? zpData.expectList : [];
-  const firstExpect = toPlainRecord(expectList.find((item: any) => Number(item?.positionType ?? 0) === 0) || expectList[0]);
+  const firstExpect = toPlainRecord(
+    expectList.find((item: any) => Number(item?.positionType ?? 0) === 0) || expectList[0]
+  );
   const workYears = `${baseInfo.workYearDesc || ''}`.trim();
   const education = `${baseInfo.degreeCategory || ''}`.trim();
   const fullName = `${baseInfo.nickName || ''}`.trim();
-  const expectedJob = [`${firstExpect.positionName || ''}`.trim(), `${firstExpect.salaryDesc || ''}`.trim()]
+  const expectedJob = [
+    `${firstExpect.positionName || ''}`.trim(),
+    `${firstExpect.salaryDesc || ''}`.trim(),
+  ]
     .filter(Boolean)
     .join(' / ');
   const profileSummary = `${zpData.userDesc || zpData.selfIntroduction || ''}`.trim();
@@ -544,11 +648,15 @@ const fetchResumeTextForPreview = async (): Promise<string> => {
   if (!token) {
     return '';
   }
-  const previewProfile = await runWithRetry(() => fetchResumePreviewProfile(token), 2).catch(() => null);
+  const previewProfile = await runWithRetry(() => fetchResumePreviewProfile(token), 2).catch(
+    () => null
+  );
   if (`${previewProfile?.resumeText || ''}`.trim()) {
     return `${previewProfile?.resumeText || ''}`.trim();
   }
-  const remoteProfile = await runWithRetry(() => fetchResumePageProfile(token), 2).catch(() => null);
+  const remoteProfile = await runWithRetry(() => fetchResumePageProfile(token), 2).catch(
+    () => null
+  );
   return `${remoteProfile?.resumeText || ''}`.trim();
 };
 
@@ -578,7 +686,9 @@ const handleViewResumeContent = async () => {
       const token = tokenDetail.token;
       const reason = !token
         ? `未获取到登录 token（来源：${tokenDetail.source}）`
-        : (isBossResumePage() ? '简历页未识别到正文内容' : '当前不在简历页，且在线拉取未返回正文');
+        : isBossResumePage()
+          ? '简历页未识别到正文内容'
+          : '当前不在简历页，且在线拉取未返回正文';
       showAppMessage({ type: 'warning', message: `[AI助理] 暂无可查看的个人简历内容：${reason}` });
       return;
     }
@@ -602,7 +712,11 @@ const handleViewResumeImage = () => {
   }
 };
 
-const writeImportedResumeToUser = (resumeId: string, importDataInput: unknown, fallbackResumeText = '') => {
+const writeImportedResumeToUser = (
+  resumeId: string,
+  importDataInput: unknown,
+  fallbackResumeText = ''
+) => {
   const importData = toPlainRecord(importDataInput);
   const nestedResume = toPlainRecord(importData.resume);
   const nestedResumeInfo = toPlainRecord(importData.resumeInfo);
@@ -619,7 +733,7 @@ const writeImportedResumeToUser = (resumeId: string, importDataInput: unknown, f
       'ocrText',
       'content',
       'text',
-      'resumeRawText'
+      'resumeRawText',
     ],
     12000
   );
@@ -629,18 +743,39 @@ const writeImportedResumeToUser = (resumeId: string, importDataInput: unknown, f
   const importedResume = {
     resumeId,
     resumeText: stableResumeText,
-    resumeTextSource: `${importData.resumeTextSource || ''}` || (resumeText ? 'import-api' : (stableResumeText ? 'resume-page-html' : '')),
+    resumeTextSource:
+      `${importData.resumeTextSource || ''}` ||
+      (resumeText ? 'import-api' : stableResumeText ? 'resume-page-html' : ''),
     fullName: pickFirstNonEmptyText(sources, ['realName', 'name', 'fullName', 'userName'], 80),
     workYears: pickFirstNonEmptyText(sources, ['workYear', 'workYears', 'workExperience'], 40),
     education: pickFirstNonEmptyText(sources, ['education', 'degree', 'highestDegree'], 40),
     school: pickFirstNonEmptyText(sources, ['school', 'schoolName', 'college', 'university'], 80),
     major: pickFirstNonEmptyText(sources, ['major', 'majorName', 'speciality', 'specialty'], 80),
-    expectedJob: pickFirstNonEmptyText(sources, ['expectJob', 'expectedJob', 'expectPosition', 'desiredPosition'], 80),
-    expectedCity: pickFirstNonEmptyText(sources, ['expectCity', 'expectedCity', 'city', 'cityName'], 60),
-    expectedSalary: pickFirstNonEmptyText(sources, ['expectSalary', 'expectedSalary', 'salaryExpectation'], 60),
+    expectedJob: pickFirstNonEmptyText(
+      sources,
+      ['expectJob', 'expectedJob', 'expectPosition', 'desiredPosition'],
+      80
+    ),
+    expectedCity: pickFirstNonEmptyText(
+      sources,
+      ['expectCity', 'expectedCity', 'city', 'cityName'],
+      60
+    ),
+    expectedSalary: pickFirstNonEmptyText(
+      sources,
+      ['expectSalary', 'expectedSalary', 'salaryExpectation'],
+      60
+    ),
     profileSummary: pickFirstNonEmptyText(
       sources,
-      ['selfIntroduction', 'introduction', 'summary', 'personalSummary', 'advantage', 'resumeSummary'],
+      [
+        'selfIntroduction',
+        'introduction',
+        'summary',
+        'personalSummary',
+        'advantage',
+        'resumeSummary',
+      ],
       800
     ),
     importedAt: new Date().toISOString(),
@@ -653,7 +788,7 @@ const writeImportedResumeToUser = (resumeId: string, importDataInput: unknown, f
 
 const handlerImportResume = async () => {
   if (!loginInterceptor()) return;
-  
+
   // ✅ 新增：检查用户是否授权存储简历
   const { requestResumeStorageConsent } = await import('@/shared/utils/sensitive-data-consent');
   const hasConsent = await requestResumeStorageConsent();
@@ -661,12 +796,15 @@ const handlerImportResume = async () => {
     showAppMessage({ type: 'warning', message: '您拒绝了简历存储授权，无法导入简历' });
     return;
   }
-  
+
   const tokenDetail = getBossTokenDetail();
   const token = tokenDetail.token;
   const bossUserId = getBossUid();
   if (!token) {
-    showAppMessage({ type: 'error', message: `未获取到 Boss 登录 token（来源：${tokenDetail.source}），请刷新页面后重试` });
+    showAppMessage({
+      type: 'error',
+      message: `未获取到 Boss 登录 token（来源：${tokenDetail.source}），请刷新页面后重试`,
+    });
     return;
   }
   importResumeLoading.value = true;
@@ -674,15 +812,22 @@ const handlerImportResume = async () => {
     const localPageProfile = getResumeProfileFromCurrentPage();
     let previewApiError: any = null;
     let remotePageError: any = null;
-    const previewApiProfile = await runWithRetry(() => fetchResumePreviewProfile(token), 2).catch((error) => {
-      previewApiError = error;
-      return null;
-    });
-    const remotePageProfile = await runWithRetry(() => fetchResumePageProfile(token), 2).catch((error) => {
-      remotePageError = error;
-      return null;
-    });
-    const pageProfile = [localPageProfile, previewApiProfile, remotePageProfile].find((item: any) => `${item?.resumeText || ''}`.trim()) || localPageProfile;
+    const previewApiProfile = await runWithRetry(() => fetchResumePreviewProfile(token), 2).catch(
+      (error) => {
+        previewApiError = error;
+        return null;
+      }
+    );
+    const remotePageProfile = await runWithRetry(() => fetchResumePageProfile(token), 2).catch(
+      (error) => {
+        remotePageError = error;
+        return null;
+      }
+    );
+    const pageProfile =
+      [localPageProfile, previewApiProfile, remotePageProfile].find((item: any) =>
+        `${item?.resumeText || ''}`.trim()
+      ) || localPageProfile;
     const resumePageText = `${pageProfile?.resumeText || ''}`.trim();
     if (!resumePageText) {
       const reasons: string[] = [];
@@ -693,7 +838,9 @@ const handlerImportResume = async () => {
         reasons.push('当前页面不是简历页');
       }
       if (previewApiError) {
-        reasons.push(`预览接口失败: ${getResumeFetchFailureReason(previewApiError)}（token来源: ${tokenDetail.source}）`);
+        reasons.push(
+          `预览接口失败: ${getResumeFetchFailureReason(previewApiError)}（token来源: ${tokenDetail.source}）`
+        );
       } else if (!`${previewApiProfile?.resumeText || ''}`.trim()) {
         reasons.push('预览接口未返回简历正文');
       }
@@ -703,19 +850,25 @@ const handlerImportResume = async () => {
         reasons.push('简历页HTML未识别到正文');
       }
       const reasonText = reasons.filter(Boolean).join('；');
-      showAppMessage({ type: 'error', message: reasonText ? `未识别到BOSS个人简历页内容（${reasonText}）` : '未识别到BOSS个人简历页内容，请稍后重试' });
+      showAppMessage({
+        type: 'error',
+        message: reasonText
+          ? `未识别到BOSS个人简历页内容（${reasonText}）`
+          : '未识别到BOSS个人简历页内容，请稍后重试',
+      });
       return;
     }
 
-    let resumeId = `${userStore.user.resumeId || ''}`.trim() || (bossUserId ? `online-${bossUserId}` : `online-${Date.now()}`);
+    let resumeId =
+      `${userStore.user.resumeId || ''}`.trim() ||
+      (bossUserId ? `online-${bossUserId}` : `online-${Date.now()}`);
     try {
-      const resumeInfoResp = await runWithRetry(() => axios.get(
-        'https://www.zhipin.com/wapi/zpgeek/resume/sidebar.json',
-        {
+      const resumeInfoResp = await runWithRetry(() =>
+        axios.get('https://www.zhipin.com/wapi/zpgeek/resume/sidebar.json', {
           headers: { Zp_token: token },
           timeout: RESUME_FETCH_TIMEOUT_MS,
-        }
-      ));
+        })
+      );
       const attachmentList = resumeInfoResp?.data?.zpData?.attachmentList || [];
       if (attachmentList.length && attachmentList[0]?.resumeId) {
         resumeId = `${attachmentList[0].resumeId}`;
@@ -755,7 +908,11 @@ const beforeUpload = (file: any) => {
 };
 const handleUploadSuccess = async (response: any) => {
   userStore.user.preference.cI = response.zpData.url + '===' + response.zpData.tinyUrl;
-  showAppMessage({ message: '图片简历上传成功；点击保存账户信息可持久保存', type: 'success', duration: 3000 });
+  showAppMessage({
+    message: '图片简历上传成功；点击保存账户信息可持久保存',
+    type: 'success',
+    duration: 3000,
+  });
 };
 
 // ---- Export / Import settings (migrated from Preference) ----
@@ -764,9 +921,19 @@ const exportSetting = async () => {
   const exportData = JSON.stringify(preference, null, 2);
   try {
     await navigator.clipboard.writeText(exportData);
-    ElNotification({ title: '导出成功', message: '投递设置已复制到剪贴板', type: 'success', duration: 2000 });
+    ElNotification({
+      title: '导出成功',
+      message: '投递设置已复制到剪贴板',
+      type: 'success',
+      duration: 2000,
+    });
   } catch {
-    ElNotification({ title: '导出失败', message: '复制到剪贴板时出错', type: 'error', duration: 2000 });
+    ElNotification({
+      title: '导出失败',
+      message: '复制到剪贴板时出错',
+      type: 'error',
+      duration: 2000,
+    });
   }
 };
 
@@ -788,7 +955,12 @@ const importSetting = async () => {
           duration: 3000,
         });
       } catch {
-        ElNotification({ title: '导入失败', message: '配置格式错误，请检查后重试', type: 'error', duration: 2000 });
+        ElNotification({
+          title: '导入失败',
+          message: '配置格式错误，请检查后重试',
+          type: 'error',
+          duration: 2000,
+        });
       }
     })
     .catch(() => undefined);
@@ -840,22 +1012,25 @@ const handleSave = async () => {
     showAppMessage({ message: '请填写手机号或邮箱', type: 'error', duration: 2000 });
     return;
   }
-  
+
   isSaving.value = true;
   try {
-    await axios2
-      .post('/api/user/save/preference', {
+    await axios2.post(
+      '/api/user/save/preference',
+      {
         ...userStore.user,
         aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
-      }, {
+      },
+      {
         timeout: PREFERENCE_SAVE_TIMEOUT_MS,
-      });
+      }
+    );
     showAppMessage({ message: '账户信息保存成功', type: 'success', duration: 2000 });
   } catch (error) {
-    showAppMessage({ 
-      message: `保存失败：${error?.message || '未知错误'}`, 
-      type: 'error', 
-      duration: 2000 
+    showAppMessage({
+      message: `保存失败：${error?.message || '未知错误'}`,
+      type: 'error',
+      duration: 2000,
     });
   } finally {
     isSaving.value = false;

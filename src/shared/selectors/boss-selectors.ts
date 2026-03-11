@@ -1,6 +1,6 @@
 /**
  * BOSS 直聘 DOM 选择器注册表
- * 
+ *
  * 集中管理所有 DOM 选择器，便于维护和适配 BOSS 网站改版
  * 每个选择器组包含主选择器和降级选择器（fallback）
  */
@@ -94,12 +94,7 @@ export const FAVORITE_BUTTON_SELECTORS = {
  */
 export const SCROLL_CONTAINER_SELECTORS = {
   /** 推荐页滚动容器 */
-  recommend: [
-    '.job-list-container',
-    '.job-list',
-    '.recommend-job-list',
-    '.recommend-search-inner',
-  ],
+  recommend: ['.job-list-container', '.job-list', '.recommend-job-list', '.recommend-search-inner'],
 } as const;
 
 /**

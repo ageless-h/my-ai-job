@@ -39,10 +39,10 @@ export interface HistoryMessage {
 }
 
 export type RejectReason =
-  | 'hr_rejected'       // HR 回复了拒绝消息
-  | 'self_rejected'     // 我主动拒绝
-  | 'stale_no_reply'    // 超过 N 天未活跃
-  | 'ai_detected';      // AI 分析判定
+  | 'hr_rejected' // HR 回复了拒绝消息
+  | 'self_rejected' // 我主动拒绝
+  | 'stale_no_reply' // 超过 N 天未活跃
+  | 'ai_detected'; // AI 分析判定
 
 export interface CleanCandidate {
   friendId: number;
@@ -87,7 +87,11 @@ function createManualVerificationGuard(action: string): (force?: boolean) => voi
   };
 }
 
-function getCleanerSafetyConfig(): { maxScanCount: number; maxDeleteCount: number; manualConfirmThreshold: number } {
+function getCleanerSafetyConfig(): {
+  maxScanCount: number;
+  maxDeleteCount: number;
+  manualConfirmThreshold: number;
+} {
   let preference: Record<string, unknown> = {};
   try {
     const user = getLocalUser();
@@ -105,7 +109,12 @@ function getCleanerSafetyConfig(): { maxScanCount: number; maxDeleteCount: numbe
   return {
     maxScanCount: toSafeInt(preference.cleanerMaxScanCount, CLEANER_SCAN_MAX_DEFAULT, 20, 300),
     maxDeleteCount: toSafeInt(preference.cleanerMaxDeleteCount, CLEANER_DELETE_MAX_DEFAULT, 5, 100),
-    manualConfirmThreshold: toSafeInt(preference.cleanerManualConfirmThreshold, CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT, 5, 100),
+    manualConfirmThreshold: toSafeInt(
+      preference.cleanerManualConfirmThreshold,
+      CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT,
+      5,
+      100
+    ),
   };
 }
 
@@ -160,7 +169,7 @@ export async function fetchHistoryMessages(
   encryptBossId: string,
   securityId: string,
   count = HISTORY_MSG_COUNT,
-  maxPages = HISTORY_MAX_PAGES,
+  maxPages = HISTORY_MAX_PAGES
 ): Promise<HistoryMessage[]> {
   let maxMsgId = '0';
   const merged: HistoryMessage[] = [];
@@ -194,15 +203,15 @@ export async function fetchHistoryMessages(
     }));
 
     for (const msg of parsed) {
-      const key = msg.mid ? `mid:${msg.mid}` : `fallback:${msg.time}:${msg.fromUid}:${msg.bodyType}:${msg.text}`;
+      const key = msg.mid
+        ? `mid:${msg.mid}`
+        : `fallback:${msg.time}:${msg.fromUid}:${msg.bodyType}:${msg.text}`;
       if (seenMid.has(key)) continue;
       seenMid.add(key);
       merged.push(msg);
     }
 
-    const mids = parsed
-      .map((m) => Number(m.mid || 0))
-      .filter((n) => Number.isFinite(n) && n > 0);
+    const mids = parsed.map((m) => Number(m.mid || 0)).filter((n) => Number.isFinite(n) && n > 0);
     if (!mids.length) break;
     const nextMaxMsgId = String(Math.min(...mids));
     if (nextMaxMsgId === maxMsgId) break;
@@ -215,7 +224,9 @@ export async function fetchHistoryMessages(
 }
 
 /** 删除好友/会话 */
-export async function deleteFriend(securityId: string): Promise<{ ok: boolean; message: string; code?: number }> {
+export async function deleteFriend(
+  securityId: string
+): Promise<{ ok: boolean; message: string; code?: number }> {
   const token = getZpToken();
   if (!token) return { ok: false, message: '未获取到 Zp_token' };
   const resp = await axios.post(
@@ -223,10 +234,10 @@ export async function deleteFriend(securityId: string): Promise<{ ok: boolean; m
     'securityId=' + encodeURIComponent(securityId),
     {
       headers: {
-        'Zp_token': token,
+        Zp_token: token,
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
       },
-    },
+    }
   );
   const code = resp.data?.code;
   if (code === 0) return { ok: true, message: '', code };
@@ -236,22 +247,31 @@ export async function deleteFriend(securityId: string): Promise<{ ok: boolean; m
 // ============ 分析逻辑 ============
 
 const REJECT_KEYWORDS = [
-  '不合适', '不太合适', '不匹配', '不太匹配',
-  '暂不考虑', '不考虑', '岗位已关闭', '岗位已满',
-  '已招到', '已经招到', '不太符合', '不符合',
-  '抱歉', '很遗憾', '祝您求职顺利', '再看看其他',
+  '不合适',
+  '不太合适',
+  '不匹配',
+  '不太匹配',
+  '暂不考虑',
+  '不考虑',
+  '岗位已关闭',
+  '岗位已满',
+  '已招到',
+  '已经招到',
+  '不太符合',
+  '不符合',
+  '抱歉',
+  '很遗憾',
+  '祝您求职顺利',
+  '再看看其他',
   '已向您表达不合适',
 ];
 
-const SELF_REJECT_KEYWORDS = [
-  '不考虑了', '不合适', '算了', '不去了',
-  '放弃', '不感兴趣',
-];
+const SELF_REJECT_KEYWORDS = ['不考虑了', '不合适', '算了', '不去了', '放弃', '不感兴趣'];
 
 /** 关键词快速检测 */
 function detectByKeywords(
   messages: HistoryMessage[],
-  myUid: number,
+  myUid: number
 ): { reason: RejectReason; detail: string } | null {
   // 从最新消息往前扫
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -282,7 +302,7 @@ function detectByKeywords(
 async function analyzeWithAi(
   messages: HistoryMessage[],
   myUid: number,
-  contactName: string,
+  contactName: string
 ): Promise<{ shouldClean: boolean; reason: string }> {
   const config = getActiveDirectConfig();
   if (!config) {
@@ -335,7 +355,7 @@ ${textMessages}
 // ============ 主扫描流程 ============
 
 export async function scanConversations(
-  onProgress: (progress: ScanProgress) => void,
+  onProgress: (progress: ScanProgress) => void
 ): Promise<CleanCandidate[]> {
   Tools.ensureBossDomainOrThrow('会话扫描');
   const ensureSafeScan = createManualVerificationGuard('会话扫描');
@@ -413,7 +433,9 @@ export async function scanConversations(
 
     try {
       await Tools.sleep(Tools.getRandomNumber(120, 300));
-      const messages = await bossThrottle.enqueue(() => fetchHistoryMessages(detail.encryptBossId, detail.securityId));
+      const messages = await bossThrottle.enqueue(() =>
+        fetchHistoryMessages(detail.encryptBossId, detail.securityId)
+      );
 
       // 最后一条文本消息
       const lastTextMsg = [...messages].reverse().find((m) => m.bodyType === 1 && m.text);
@@ -501,8 +523,14 @@ export async function scanConversations(
 export async function batchDelete(
   items: CleanCandidate[],
   onProgress: (current: number, total: number, name: string, failReason?: string) => void,
-  options: { manualConfirmed?: boolean } = {},
-): Promise<{ success: number; failed: number; lastError: string; topFailReason: string; successSecurityIds: string[] }> {
+  options: { manualConfirmed?: boolean } = {}
+): Promise<{
+  success: number;
+  failed: number;
+  lastError: string;
+  topFailReason: string;
+  successSecurityIds: string[];
+}> {
   Tools.ensureBossDomainOrThrow('会话删除');
   const ensureSafeDelete = createManualVerificationGuard('会话删除');
   ensureSafeDelete(true);
@@ -522,14 +550,16 @@ export async function batchDelete(
     const text = `${msg || ''}`.toLowerCase();
     if (!text) return false;
     if (text.includes('未获取到 zp_token') || text.includes('securityid')) return false;
-    return text.includes('network')
-      || text.includes('timeout')
-      || text.includes('频繁')
-      || text.includes('繁忙')
-      || text.includes('稍后')
-      || text.includes('429')
-      || text.includes('status code 5')
-      || text.includes('服务异常');
+    return (
+      text.includes('network') ||
+      text.includes('timeout') ||
+      text.includes('频繁') ||
+      text.includes('繁忙') ||
+      text.includes('稍后') ||
+      text.includes('429') ||
+      text.includes('status code 5') ||
+      text.includes('服务异常')
+    );
   };
 
   const deleteWithRetry = async (securityId: string): Promise<{ ok: boolean; message: string }> => {
@@ -569,19 +599,20 @@ export async function batchDelete(
       } else {
         failed++;
         lastError = result.message;
-        failReasonCounter[result.message || '未知错误'] = (failReasonCounter[result.message || '未知错误'] || 0) + 1;
+        failReasonCounter[result.message || '未知错误'] =
+          (failReasonCounter[result.message || '未知错误'] || 0) + 1;
         onProgress(i + 1, selected.length, item.name, result.message);
       }
     } catch (e: any) {
       failed++;
       lastError = e?.message || String(e);
-      failReasonCounter[lastError || '未知错误'] = (failReasonCounter[lastError || '未知错误'] || 0) + 1;
+      failReasonCounter[lastError || '未知错误'] =
+        (failReasonCounter[lastError || '未知错误'] || 0) + 1;
       onProgress(i + 1, selected.length, item.name, lastError);
     }
   }
 
-  const topFailReason = Object.entries(failReasonCounter)
-    .sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  const topFailReason = Object.entries(failReasonCounter).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
   return { success, failed, lastError, topFailReason, successSecurityIds };
 }

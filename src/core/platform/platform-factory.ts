@@ -1,9 +1,9 @@
 // -*- coding: utf-8 -*-
-import { PlatformError } from "@/shared/errors";
-import { userRemoteLoad } from "@/core/auth/auth";
-import { BossPlatform } from "@/core/platform/boss-platform";
-import { bindPlatformRuntime } from "@/core/engine/push-engine";
-import type { PlatformRuntimeDeps } from "@/core/runtime/runtime-contracts";
+import { PlatformError } from '@/shared/errors';
+import { userRemoteLoad } from '@/core/auth/auth';
+import { BossPlatform } from '@/core/platform/boss-platform';
+import { bindPlatformRuntime } from '@/core/engine/push-engine';
+import type { PlatformRuntimeDeps } from '@/core/runtime/runtime-contracts';
 
 const platformList = [BossPlatform];
 
@@ -27,6 +27,6 @@ export class PlatformFactory {
       }
     }
 
-    throw new PlatformError(2, "错误的平台");
+    throw new PlatformError(2, '错误的平台');
   }
 }

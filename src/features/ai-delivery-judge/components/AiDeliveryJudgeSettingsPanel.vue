@@ -9,10 +9,15 @@
           active-text="开"
           inactive-text="关"
           inline-prompt
-          :style="{ '--el-switch-on-color': 'var(--boss-primary, #00bebd)', '--el-switch-off-color': '#dcdfe6' }"
+          :style="{
+            '--el-switch-on-color': 'var(--boss-primary, #00bebd)',
+            '--el-switch-off-color': '#dcdfe6',
+          }"
         />
       </div>
-      <div class="sub-desc mt-8">开启后将使用 AI 针对岗位 JD 和您的简历进行精准判断。关闭后仅使用传统设置的规则。</div>
+      <div class="sub-desc mt-8">
+        开启后将使用 AI 针对岗位 JD 和您的简历进行精准判断。关闭后仅使用传统设置的规则。
+      </div>
     </div>
 
     <div class="boss-card mt-16">
@@ -22,7 +27,12 @@
           <span>包含求职者个人信息</span>
           <div class="sub-desc mt-4">将您的基本信息（学历、经验等）加入 AI 判断上下文。</div>
         </div>
-        <el-switch v-model="form.includeUserProfile" inline-prompt active-text="开" inactive-text="关" />
+        <el-switch
+          v-model="form.includeUserProfile"
+          inline-prompt
+          active-text="开"
+          inactive-text="关"
+        />
       </div>
 
       <div class="judge-divider"></div>
@@ -30,9 +40,16 @@
       <div class="judge-inline-switches">
         <div class="switch-content">
           <span>包含传统规则摘要</span>
-          <div class="sub-desc mt-4">将「传统投递」中的过滤规则（如薪资、活跃度等）提供给 AI 辅助判定。</div>
+          <div class="sub-desc mt-4">
+            将「传统投递」中的过滤规则（如薪资、活跃度等）提供给 AI 辅助判定。
+          </div>
         </div>
-        <el-switch v-model="form.includeTraditionalSnapshot" inline-prompt active-text="开" inactive-text="关" />
+        <el-switch
+          v-model="form.includeTraditionalSnapshot"
+          inline-prompt
+          active-text="开"
+          inactive-text="关"
+        />
       </div>
     </div>
 
@@ -95,12 +112,16 @@
 
     <div class="action-footer mt-24">
       <div class="footer-right buttons">
-        <el-button class="boss-btn-text text-muted" link @click="resetToDefault">恢复默认配置</el-button>
-        <el-button type="warning" plain :loading="previewLoading" @click="handlePreviewInputOnce">测试重点分析</el-button>
-        <el-button 
-          color="#00bebd" 
-          class="save-btn" 
-          style="color: #fff;" 
+        <el-button class="boss-btn-text text-muted" link @click="resetToDefault"
+          >恢复默认配置</el-button
+        >
+        <el-button type="warning" plain :loading="previewLoading" @click="handlePreviewInputOnce"
+          >测试重点分析</el-button
+        >
+        <el-button
+          color="#00bebd"
+          class="save-btn"
+          style="color: #fff"
           :loading="isSaving"
           @click="handleSave"
         >
@@ -122,7 +143,7 @@
     >
       <div class="preview-job-card">
         <div class="job-card-label">模拟测试岗位</div>
-        <div class="job-card-title">{{ previewJobLabel || "未命名岗位" }}</div>
+        <div class="job-card-title">{{ previewJobLabel || '未命名岗位' }}</div>
       </div>
 
       <div class="preview-code-container">
@@ -130,7 +151,13 @@
           <span>构建的 Prompt Payload</span>
           <el-button link class="boss-btn-text" @click="copyPayload">复制内容</el-button>
         </div>
-        <el-input v-model="previewPayloadText" type="textarea" :rows="16" readonly class="code-preview-input" />
+        <el-input
+          v-model="previewPayloadText"
+          type="textarea"
+          :rows="16"
+          readonly
+          class="code-preview-input"
+        />
       </div>
 
       <template #footer>
@@ -143,16 +170,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, reactive, ref } from "vue";
-import { showAppMessage } from "@/core/http/request";
-import { Tools } from "@/shared/utils/tools";
+import { computed, inject, reactive, ref } from 'vue';
+import { showAppMessage } from '@/core/http/request';
+import { Tools } from '@/shared/utils/tools';
 import {
   buildAiDeliveryFilterJobInput,
   buildAiDeliveryJudgePrompt,
   buildAiDeliveryUserProfile,
-  buildTraditionalRuleSnapshot
-} from "@/core/delivery/ai-delivery-builder";
-import { UserStore } from "@/state/user";
+  buildTraditionalRuleSnapshot,
+} from '@/core/delivery/ai-delivery-builder';
+import { UserStore } from '@/state/user';
 
 type JobPreviewPlatform = {
   getJobList: () => Array<Record<string, unknown>>;
@@ -171,21 +198,21 @@ const props = withDefaults(
   }>(),
   {
     showSectionHeader: true,
-    sectionTitle: "AI 投递判定（岗位级）",
+    sectionTitle: 'AI 投递判定（岗位级）',
     embedded: false,
-    showSyncHint: true
+    showSyncHint: true,
   }
 );
 
 const userStore = UserStore();
-const platform = inject<JobPreviewPlatform | null>("$platform", null);
+const platform = inject<JobPreviewPlatform | null>('$platform', null);
 const currentConfig = Tools.getAiDeliveryJudgeConfig(userStore.user?.preference || {});
 
 const previewVisible = ref(false);
 const previewLoading = ref(false);
 const isSaving = ref(false);
-const previewJobLabel = ref("");
-const previewPayloadText = ref("");
+const previewJobLabel = ref('');
+const previewPayloadText = ref('');
 const focusSkills = ref<string[]>(currentConfig.focusSkills);
 const excludeKeywords = ref<string[]>(currentConfig.excludeKeywords);
 
@@ -195,13 +222,13 @@ const embedded = computed(() => props.embedded);
 const showSyncHint = computed(() => props.showSyncHint);
 
 const toRecord = (value: unknown): Record<string, unknown> => {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
     return value as Record<string, unknown>;
   }
   return {};
 };
 
-const toText = (value: unknown, fallback = ""): string => {
+const toText = (value: unknown, fallback = ''): string => {
   return `${value ?? fallback}`;
 };
 
@@ -210,7 +237,7 @@ const form = reactive({
   includeUserProfile: currentConfig.includeUserProfile,
   includeTraditionalSnapshot: currentConfig.includeTraditionalSnapshot,
   onAiError: currentConfig.onAiError,
-  onInvalidResult: currentConfig.onInvalidResult
+  onInvalidResult: currentConfig.onInvalidResult,
 });
 
 const handleSave = () => {
@@ -223,7 +250,7 @@ const handleSave = () => {
       includeUserProfile: form.includeUserProfile,
       includeTraditionalSnapshot: form.includeTraditionalSnapshot,
       onAiError: form.onAiError,
-      onInvalidResult: form.onInvalidResult
+      onInvalidResult: form.onInvalidResult,
     });
 
     form.enabled = saved.enabled;
@@ -234,9 +261,9 @@ const handleSave = () => {
     form.onAiError = saved.onAiError;
     form.onInvalidResult = saved.onInvalidResult;
     showAppMessage({
-      message: "AI 投递判定设置已保存",
-      type: "success",
-      duration: 2000
+      message: 'AI 投递判定设置已保存',
+      type: 'success',
+      duration: 2000,
     });
   } finally {
     isSaving.value = false;
@@ -247,8 +274,8 @@ const resetToDefault = () => {
   form.enabled = true;
   form.includeUserProfile = true;
   form.includeTraditionalSnapshot = false;
-  form.onAiError = "reject";
-  form.onInvalidResult = "reject";
+  form.onAiError = 'reject';
+  form.onInvalidResult = 'reject';
   focusSkills.value = [];
   excludeKeywords.value = [];
 };
@@ -256,18 +283,20 @@ const resetToDefault = () => {
 const handlePreviewInputOnce = async () => {
   if (!platform) {
     showAppMessage({
-      type: "warning",
-      message: "当前页面不支持测试输入预览"
+      type: 'warning',
+      message: '当前页面不支持测试输入预览',
     });
     return;
   }
 
   const jobList = platform.getJobList();
-  const firstJob = Array.isArray(jobList) ? jobList.find((item) => item && typeof item === "object") : null;
+  const firstJob = Array.isArray(jobList)
+    ? jobList.find((item) => item && typeof item === 'object')
+    : null;
   if (!firstJob) {
     showAppMessage({
-      type: "warning",
-      message: "当前页面没有可测试岗位，请先进入岗位列表页"
+      type: 'warning',
+      message: '当前页面没有可测试岗位，请先进入岗位列表页',
     });
     return;
   }
@@ -287,7 +316,7 @@ const handlePreviewInputOnce = async () => {
         focusSkills: focusSkills.value,
         excludeKeywords: excludeKeywords.value,
         includeUserProfile: form.includeUserProfile,
-        includeTraditionalSnapshot: form.includeTraditionalSnapshot
+        includeTraditionalSnapshot: form.includeTraditionalSnapshot,
       },
       userProfile,
       traditionalSnapshot
@@ -302,7 +331,7 @@ const handlePreviewInputOnce = async () => {
       {
         prompt,
         jobBaseInfo: filterInput.jobBaseInfo,
-        jobExtInfo: filterInput.jobExtInfo
+        jobExtInfo: filterInput.jobExtInfo,
       },
       null,
       2
@@ -310,10 +339,10 @@ const handlePreviewInputOnce = async () => {
     previewVisible.value = true;
   } catch (error) {
     showAppMessage({
-      type: "error",
-      message: `测试失败：${(error as Error | undefined)?.message || "生成输入预览失败"}`,
+      type: 'error',
+      message: `测试失败：${(error as Error | undefined)?.message || '生成输入预览失败'}`,
       duration: 5000,
-      showClose: true
+      showClose: true,
     });
   } finally {
     previewLoading.value = false;
@@ -323,16 +352,16 @@ const handlePreviewInputOnce = async () => {
 const copyPayload = async () => {
   if (!previewPayloadText.value.trim()) {
     showAppMessage({
-      type: "warning",
-      message: "当前没有可复制的内容"
+      type: 'warning',
+      message: '当前没有可复制的内容',
     });
     return;
   }
 
   if (!navigator?.clipboard?.writeText) {
     showAppMessage({
-      type: "warning",
-      message: "当前环境不支持剪贴板复制"
+      type: 'warning',
+      message: '当前环境不支持剪贴板复制',
     });
     return;
   }
@@ -340,13 +369,13 @@ const copyPayload = async () => {
   try {
     await navigator.clipboard.writeText(previewPayloadText.value);
     showAppMessage({
-      type: "success",
-      message: "已复制到剪贴板"
+      type: 'success',
+      message: '已复制到剪贴板',
     });
   } catch {
     showAppMessage({
-      type: "error",
-      message: "复制失败，请手动选择复制"
+      type: 'error',
+      message: '复制失败，请手动选择复制',
     });
   }
 };
@@ -545,7 +574,7 @@ const copyPayload = async () => {
   border: none;
   border-radius: 0;
   padding: 16px;
-  font-family: "JetBrains Mono", Consolas, Monaco, Courier, monospace;
+  font-family: 'JetBrains Mono', Consolas, Monaco, Courier, monospace;
   font-size: 13px;
   line-height: 1.5;
   color: #434c5e;

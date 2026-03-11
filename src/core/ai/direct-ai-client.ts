@@ -4,12 +4,9 @@
 
 import { Tools } from '@/shared/utils/tools';
 
-declare const GM_xmlhttpRequest:
-  | ((options: Record<string, unknown>) => unknown)
-  | undefined;
+declare const GM_xmlhttpRequest: ((options: Record<string, unknown>) => unknown) | undefined;
 
-const _GM_xmlhttpRequest =
-  typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : undefined;
+const _GM_xmlhttpRequest = typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : undefined;
 
 export type ApiFormat = 'completions' | 'responses';
 
@@ -38,29 +35,31 @@ const DIRECT_TEST_RETRY_DELAY_MS = 1200;
 function isRetryableDirectNetworkError(message: string): boolean {
   const text = `${message || ''}`.toLowerCase();
   if (
-    text.includes('跨域')
-    || text.includes('白名单')
-    || text.includes('鉴权失败')
-    || text.includes('接口不存在(404)')
-    || text.includes('请求过于频繁(429)')
-    || text.includes('请求失败(')
+    text.includes('跨域') ||
+    text.includes('白名单') ||
+    text.includes('鉴权失败') ||
+    text.includes('接口不存在(404)') ||
+    text.includes('请求过于频繁(429)') ||
+    text.includes('请求失败(')
   ) {
     return false;
   }
 
-  return text.includes('请求超时')
-    || text.includes('network error')
-    || text.includes('timed out')
-    || text.includes('econnreset')
-    || text.includes('eai_again')
-    || text.includes('dns')
-    || text.includes('failed to fetch');
+  return (
+    text.includes('请求超时') ||
+    text.includes('network error') ||
+    text.includes('timed out') ||
+    text.includes('econnreset') ||
+    text.includes('eai_again') ||
+    text.includes('dns') ||
+    text.includes('failed to fetch')
+  );
 }
 
 function normalizeGmNetworkError(
   url: string,
   err: any,
-  context?: { timeoutMs?: number; elapsedMs?: number },
+  context?: { timeoutMs?: number; elapsedMs?: number }
 ): string {
   const reasonCandidate = err?.error || err?.message || err?.statusText || '';
   const reason = typeof reasonCandidate === 'string' ? reasonCandidate.trim() : '';
@@ -144,7 +143,7 @@ export function shouldUseDirectCall(): boolean {
  */
 export async function directAiCall(
   config: DirectAiConfig,
-  messages: DirectAiMessage[],
+  messages: DirectAiMessage[]
 ): Promise<string> {
   if (!_GM_xmlhttpRequest) {
     throw new Error('GM_xmlhttpRequest 不可用');
@@ -168,7 +167,7 @@ function callCompletionsApi(
   apiKey: string,
   modelName: string,
   messages: DirectAiMessage[],
-  timeoutMs: number,
+  timeoutMs: number
 ): Promise<string> {
   const url = buildApiEndpointUrl(baseUrl, 'completions');
   const body = JSON.stringify({
@@ -191,7 +190,7 @@ function callResponsesApi(
   apiKey: string,
   modelName: string,
   messages: DirectAiMessage[],
-  timeoutMs: number,
+  timeoutMs: number
 ): Promise<string> {
   const url = buildApiEndpointUrl(baseUrl, 'responses');
 
@@ -290,18 +289,20 @@ function gmRequest(url: string, apiKey: string, body: string, timeoutMs: number)
       onload: (response: any) => {
         if (response.status >= 200 && response.status < 300) {
           try {
-            const data = typeof response.response === 'string'
-              ? JSON.parse(response.response)
-              : response.response;
+            const data =
+              typeof response.response === 'string'
+                ? JSON.parse(response.response)
+                : response.response;
             resolveOnce(data);
           } catch (parseError: any) {
             rejectOnce(new Error(`AI响应解析失败: ${parseError?.message || parseError}`));
           }
         } else {
           const status = Number(response?.status || 0);
-          const errMsg = typeof response.response === 'object'
-            ? (response.response?.error?.message || JSON.stringify(response.response))
-            : (response.responseText || `HTTP ${response.status}`);
+          const errMsg =
+            typeof response.response === 'object'
+              ? response.response?.error?.message || JSON.stringify(response.response)
+              : response.responseText || `HTTP ${response.status}`;
           if (status === 401 || status === 403) {
             rejectOnce(new Error(`鉴权失败(${status}): 请检查 API Key 是否正确`));
             return;
@@ -319,20 +320,28 @@ function gmRequest(url: string, apiKey: string, body: string, timeoutMs: number)
             return;
           }
           if (status === 0) {
-            rejectOnce(new Error(normalizeGmNetworkError(url, response, {
-              timeoutMs,
-              elapsedMs: Date.now() - startedAt,
-            })));
+            rejectOnce(
+              new Error(
+                normalizeGmNetworkError(url, response, {
+                  timeoutMs,
+                  elapsedMs: Date.now() - startedAt,
+                })
+              )
+            );
             return;
           }
           rejectOnce(new Error(`请求失败(${status || 'unknown'}): ${errMsg}`));
         }
       },
       onerror: (err: any) => {
-        rejectOnce(new Error(normalizeGmNetworkError(url, err, {
-          timeoutMs,
-          elapsedMs: Date.now() - startedAt,
-        })));
+        rejectOnce(
+          new Error(
+            normalizeGmNetworkError(url, err, {
+              timeoutMs,
+              elapsedMs: Date.now() - startedAt,
+            })
+          )
+        );
       },
       ontimeout: () => {
         rejectOnce(new Error(`请求超时: 请检查网络连接或增大超时时间 (${url})`));
@@ -365,7 +374,7 @@ export async function directAsk(
   question: string,
   systemPrompt: string,
   messageHistory: DirectAiMessage[],
-  config: DirectAiConfig,
+  config: DirectAiConfig
 ): Promise<any> {
   const messages: DirectAiMessage[] = [];
 
@@ -393,21 +402,22 @@ export async function directAsk(
  * 直接测试 API 连通性
  */
 export async function directTest(config: DirectAiConfig): Promise<string> {
-  const messages: DirectAiMessage[] = [
-    { role: 'user', content: '你好，请简短回复确认连接正常。' },
-  ];
+  const messages: DirectAiMessage[] = [{ role: 'user', content: '你好，请简短回复确认连接正常。' }];
   let lastError: unknown;
   for (let attempt = 0; attempt <= DIRECT_TEST_MAX_RETRY; attempt += 1) {
     try {
       return await directAiCall(config, messages);
     } catch (error: any) {
       lastError = error;
-      if (attempt >= DIRECT_TEST_MAX_RETRY || !isRetryableDirectNetworkError(error?.message || '')) {
+      if (
+        attempt >= DIRECT_TEST_MAX_RETRY ||
+        !isRetryableDirectNetworkError(error?.message || '')
+      ) {
         throw error;
       }
       await Tools.sleep(DIRECT_TEST_RETRY_DELAY_MS);
     }
   }
 
-  throw (lastError || new Error('测试失败: 未知错误'));
+  throw lastError || new Error('测试失败: 未知错误');
 }

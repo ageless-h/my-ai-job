@@ -1,15 +1,15 @@
 // -*- coding: utf-8 -*-
-import { createApp } from "vue";
-import { createPinia } from "pinia";
-import ElementPlus from "element-plus";
-import zhCn from "element-plus/es/locale/lang/zh-cn";
-import "element-plus/dist/index.css";
-import "@/styles/ui-migration.css";
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import ElementPlus from 'element-plus';
+import zhCn from 'element-plus/es/locale/lang/zh-cn';
+import 'element-plus/dist/index.css';
+import '@/styles/ui-migration.css';
 
-import App from "@/app/App.vue";
-import { createStoreRuntimeAdapter } from "@/app/adapters/store-adapter";
-import { request } from "@/core/http/request";
-import { PlatformFactory } from "@/core/platform/platform-factory";
+import App from '@/app/App.vue';
+import { createStoreRuntimeAdapter } from '@/app/adapters/store-adapter';
+import { request } from '@/core/http/request';
+import { PlatformFactory } from '@/core/platform/platform-factory';
 
 declare global {
   interface Window {
@@ -18,7 +18,7 @@ declare global {
   }
 }
 
-const ROOT_ID = "ai-job";
+const ROOT_ID = 'ai-job';
 
 const app = createApp(App);
 app.use(createPinia());
@@ -26,8 +26,8 @@ app.use(ElementPlus, { locale: zhCn });
 
 const runtimeDeps = createStoreRuntimeAdapter();
 const platform = PlatformFactory.getInstance(location.href, runtimeDeps);
-app.provide("$platform", platform);
-app.provide("$axios", request);
+app.provide('$platform', platform);
+app.provide('$axios', request);
 
 const ensureSingleRoot = () => {
   const roots = Array.from(document.querySelectorAll<HTMLElement>(`#${ROOT_ID}`));
@@ -50,33 +50,36 @@ const mountApp = () => {
 
   window.__AI_JOB_HUNTING_MOUNTING__ = true;
 
-  const rootApp = document.createElement("div");
+  const rootApp = document.createElement('div');
   rootApp.id = ROOT_ID;
-  rootApp.classList.add("page-job-content");
+  rootApp.classList.add('page-job-content');
 
-  platform.getMountEle().then((elP) => {
-    const latestRoot = ensureSingleRoot();
-    if (latestRoot) {
+  platform
+    .getMountEle()
+    .then((elP) => {
+      const latestRoot = ensureSingleRoot();
+      if (latestRoot) {
+        window.__AI_JOB_HUNTING_MOUNTED__ = true;
+        return;
+      }
+
+      const containerEle = elP.el;
+      if (elP.p === 'end') {
+        containerEle.appendChild(rootApp);
+      } else {
+        containerEle.insertBefore(rootApp, containerEle.firstElementChild);
+      }
+
+      app.mount(rootApp);
       window.__AI_JOB_HUNTING_MOUNTED__ = true;
-      return;
-    }
-
-    const containerEle = elP.el;
-    if (elP.p === "end") {
-      containerEle.appendChild(rootApp);
-    } else {
-      containerEle.insertBefore(rootApp, containerEle.firstElementChild);
-    }
-
-    app.mount(rootApp);
-    window.__AI_JOB_HUNTING_MOUNTED__ = true;
-  }).finally(() => {
-    window.__AI_JOB_HUNTING_MOUNTING__ = false;
-  });
+    })
+    .finally(() => {
+      window.__AI_JOB_HUNTING_MOUNTING__ = false;
+    });
 };
 
-if (document.readyState === "complete") {
+if (document.readyState === 'complete') {
   mountApp();
 } else {
-  window.addEventListener("load", mountApp, { once: true });
+  window.addEventListener('load', mountApp, { once: true });
 }

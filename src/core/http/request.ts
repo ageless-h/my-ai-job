@@ -1,14 +1,14 @@
 // -*- coding: utf-8 -*-
-import axios, { type AxiosInstance, type AxiosResponse } from "axios";
-import { ElMessage as ElMessage$1 } from "element-plus";
-import { Logger } from "@/shared/utils/logger";
-import { clearAuthorizationToken, getAuthorizationToken } from "@/core/auth/auth-session";
+import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
+import { ElMessage as ElMessage$1 } from 'element-plus';
+import { Logger } from '@/shared/utils/logger';
+import { clearAuthorizationToken, getAuthorizationToken } from '@/core/auth/auth-session';
 declare const __API_BASE_URL__: string;
 
 const logger = Logger.rootLogger;
 
 type MessageOptions = {
-  type?: "success" | "warning" | "info" | "error";
+  type?: 'success' | 'warning' | 'info' | 'error';
   message?: string;
   grouping?: boolean;
   duration?: number;
@@ -28,11 +28,11 @@ type RequestToastConfig = {
 };
 
 const normalizeText = (value: unknown): string => {
-  return `${value ?? ""}`.replace(/\s+/g, "").trim().toLowerCase();
+  return `${value ?? ''}`.replace(/\s+/g, '').trim().toLowerCase();
 };
 
 const readRecord = (value: unknown): Record<string, unknown> => {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 };
 
 const readRequestToastConfig = (config: unknown): RequestToastConfig => {
@@ -47,21 +47,21 @@ const readRequestToastConfig = (config: unknown): RequestToastConfig => {
 const isAiConfigRequest = (config: unknown): boolean => {
   const record = readRecord(config);
   const urlText = normalizeText(record.url);
-  return urlText.includes(normalizeText("/api/user/ai/config"));
+  return urlText.includes(normalizeText('/api/user/ai/config'));
 };
 
 export enum BizCodeEnum {
   NOT_LOGIN = 401,
   PARAM_ERROR = 410,
   INTERNAL_SERVER_ERROR = 500,
-  USER_NOT_EXIST = 2000
+  USER_NOT_EXIST = 2000,
 }
 
 export const request: AxiosInstance = axios.create({
   timeout: 10_000,
   headers: {
-    "Content-Type": "application/json; charset=utf-8"
-  }
+    'Content-Type': 'application/json; charset=utf-8',
+  },
 });
 
 request.defaults.baseURL = __API_BASE_URL__;
@@ -69,7 +69,7 @@ request.defaults.baseURL = __API_BASE_URL__;
 request.interceptors.request.use((req) => {
   const authorization = getAuthorizationToken();
   if (authorization) {
-    req.headers["Authorization"] = authorization;
+    req.headers['Authorization'] = authorization;
   }
 
   return req;
@@ -100,19 +100,23 @@ request.interceptors.response.use(
       if (authorization) {
         clearAuthorizationToken();
         showAppMessage({
-          type: "error",
-          message: "登录过期，请刷新页面重试"
+          type: 'error',
+          message: '登录过期，请刷新页面重试',
         });
-        return Promise.reject(new Error("登录过期，请刷新页面重试"));
+        return Promise.reject(new Error('登录过期，请刷新页面重试'));
       }
 
       return Promise.reject(result.message);
     }
 
-    if (!toastConfig.silentErrorToast && !aiConfigRequest && (!result.code || result.code === 500 || result.code >= 5000)) {
+    if (
+      !toastConfig.silentErrorToast &&
+      !aiConfigRequest &&
+      (!result.code || result.code === 500 || result.code >= 5000)
+    ) {
       showAppMessage({
-        type: "error",
-        message: result.message ? result.message : "系统异常"
+        type: 'error',
+        message: result.message ? result.message : '系统异常',
       });
       handlerErrorCode(result);
     }
@@ -122,33 +126,33 @@ request.interceptors.response.use(
   (error: any) => {
     const toastConfig = readRequestToastConfig(error?.config);
     const aiConfigRequest = isAiConfigRequest(error?.config);
-    const requestUrl = `${error?.config?.url || ""}`;
-    const requestMethod = `${error?.config?.method || ""}`.toUpperCase();
+    const requestUrl = `${error?.config?.url || ''}`;
+    const requestMethod = `${error?.config?.method || ''}`.toUpperCase();
 
-    if (error?.code === "ECONNABORTED") {
+    if (error?.code === 'ECONNABORTED') {
       if (toastConfig.silentTimeoutToast || toastConfig.silentErrorToast || aiConfigRequest) {
-        logger.warn("请求超时（已静默）", { method: requestMethod, url: requestUrl });
+        logger.warn('请求超时（已静默）', { method: requestMethod, url: requestUrl });
         return Promise.reject(error);
       }
       showAppMessage({
-        message: "网络超时",
-        type: "error",
+        message: '网络超时',
+        type: 'error',
         grouping: true,
-        duration: 2000
+        duration: 2000,
       });
       return Promise.reject(error);
     }
 
-    if (error?.code === "ERR_NETWORK") {
+    if (error?.code === 'ERR_NETWORK') {
       if (toastConfig.silentNetworkToast || toastConfig.silentErrorToast || aiConfigRequest) {
-        logger.warn("网络错误（已静默）", { method: requestMethod, url: requestUrl });
+        logger.warn('网络错误（已静默）', { method: requestMethod, url: requestUrl });
         return Promise.reject(error);
       }
       showAppMessage({
-        message: "系统异常,请稍后重试",
-        type: "error",
+        message: '系统异常,请稍后重试',
+        type: 'error',
         grouping: true,
-        duration: 2000
+        duration: 2000,
       });
       return Promise.reject(error);
     }
@@ -158,15 +162,15 @@ request.interceptors.response.use(
     }
 
     if (error?.response?.status === 404) {
-      error.message = "资源未找到";
+      error.message = '资源未找到';
     }
 
     if (!toastConfig.silentErrorToast && !aiConfigRequest) {
       showAppMessage({
         message: error?.message,
-        type: "error",
+        type: 'error',
         grouping: true,
-        duration: 3000
+        duration: 3000,
       });
     }
 

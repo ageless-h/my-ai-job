@@ -1,18 +1,12 @@
 /**
  * 敏感数据存储授权管理
- * 
+ *
  * 管理用户对敏感数据（简历、API密钥）存储的授权状态
  */
 
-declare const GM_getValue:
-  | (<T = unknown>(key: string, defaultValue?: T) => T)
-  | undefined;
-declare const GM_setValue:
-  | (<T = unknown>(key: string, value: T) => void)
-  | undefined;
-declare const GM_deleteValue:
-  | ((key: string) => void)
-  | undefined;
+declare const GM_getValue: (<T = unknown>(key: string, defaultValue?: T) => T) | undefined;
+declare const GM_setValue: (<T = unknown>(key: string, value: T) => void) | undefined;
+declare const GM_deleteValue: ((key: string) => void) | undefined;
 
 const _GM_getValue = typeof GM_getValue !== 'undefined' ? GM_getValue : undefined;
 const _GM_setValue = typeof GM_setValue !== 'undefined' ? GM_setValue : undefined;
@@ -43,7 +37,7 @@ export function getSensitiveDataConsent(): SensitiveDataConsent {
   } catch (error) {
     console.warn('读取敏感数据授权状态失败:', error);
   }
-  
+
   // 默认未授权
   return {
     resumeStorage: false,
@@ -105,13 +99,13 @@ export async function requestResumeStorageConsent(): Promise<boolean> {
 是否同意存储简历内容？`;
 
   const agreed = confirm(message);
-  
+
   if (agreed) {
     const consent = getSensitiveDataConsent();
     consent.resumeStorage = true;
     saveSensitiveDataConsent(consent);
   }
-  
+
   return agreed;
 }
 
@@ -136,13 +130,13 @@ export async function requestApiKeyStorageConsent(): Promise<boolean> {
 是否同意存储 API 密钥？`;
 
   const agreed = confirm(message);
-  
+
   if (agreed) {
     const consent = getSensitiveDataConsent();
     consent.apiKeyStorage = true;
     saveSensitiveDataConsent(consent);
   }
-  
+
   return agreed;
 }
 
@@ -190,7 +184,7 @@ export function clearAllSensitiveData(): void {
 
     // 撤销授权
     revokeAllConsents();
-    
+
     console.log('已清除所有敏感数据');
   } catch (error) {
     console.error('清除敏感数据失败:', error);

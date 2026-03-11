@@ -1,8 +1,8 @@
 // -*- coding: utf-8 -*-
-import { defineStore } from "pinia";
-import { ref } from "vue";
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
-export const useLoginStore = defineStore("ai-login", () => {
+export const useLoginStore = defineStore('ai-login', () => {
   const login = ref<boolean | undefined>();
   const loginFailStatus = ref<boolean | undefined>();
 
@@ -20,7 +20,7 @@ export const useLoginStore = defineStore("ai-login", () => {
     login,
     loginSuccess,
     loginFailStatus,
-    loginFail
+    loginFail,
   };
 });
 

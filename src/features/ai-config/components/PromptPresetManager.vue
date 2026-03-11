@@ -31,13 +31,10 @@
                 @update:model-value="togglePresetEnabled(preset.id)"
               />
               <div class="preset-card__buttons">
-                <el-button size="small" type="primary" plain @click="startEditPreset(preset.id)">编辑</el-button>
-                <el-button
-                  size="small"
-                  type="danger"
-                  plain
-                  @click="deletePresetById(preset.id)"
+                <el-button size="small" type="primary" plain @click="startEditPreset(preset.id)"
+                  >编辑</el-button
                 >
+                <el-button size="small" type="danger" plain @click="deletePresetById(preset.id)">
                   删除
                 </el-button>
               </div>
@@ -182,7 +179,10 @@ const savePreset = () => {
   }
 
   state.persistAiConfigExt();
-  state.ElMessage({ type: 'success', message: editingPresetId.value ? '预设已更新' : '预设已创建' });
+  state.ElMessage({
+    type: 'success',
+    message: editingPresetId.value ? '预设已更新' : '预设已创建',
+  });
   backToPresetList();
 };
 
@@ -210,12 +210,15 @@ const deletePresetById = async (id) => {
     return;
   }
 
-  const confirmed = await state.ElMessageBox
-    .confirm(`确认删除预设【${preset.name}】？`, '删除确认', {
+  const confirmed = await state.ElMessageBox.confirm(
+    `确认删除预设【${preset.name}】？`,
+    '删除确认',
+    {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
       type: 'warning',
-    })
+    }
+  )
     .then(() => true)
     .catch(() => false);
   if (!confirmed) {
@@ -246,28 +249,132 @@ const deletePresetById = async (id) => {
 </script>
 
 <style scoped>
-.preset-view-wrapper{position:relative;overflow:hidden}
-.preset-view-panels{display:flex;width:200%;transition:transform .28s ease}
-.preset-view-wrapper.is-edit .preset-view-panels{transform:translateX(-50%)}
-.preset-view-list, .preset-view-edit{width:50%;flex-shrink:0}
-.preset-view-edit{visibility:hidden;max-height:0;overflow:hidden}
-.preset-view-wrapper.is-edit .preset-view-edit{visibility:visible;max-height:none;overflow:visible}
-.preset-view-wrapper.is-edit .preset-view-list{visibility:hidden;max-height:0;overflow:hidden}
-.preset-list-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.preset-list-tip{font-size:12px;line-height:1.6;color:#606266}
-.preset-card{border:1px solid #e4e7ed;border-radius:8px;padding:10px 12px;margin-bottom:10px;background:#fff}
-.preset-card__header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.preset-card__name{font-size:13px;font-weight:600;color:#303133}
-.preset-card__content{font-size:12px;color:#606266;line-height:1.5;margin-bottom:8px;word-break:break-all}
-.preset-card__actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.preset-card__buttons{display:flex;align-items:center;gap:8px}
-.preset-view-edit{padding-left:4px}
-.preset-edit-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.preset-edit-title{font-size:13px;font-weight:600;color:#303133}
-.variable-hint{margin-top:4px;padding:10px;background:#fff;border:1px solid #e4e7ed;border-radius:8px}
-.variable-hint__title{font-size:12px;line-height:1.6;color:#606266;margin-bottom:6px}
-.variable-hint__tags{display:flex;flex-wrap:wrap;gap:6px}
-.variable-tag{cursor:pointer}
-.variable-tag:hover{color:var(--ai-primary,#409eff);border-color:var(--ai-primary,#409eff)}
-.preset-edit-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.preset-view-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+.preset-view-panels {
+  display: flex;
+  width: 200%;
+  transition: transform 0.28s ease;
+}
+.preset-view-wrapper.is-edit .preset-view-panels {
+  transform: translateX(-50%);
+}
+.preset-view-list,
+.preset-view-edit {
+  width: 50%;
+  flex-shrink: 0;
+}
+.preset-view-edit {
+  visibility: hidden;
+  max-height: 0;
+  overflow: hidden;
+}
+.preset-view-wrapper.is-edit .preset-view-edit {
+  visibility: visible;
+  max-height: none;
+  overflow: visible;
+}
+.preset-view-wrapper.is-edit .preset-view-list {
+  visibility: hidden;
+  max-height: 0;
+  overflow: hidden;
+}
+.preset-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.preset-list-tip {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #606266;
+}
+.preset-card {
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+.preset-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.preset-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+}
+.preset-card__content {
+  font-size: 12px;
+  color: #606266;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+.preset-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.preset-card__buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.preset-view-edit {
+  padding-left: 4px;
+}
+.preset-edit-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.preset-edit-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+}
+.variable-hint {
+  margin-top: 4px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+}
+.variable-hint__title {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #606266;
+  margin-bottom: 6px;
+}
+.variable-hint__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.variable-tag {
+  cursor: pointer;
+}
+.variable-tag:hover {
+  color: var(--ai-primary, #409eff);
+  border-color: var(--ai-primary, #409eff);
+}
+.preset-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 </style>

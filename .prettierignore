@@ -1,0 +1,42 @@
+# 依赖
+node_modules/
+
+# 构建输出
+dist/
+build/
+
+# 缓存
+.cache/
+.temp/
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 备份文件
+backups/
+*.backup
+
+# 生成的类型定义
+*.d.ts
+
+# Markdown 文件（保留原始格式）
+*.md

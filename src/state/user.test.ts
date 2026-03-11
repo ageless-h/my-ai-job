@@ -6,9 +6,11 @@ import { getLocalUser } from './user';
 // Mock Tools
 vi.mock('@/shared/utils/tools', () => ({
   Tools: {
-    getStoredUserProfileRaw: vi.fn(() => '{"phone":"13800138000","email":"test@example.com","preference":{},"preferenceMap":{}}'),
-    setStoredUserProfileRaw: vi.fn()
-  }
+    getStoredUserProfileRaw: vi.fn(
+      () => '{"phone":"13800138000","email":"test@example.com","preference":{},"preferenceMap":{}}'
+    ),
+    setStoredUserProfileRaw: vi.fn(),
+  },
 }));
 
 // Mock Logger
@@ -18,14 +20,14 @@ vi.mock('@/shared/utils/logger', () => ({
       debug: vi.fn(),
       info: vi.fn(),
       warn: vi.fn(),
-      error: vi.fn()
-    }
-  }
+      error: vi.fn(),
+    },
+  },
 }));
 
 // Mock preference migration
 vi.mock('@/shared/utils/preference', () => ({
-  migratePreferenceKeys: vi.fn()
+  migratePreferenceKeys: vi.fn(),
 }));
 
 describe('UserStore', () => {
@@ -49,7 +51,7 @@ describe('UserStore', () => {
   it('应该能够更新用户偏好设置', () => {
     const store = useUserStore();
     const newPreference = { pushInterval: 5000, pushLimit: 20 };
-    
+
     store.user.preference = newPreference;
     expect(store.user.preference.pushInterval).toBe(5000);
     expect(store.user.preference.pushLimit).toBe(20);

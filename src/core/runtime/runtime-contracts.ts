@@ -25,7 +25,7 @@ export interface RuntimeUserProfile {
 export interface RuntimeUserStore {
   user: RuntimeUserProfile;
   platformType?: number;
-  preferenceLoadStatus?: "idle" | "loading" | "success" | "failed";
+  preferenceLoadStatus?: 'idle' | 'loading' | 'success' | 'failed';
   preferenceLoadError?: string;
 }
 

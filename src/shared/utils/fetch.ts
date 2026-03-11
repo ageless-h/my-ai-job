@@ -1,13 +1,10 @@
 // -*- coding: utf-8 -*-
 
-import { Tools } from "@/shared/utils/tools";
+import { Tools } from '@/shared/utils/tools';
 
-declare const GM_xmlhttpRequest:
-  | ((options: Record<string, unknown>) => unknown)
-  | undefined;
+declare const GM_xmlhttpRequest: ((options: Record<string, unknown>) => unknown) | undefined;
 
-const _GM_xmlhttpRequest =
-  typeof GM_xmlhttpRequest !== "undefined" ? GM_xmlhttpRequest : undefined;
+const _GM_xmlhttpRequest = typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : undefined;
 
 export interface FetchWithGMRequestOptions {
   method?: string;
@@ -28,20 +25,20 @@ export async function fetchWithGM_request<T = unknown>(
 ): Promise<GMFetchResponse<T>> {
   return new Promise((resolve, reject) => {
     if (!_GM_xmlhttpRequest) {
-      reject(new Error("GM_xmlhttpRequest is not available"));
+      reject(new Error('GM_xmlhttpRequest is not available'));
       return;
     }
     try {
-      Tools.ensureAllowedNetworkUrl(url, "GM请求");
+      Tools.ensureAllowedNetworkUrl(url, 'GM请求');
     } catch (error: any) {
       reject(error);
       return;
     }
     _GM_xmlhttpRequest({
-      method: options.method || "GET",
+      method: options.method || 'GET',
       url,
       headers: options.headers,
-      responseType: options.responseType || "json",
+      responseType: options.responseType || 'json',
       data: options.data,
       onload: (response: GMFetchResponse<T>) => {
         if (response.status === 200) {
@@ -51,11 +48,11 @@ export async function fetchWithGM_request<T = unknown>(
         }
       },
       onerror: () => {
-        reject(new Error("Network error"));
+        reject(new Error('Network error'));
       },
       ontimeout: () => {
-        reject(new Error("Request timed out"));
-      }
+        reject(new Error('Request timed out'));
+      },
     });
   });
 }

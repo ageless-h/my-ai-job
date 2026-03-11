@@ -1,8 +1,8 @@
 // -*- coding: utf-8 -*-
 
 export const simulateScrollToEnd = async (platform2?: string): Promise<void> => {
-  const isMac = platform2 === "mac" || navigator.platform.toUpperCase().includes("MAC");
-  const modifierKey = isMac ? "Meta" : "Control";
+  const isMac = platform2 === 'mac' || navigator.platform.toUpperCase().includes('MAC');
+  const modifierKey = isMac ? 'Meta' : 'Control';
   const waitFrame = (): Promise<void> => {
     return new Promise((resolve) => requestAnimationFrame(() => resolve()));
   };
@@ -10,16 +10,16 @@ export const simulateScrollToEnd = async (platform2?: string): Promise<void> => 
   try {
     const activeElement = document.activeElement;
     const eventOptions: KeyboardEventInit = {
-      key: "End",
-      code: "End",
-      [modifierKey.toLowerCase() + "Key"]: true,
+      key: 'End',
+      code: 'End',
+      [modifierKey.toLowerCase() + 'Key']: true,
       bubbles: true,
       cancelable: true,
       composed: true,
-      view: window
+      view: window,
     };
-    const downEvent = new KeyboardEvent("keydown", eventOptions);
-    const upEvent = new KeyboardEvent("keyup", eventOptions);
+    const downEvent = new KeyboardEvent('keydown', eventOptions);
+    const upEvent = new KeyboardEvent('keyup', eventOptions);
     document.dispatchEvent(downEvent);
     document.dispatchEvent(upEvent);
     if (activeElement) {
@@ -28,19 +28,21 @@ export const simulateScrollToEnd = async (platform2?: string): Promise<void> => 
     }
     await waitFrame();
   } catch (error) {
-    console.warn("键盘事件触发失败，使用备选方案");
+    console.warn('键盘事件触发失败，使用备选方案');
   }
 
   const getMaxScroll = (): number => {
     const documentElement = document.documentElement;
-    return Math.max(
-      document.body.scrollHeight,
-      documentElement.scrollHeight,
-      document.body.offsetHeight,
-      documentElement.offsetHeight,
-      document.body.clientHeight,
-      documentElement.clientHeight
-    ) - window.innerHeight;
+    return (
+      Math.max(
+        document.body.scrollHeight,
+        documentElement.scrollHeight,
+        document.body.offsetHeight,
+        documentElement.offsetHeight,
+        document.body.clientHeight,
+        documentElement.clientHeight
+      ) - window.innerHeight
+    );
   };
 
   let stableRounds = 0;
@@ -49,7 +51,7 @@ export const simulateScrollToEnd = async (platform2?: string): Promise<void> => 
     const beforeMaxScroll = Math.max(0, getMaxScroll());
     window.scrollTo({
       top: beforeMaxScroll,
-      behavior: "auto"
+      behavior: 'auto',
     });
     await waitFrame();
     await waitFrame();
@@ -76,6 +78,6 @@ export const simulateScrollToEnd = async (platform2?: string): Promise<void> => 
   }
 
   const finalMaxScroll = Math.max(0, getMaxScroll());
-  window.scrollTo({ top: finalMaxScroll, behavior: "auto" });
+  window.scrollTo({ top: finalMaxScroll, behavior: 'auto' });
   await waitFrame();
 };

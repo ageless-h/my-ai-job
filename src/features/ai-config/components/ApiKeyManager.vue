@@ -30,11 +30,20 @@
                 {{ item.id === activeApiConfigId ? '已启用' : '未启用' }}
               </el-tag>
               <div class="api-config-card__buttons">
-                <el-button size="small" type="primary" plain @click="startEditConfig(item.id)">编辑</el-button>
-                <el-button size="small" type="success" :disabled="item.id === activeApiConfigId" @click="activateApiConfig(item.id)">
+                <el-button size="small" type="primary" plain @click="startEditConfig(item.id)"
+                  >编辑</el-button
+                >
+                <el-button
+                  size="small"
+                  type="success"
+                  :disabled="item.id === activeApiConfigId"
+                  @click="activateApiConfig(item.id)"
+                >
                   启用
                 </el-button>
-                <el-button size="small" type="danger" plain @click="deleteApiConfig(item.id)">删除</el-button>
+                <el-button size="small" type="danger" plain @click="deleteApiConfig(item.id)"
+                  >删除</el-button
+                >
               </div>
             </div>
           </div>
@@ -56,7 +65,10 @@
           </div>
 
           <el-form-item label="BASE URL" prop="baseUrl">
-            <el-input v-model="editForm.baseUrl" placeholder="请输入 Base URL，如 https://api.openai.com/v1" />
+            <el-input
+              v-model="editForm.baseUrl"
+              placeholder="请输入 Base URL，如 https://api.openai.com/v1"
+            />
           </el-form-item>
 
           <el-form-item label="API KEY" prop="apiKey">
@@ -64,11 +76,14 @@
           </el-form-item>
 
           <el-form-item label="模型名称" prop="modelName">
-            <el-input v-model="editForm.modelName" placeholder="请输入模型名称，如 gpt-4o / deepseek-chat" />
+            <el-input
+              v-model="editForm.modelName"
+              placeholder="请输入模型名称，如 gpt-4o / deepseek-chat"
+            />
           </el-form-item>
 
           <el-form-item label="API 格式">
-            <el-select v-model="editForm.apiFormat" style="width:100%;" :teleported="false">
+            <el-select v-model="editForm.apiFormat" style="width: 100%" :teleported="false">
               <el-option label="Chat Completions（标准）" value="completions" />
               <el-option label="Responses API（GPT-5 系列）" value="responses" />
             </el-select>
@@ -76,7 +91,9 @@
 
           <el-form-item>
             <el-button type="info" :loading="isTempSaving" @click="handleTempSave">暂存</el-button>
-            <el-button type="success" :loading="isTestLoading" @click="handleTest">直连测试</el-button>
+            <el-button type="success" :loading="isTestLoading" @click="handleTest"
+              >直连测试</el-button
+            >
             <el-button type="primary" @click="saveApiConfig">保存配置</el-button>
           </el-form-item>
           <div class="api-test-note">网络超时会自动重试 1 次，鉴权/跨域/404 不重试</div>
@@ -229,7 +246,10 @@ const loadApiConfigs = () => {
     );
   });
 
-  if (!list.length && (state.form.value.apiKey || state.form.value.modelName || state.form.value.baseUrl)) {
+  if (
+    !list.length &&
+    (state.form.value.apiKey || state.form.value.modelName || state.form.value.baseUrl)
+  ) {
     const defaultConfig = normalizeApiConfigItem({ ...state.form.value, id: createApiConfigId() });
     list = [defaultConfig];
     if (defaultConfig.status === 1) {
@@ -348,12 +368,15 @@ const deleteApiConfig = async (id) => {
     return;
   }
 
-  const confirmed = await state.ElMessageBox
-    .confirm(`确认删除配置【${current.modelName || '未命名模型'}】？`, '删除确认', {
+  const confirmed = await state.ElMessageBox.confirm(
+    `确认删除配置【${current.modelName || '未命名模型'}】？`,
+    '删除确认',
+    {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
       type: 'warning',
-    })
+    }
+  )
     .then(() => true)
     .catch(() => false);
 
@@ -361,7 +384,9 @@ const deleteApiConfig = async (id) => {
     return;
   }
 
-  const nextList = apiConfigList.value.filter((item) => item.id !== id).map((item) => ({ ...item }));
+  const nextList = apiConfigList.value
+    .filter((item) => item.id !== id)
+    .map((item) => ({ ...item }));
   const ext = state.ensureAiConfigExtSchema();
   const activeId = ext.activeApiConfigId === id ? '' : ext.activeApiConfigId || '';
   persistApiConfigList(nextList, activeId);
@@ -454,7 +479,10 @@ const handleTest = async () => {
         apiFormat: editForm.value.apiFormat || 'completions',
         timeout: Number(editForm.value.timeout || 60),
       });
-      state.ElMessage({ type: 'success', message: `直连测试通过: ${(answer || '').slice(0, 100)}` });
+      state.ElMessage({
+        type: 'success',
+        message: `直连测试通过: ${(answer || '').slice(0, 100)}`,
+      });
       editForm.value.testPassed = 1;
     } catch (e) {
       state.ElMessage({
@@ -475,28 +503,120 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.api-view-wrapper{position:relative;overflow:hidden}
-.api-view-panels{display:flex;width:200%;transition:transform .28s ease}
-.api-view-wrapper.is-edit .api-view-panels{transform:translateX(-50%)}
-.api-view-list, .api-view-edit{width:50%;flex-shrink:0}
-.api-view-edit{visibility:hidden;max-height:0;overflow:hidden}
-.api-view-wrapper.is-edit .api-view-edit{visibility:visible;max-height:none;overflow:visible}
-.api-view-wrapper.is-edit .api-view-list{visibility:hidden;max-height:0;overflow:hidden}
-.api-config-list{padding-right:2px}
-.api-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.api-list-tip-group{display:flex;flex-direction:column;gap:2px}
-.api-list-tip{font-size:12px;color:#909399}
-.api-list-note{font-size:11px;color:#67c23a}
-.api-config-card{border:1px solid var(--ai-border,#f0f2f5);border-radius:var(--ai-radius-sm,6px);padding:10px 12px;margin-bottom:10px;background:var(--ai-bg-subtle,#f5f7fa);box-shadow:var(--ai-shadow-sm,0 1px 2px rgba(0,0,0,.05))}
-.api-config-card__meta{display:flex;flex-direction:column;gap:6px}
-.api-config-card__line{display:flex;justify-content:space-between;gap:8px;font-size:12px}
-.api-config-card__label{color:#909399}
-.api-config-card__value{color:#303133;word-break:break-all;text-align:right}
-.api-config-card__actions{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.api-config-card__buttons{display:flex;align-items:center;gap:8px}
-.api-view-edit{padding-left:4px}
-.api-edit-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.api-edit-title{font-size:13px;font-weight:600;color:#303133}
-.api-config-form{padding-right:2px}
-.api-test-note{margin-top:-4px;margin-bottom:6px;font-size:12px;color:#909399}
+.api-view-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+.api-view-panels {
+  display: flex;
+  width: 200%;
+  transition: transform 0.28s ease;
+}
+.api-view-wrapper.is-edit .api-view-panels {
+  transform: translateX(-50%);
+}
+.api-view-list,
+.api-view-edit {
+  width: 50%;
+  flex-shrink: 0;
+}
+.api-view-edit {
+  visibility: hidden;
+  max-height: 0;
+  overflow: hidden;
+}
+.api-view-wrapper.is-edit .api-view-edit {
+  visibility: visible;
+  max-height: none;
+  overflow: visible;
+}
+.api-view-wrapper.is-edit .api-view-list {
+  visibility: hidden;
+  max-height: 0;
+  overflow: hidden;
+}
+.api-config-list {
+  padding-right: 2px;
+}
+.api-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.api-list-tip-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.api-list-tip {
+  font-size: 12px;
+  color: #909399;
+}
+.api-list-note {
+  font-size: 11px;
+  color: #67c23a;
+}
+.api-config-card {
+  border: 1px solid var(--ai-border, #f0f2f5);
+  border-radius: var(--ai-radius-sm, 6px);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--ai-bg-subtle, #f5f7fa);
+  box-shadow: var(--ai-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+.api-config-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.api-config-card__line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.api-config-card__label {
+  color: #909399;
+}
+.api-config-card__value {
+  color: #303133;
+  word-break: break-all;
+  text-align: right;
+}
+.api-config-card__actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.api-config-card__buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.api-view-edit {
+  padding-left: 4px;
+}
+.api-edit-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.api-edit-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+}
+.api-config-form {
+  padding-right: 2px;
+}
+.api-test-note {
+  margin-top: -4px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #909399;
+}
 </style>

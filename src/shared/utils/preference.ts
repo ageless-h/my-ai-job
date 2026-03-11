@@ -1,19 +1,19 @@
 // -*- coding: utf-8 -*-
 export const normalizePreferenceBoolean = (value: unknown, defaultValue: boolean): boolean => {
-  if (typeof value === "boolean") {
+  if (typeof value === 'boolean') {
     return value;
   }
 
-  if (typeof value === "number") {
+  if (typeof value === 'number') {
     return value !== 0;
   }
 
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase();
-    if (["1", "true", "yes", "on"].includes(normalized)) {
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) {
       return true;
     }
-    if (["0", "false", "no", "off", ""].includes(normalized)) {
+    if (['0', 'false', 'no', 'off', ''].includes(normalized)) {
       return false;
     }
   }
@@ -27,28 +27,28 @@ type PreferenceMigrationEntry = {
 };
 
 const PREFERENCE_KEY_MIGRATIONS: PreferenceMigrationEntry[] = [
-  { nextKey: "pushIntervalSec", legacyKeys: ["pi"] },
-  { nextKey: "customGreeting", legacyKeys: ["cg"] },
-  { nextKey: "customGreetingEnabled", legacyKeys: ["cgE"] },
-  { nextKey: "customImageSet", legacyKeys: ["cI"] },
-  { nextKey: "customImageEnabled", legacyKeys: ["cIE"] },
-  { nextKey: "dialogReplyDelaySec", legacyKeys: ["dr"] },
-  { nextKey: "dialogReplyDelayEnabled", legacyKeys: ["drE"] },
-  { nextKey: "aiDeliveryJudgeEnabled", legacyKeys: ["aiDeliverJudgeE", "aiDeliverJudgeEnabled"] },
-  { nextKey: "aiDeliveryJudgePrompt", legacyKeys: ["aiDeliverJudgePrompt"] },
-  { nextKey: "aiDeliveryJudgeExtraPrompt", legacyKeys: ["aiDeliverJudgeExtraPrompt"] },
-  { nextKey: "aiDeliveryJudgeFocusSkills", legacyKeys: ["aiDeliverJudgeFocusSkills"] },
-  { nextKey: "aiDeliveryJudgeExcludeKeywords", legacyKeys: ["aiDeliverJudgeExcludeKeywords"] },
+  { nextKey: 'pushIntervalSec', legacyKeys: ['pi'] },
+  { nextKey: 'customGreeting', legacyKeys: ['cg'] },
+  { nextKey: 'customGreetingEnabled', legacyKeys: ['cgE'] },
+  { nextKey: 'customImageSet', legacyKeys: ['cI'] },
+  { nextKey: 'customImageEnabled', legacyKeys: ['cIE'] },
+  { nextKey: 'dialogReplyDelaySec', legacyKeys: ['dr'] },
+  { nextKey: 'dialogReplyDelayEnabled', legacyKeys: ['drE'] },
+  { nextKey: 'aiDeliveryJudgeEnabled', legacyKeys: ['aiDeliverJudgeE', 'aiDeliverJudgeEnabled'] },
+  { nextKey: 'aiDeliveryJudgePrompt', legacyKeys: ['aiDeliverJudgePrompt'] },
+  { nextKey: 'aiDeliveryJudgeExtraPrompt', legacyKeys: ['aiDeliverJudgeExtraPrompt'] },
+  { nextKey: 'aiDeliveryJudgeFocusSkills', legacyKeys: ['aiDeliverJudgeFocusSkills'] },
+  { nextKey: 'aiDeliveryJudgeExcludeKeywords', legacyKeys: ['aiDeliverJudgeExcludeKeywords'] },
   {
-    nextKey: "aiDeliveryJudgeIncludeUserProfile",
-    legacyKeys: ["aiDeliverJudgeIncludeUserProfile"]
+    nextKey: 'aiDeliveryJudgeIncludeUserProfile',
+    legacyKeys: ['aiDeliverJudgeIncludeUserProfile'],
   },
   {
-    nextKey: "aiDeliveryJudgeIncludeTraditionalSnapshot",
-    legacyKeys: ["aiDeliverJudgeIncludeTraditionalSnapshot"]
+    nextKey: 'aiDeliveryJudgeIncludeTraditionalSnapshot',
+    legacyKeys: ['aiDeliverJudgeIncludeTraditionalSnapshot'],
   },
-  { nextKey: "aiDeliveryJudgeOnAiError", legacyKeys: ["aiDeliverJudgeOnAiError"] },
-  { nextKey: "aiDeliveryJudgeOnInvalidResult", legacyKeys: ["aiDeliverJudgeOnInvalidResult"] }
+  { nextKey: 'aiDeliveryJudgeOnAiError', legacyKeys: ['aiDeliverJudgeOnAiError'] },
+  { nextKey: 'aiDeliveryJudgeOnInvalidResult', legacyKeys: ['aiDeliverJudgeOnInvalidResult'] },
 ];
 
 export const migratePreferenceKeys = (preference: Record<string, unknown>): void => {

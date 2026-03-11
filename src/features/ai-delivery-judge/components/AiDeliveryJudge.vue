@@ -1,13 +1,30 @@
+<!--
+/**
+ * AiDeliveryJudge.vue - AI 投递判定组件
+ * 
+ * 封装 AI 投递判定设置面板，提供简洁的标签页入口。
+ * 
+ * 主要功能：
+ * - 嵌入 AiDeliveryJudgeSettingsPanel 组件
+ * - 提供统一的标题和布局
+ * 
+ * @component
+ */
+-->
 <template>
   <div class="ai-delivery-judge-tab">
     <div class="header-title">AI 投递判定</div>
-    <AiDeliveryJudgeSettingsPanel :show-section-header="false" :embedded="true" :show-sync-hint="false" />
+    <AiDeliveryJudgeSettingsPanel
+      :show-section-header="false"
+      :embedded="true"
+      :show-sync-hint="false"
+    />
     <div class="bottom-spacer" aria-hidden="true"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import AiDeliveryJudgeSettingsPanel from "@/features/ai-delivery-judge/components/AiDeliveryJudgeSettingsPanel.vue";
+import AiDeliveryJudgeSettingsPanel from '@/features/ai-delivery-judge/components/AiDeliveryJudgeSettingsPanel.vue';
 </script>
 
 <style scoped>

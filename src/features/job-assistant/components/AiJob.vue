@@ -1,31 +1,64 @@
+<!--
+/**
+ * AiJob.vue - AI 职位助手组件（工作台）
+ * 
+ * 核心功能模块，提供批量投递/收藏、推荐页无限循环等自动化功能。
+ * 
+ * 主要功能：
+ * - 批量投递/收藏职位
+ * - 投递统计（成功/失败计数）
+ * - 单次处理限制设置
+ * - 推荐页无限循环（自动切换到"其他职位(深圳)"）
+ * - 实时操作记录显示
+ * - 投递记录清理
+ * 
+ * 技术特性：
+ * - 推荐页自动循环机制（TTL 45分钟）
+ * - 操作日志实时更新（防抖优化）
+ * - 投递状态管理（未开始/进行中/已暂停）
+ * - 自动滚动到最新日志
+ * - localStorage 持久化配置
+ * 
+ * @component
+ */
+-->
 <template>
   <div class="ai-job-tab">
     <div class="boss-card">
       <div class="card-title">投递统计</div>
       <div class="stats-row">
-         <div class="stat-item">
-           <span class="stat-label">今日{{ actionLabel }}成功</span>
-           <span class="stat-value text-primary" data-testid="push-success-count">{{ collectMode ? pushResultCounter.collectSuccessCount : pushResultCounter.successCount }}</span>
-         </div>
+        <div class="stat-item">
+          <span class="stat-label">今日{{ actionLabel }}成功</span>
+          <span class="stat-value text-primary" data-testid="push-success-count">{{
+            collectMode ? pushResultCounter.collectSuccessCount : pushResultCounter.successCount
+          }}</span>
+        </div>
         <div class="stat-divider"></div>
-         <div class="stat-item">
-           <span class="stat-label">今日{{ actionLabel }}失败</span>
-           <span class="stat-value text-danger" data-testid="push-fail-count">{{ collectMode ? pushResultCounter.collectFailCount : pushResultCounter.failCount }}</span>
-         </div>
+        <div class="stat-item">
+          <span class="stat-label">今日{{ actionLabel }}失败</span>
+          <span class="stat-value text-danger" data-testid="push-fail-count">{{
+            collectMode ? pushResultCounter.collectFailCount : pushResultCounter.failCount
+          }}</span>
+        </div>
         <div class="stat-divider"></div>
-         <div class="stat-actions">
-            <el-button 
-              type="info" 
-              size="small" 
-              plain 
-              :disabled="pushResultCounter.successCount === 0 && pushResultCounter.failCount === 0 && pushResultCounter.collectSuccessCount === 0 && pushResultCounter.collectFailCount === 0"
-              data-testid="clear-records-button" 
-              @click="handlerClearPushRecords"
-            >
-              <el-icon><Delete /></el-icon>
-              清理投递记录
-            </el-button>
-         </div>
+        <div class="stat-actions">
+          <el-button
+            type="info"
+            size="small"
+            plain
+            :disabled="
+              pushResultCounter.successCount === 0 &&
+              pushResultCounter.failCount === 0 &&
+              pushResultCounter.collectSuccessCount === 0 &&
+              pushResultCounter.collectFailCount === 0
+            "
+            data-testid="clear-records-button"
+            @click="handlerClearPushRecords"
+          >
+            <el-icon><Delete /></el-icon>
+            清理投递记录
+          </el-button>
+        </div>
       </div>
     </div>
 
@@ -84,7 +117,12 @@
           raw-content
           placement="bottom"
         >
-          <el-button :type="pushBtnType" class="boss-btn-full" data-testid="start-push-button" @click="handlerPush">
+          <el-button
+            :type="pushBtnType"
+            class="boss-btn-full"
+            data-testid="start-push-button"
+            @click="handlerPush"
+          >
             <el-icon class="mr-6">
               <Promotion v-if="pushStatus !== PushStatus.PUSHING" />
               <VideoPause v-else />
@@ -99,13 +137,16 @@
       <div class="card-title log-title">
         <div class="log-title-left">
           <span>实时操作记录</span>
-          <span class="status-dot ml-8" :class="{ 'is-active': pushStatus === PushStatus.PUSHING }"></span>
+          <span
+            class="status-dot ml-8"
+            :class="{ 'is-active': pushStatus === PushStatus.PUSHING }"
+          ></span>
         </div>
-        <el-button 
-          v-if="latestPushRecords.length > 0" 
-          type="primary" 
-          link 
-          size="small" 
+        <el-button
+          v-if="latestPushRecords.length > 0"
+          type="primary"
+          link
+          size="small"
           :disabled="latestPushRecords.length === 0"
           @click="handlerClearPushRecords"
         >
@@ -116,7 +157,12 @@
         <div v-if="latestPushRecords.length === 0" class="no-records">
           <el-empty description="暂无操作记录，点击上方按钮开始" :image-size="60" />
         </div>
-        <div v-else v-for="(record, index) in latestPushRecords" :key="index" class="push-record-item">
+        <div
+          v-else
+          v-for="(record, index) in latestPushRecords"
+          :key="index"
+          class="push-record-item"
+        >
           <div class="record-time">{{ record.timestamp }}</div>
           <div :class="['record-message', getRecordLevelClass(record.level)]">
             <span class="record-dot" :class="getRecordLevelClass(record.level)"></span>
@@ -128,7 +174,13 @@
 
     <transition name="el-fade-in">
       <div v-if="pushStatus === PushStatus.PUSHING" class="fixed-stop-button">
-        <el-button type="danger" size="large" shadow="always" data-testid="stop-push-button" @click="handlerFixedStopPush">
+        <el-button
+          type="danger"
+          size="large"
+          shadow="always"
+          data-testid="stop-push-button"
+          @click="handlerFixedStopPush"
+        >
           <el-icon class="mr-6">
             <VideoPause />
           </el-icon>
@@ -140,16 +192,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, nextTick, onUnmounted, ref, watch } from "vue";
-import { Delete, Promotion, VideoPause } from "@element-plus/icons-vue";
-import { isProdEnv, showAppMessage } from "@/core/http/request";
-import { Tools } from "@/shared/utils/tools";
-import { UserStore } from "@/state/user";
-import { LoginStore } from "@/state/login";
-import { pushResultCount } from "@/state/push-result";
-import { LogRecorder, PushStatus } from "@/core/engine/push-engine";
-import { loginInterceptor, silentlyLogin, userRemoteLoad } from "@/core/auth/auth";
-import { normalizePreferenceBoolean } from "@/shared/utils/preference";
+import { computed, inject, nextTick, onUnmounted, ref, watch } from 'vue';
+import { Delete, Promotion, VideoPause } from '@element-plus/icons-vue';
+import { isProdEnv, showAppMessage } from '@/core/http/request';
+import { Tools } from '@/shared/utils/tools';
+import { UserStore } from '@/state/user';
+import { LoginStore } from '@/state/login';
+import { pushResultCount } from '@/state/push-result';
+import { LogRecorder, PushStatus } from '@/core/engine/push-engine';
+import { loginInterceptor, silentlyLogin, userRemoteLoad } from '@/core/auth/auth';
+import { normalizePreferenceBoolean } from '@/shared/utils/preference';
 
 // Platform interface for type safety
 interface Platform {
@@ -172,16 +224,16 @@ interface LogEntry {
 const globalAny = globalThis as any;
 const logger = globalAny.logger$1 || console;
 
-const platform = inject<Platform>("$platform");
+const platform = inject<Platform>('$platform');
 const userStore = UserStore();
 const loginStore = LoginStore();
 const pushResultCounter = pushResultCount();
 
 const pushStatus = ref(PushStatus.NOT_START);
 const collectMode = ref(false);
-const actionLabel = computed(() => (collectMode.value ? "收藏" : "投递"));
-const getStartButtonText = () => (collectMode.value ? "开始收藏" : "开始投递");
-const pushBtnType = ref("primary");
+const actionLabel = computed(() => (collectMode.value ? '收藏' : '投递'));
+const getStartButtonText = () => (collectMode.value ? '开始收藏' : '开始投递');
+const pushBtnType = ref('primary');
 const pushBtnText = ref(getStartButtonText());
 const mockPush = ref(false);
 const selfDefPushCountLimit = ref(platform?.selfDefPushCountLimit ?? -1);
@@ -197,7 +249,7 @@ type StartPushOptions = {
   forceRecommendLoop?: boolean;
 };
 
-const RECOMMEND_LOOP_RELOAD_KEY = "ai-job-recommend-loop-reload";
+const RECOMMEND_LOOP_RELOAD_KEY = 'ai-job-recommend-loop-reload';
 const RECOMMEND_LOOP_TTL_MS = 45 * 60 * 1e3;
 const RECOMMEND_LOOP_RESUME_MAX_ATTEMPTS = 15;
 const RECOMMEND_LOOP_RESUME_INTERVAL_MS = 1200;
@@ -209,58 +261,72 @@ const infiniteLoopEnabled = computed({
     if (userStore?.user?.preference) {
       userStore.user.preference.imE = value;
     }
-  }
+  },
 });
 
 const isRecommendSalaryLoopPage = () => {
-  const href = String((Tools.window?.location ? Tools.window.location.href : location.href) || "");
+  const href = String((Tools.window?.location ? Tools.window.location.href : location.href) || '');
   try {
     const url = new URL(href);
-    return url.pathname.includes("/web/geek/jobs");
+    return url.pathname.includes('/web/geek/jobs');
   } catch (_error) {
-    return href.includes("/web/geek/jobs");
+    return href.includes('/web/geek/jobs');
   }
 };
 
-const normalizeText = (text: string) => `${text || ""}`.replace(/\s+/g, "");
+const normalizeText = (text: string) => `${text || ''}`.replace(/\s+/g, '');
 
 const isOtherJobsShenzhenText = (text: string) => {
   const normalized = normalizeText(text);
   return (
-    normalized.includes("其他职位(深圳)") ||
-    normalized.includes("其他职位（深圳）") ||
-    (normalized.includes("其他职位") && normalized.includes("深圳"))
+    normalized.includes('其他职位(深圳)') ||
+    normalized.includes('其他职位（深圳）') ||
+    (normalized.includes('其他职位') && normalized.includes('深圳'))
   );
 };
 
 const getOtherJobsShenzhenEntry = () => {
-  const selectors = ["a.expect-item.has-tooltip", "a.expect-item", ".expect-list a"];
+  const selectors = ['a.expect-item.has-tooltip', 'a.expect-item', '.expect-list a'];
   for (const selector of selectors) {
     const nodes = Array.from(document.querySelectorAll(selector));
-    const hit = nodes.find((node) => isOtherJobsShenzhenText(node.textContent || (node as HTMLElement).innerText || ""));
+    const hit = nodes.find((node) =>
+      isOtherJobsShenzhenText(node.textContent || (node as HTMLElement).innerText || '')
+    );
     if (hit) {
       return hit as HTMLElement;
     }
   }
-  const textNodes = Array.from(document.querySelectorAll(".text-content"));
-  const textHit = textNodes.find((node) => isOtherJobsShenzhenText(node.textContent || (node as HTMLElement).innerText || ""));
+  const textNodes = Array.from(document.querySelectorAll('.text-content'));
+  const textHit = textNodes.find((node) =>
+    isOtherJobsShenzhenText(node.textContent || (node as HTMLElement).innerText || '')
+  );
   if (textHit) {
-    return ((textHit as HTMLElement).closest("a.expect-item") || textHit) as HTMLElement;
+    return ((textHit as HTMLElement).closest('a.expect-item') || textHit) as HTMLElement;
   }
   return null;
 };
 
 const isOtherJobsShenzhenLikelyActive = () => {
   const activeEntries = Array.from(
-    document.querySelectorAll(".expect-item.active, .expect-item.cur, .expect-item.selected, .expect-item.current, .expect-item.on")
+    document.querySelectorAll(
+      '.expect-item.active, .expect-item.cur, .expect-item.selected, .expect-item.current, .expect-item.on'
+    )
   );
-  if (activeEntries.some((entry) => isOtherJobsShenzhenText(entry.textContent || (entry as HTMLElement).innerText || ""))) {
+  if (
+    activeEntries.some((entry) =>
+      isOtherJobsShenzhenText(entry.textContent || (entry as HTMLElement).innerText || '')
+    )
+  ) {
     return true;
   }
   const activeTextEntries = Array.from(
-    document.querySelectorAll(".expect-item .text-content.active, .expect-item .text-content.cur, .expect-item .text-content.selected")
+    document.querySelectorAll(
+      '.expect-item .text-content.active, .expect-item .text-content.cur, .expect-item .text-content.selected'
+    )
   );
-  return activeTextEntries.some((entry) => isOtherJobsShenzhenText(entry.textContent || (entry as HTMLElement).innerText || ""));
+  return activeTextEntries.some((entry) =>
+    isOtherJobsShenzhenText(entry.textContent || (entry as HTMLElement).innerText || '')
+  );
 };
 
 const triggerElementClick = (element: HTMLElement | null) => {
@@ -268,10 +334,10 @@ const triggerElementClick = (element: HTMLElement | null) => {
     return;
   }
   const eventInit = { bubbles: true, cancelable: true, composed: true };
-  element.dispatchEvent(new MouseEvent("mousedown", eventInit));
-  element.dispatchEvent(new MouseEvent("mouseup", eventInit));
-  element.dispatchEvent(new MouseEvent("click", eventInit));
-  if (typeof element.click === "function") {
+  element.dispatchEvent(new MouseEvent('mousedown', eventInit));
+  element.dispatchEvent(new MouseEvent('mouseup', eventInit));
+  element.dispatchEvent(new MouseEvent('click', eventInit));
+  if (typeof element.click === 'function') {
     element.click();
   }
 };
@@ -281,10 +347,10 @@ const alignOtherJobsShenzhen = async () => {
     return false;
   }
   const maxAttempts = 10;
-  logRecorder.info("推荐页无限循环：正在进入“其他职位(深圳)”");
+  logRecorder.info('推荐页无限循环：正在进入“其他职位(深圳)”');
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     if (isOtherJobsShenzhenLikelyActive()) {
-      logRecorder.info("推荐页无限循环：已进入“其他职位(深圳)”");
+      logRecorder.info('推荐页无限循环：已进入“其他职位(深圳)”');
       return true;
     }
     const entry = getOtherJobsShenzhenEntry();
@@ -295,7 +361,7 @@ const alignOtherJobsShenzhen = async () => {
     triggerElementClick(entry);
     await Tools.sleep(450);
     if (!isOtherJobsShenzhenLikelyActive()) {
-      const textEntry = entry.querySelector(".text-content") as HTMLElement | null;
+      const textEntry = entry.querySelector('.text-content') as HTMLElement | null;
       if (textEntry) {
         triggerElementClick(textEntry);
       }
@@ -304,27 +370,32 @@ const alignOtherJobsShenzhen = async () => {
   }
   const aligned = isOtherJobsShenzhenLikelyActive();
   if (!aligned) {
-    logRecorder.warn("推荐页无限循环：进入“其他职位(深圳)”失败，后续按当前列表继续");
+    logRecorder.warn('推荐页无限循环：进入“其他职位(深圳)”失败，后续按当前列表继续');
   }
   return aligned;
 };
 
 const shouldEnableRecommendLoop = () => {
-  return !!userStore?.user && !!userStore.user.preference.imE && !collectMode.value && isRecommendSalaryLoopPage();
+  return (
+    !!userStore?.user &&
+    !!userStore.user.preference.imE &&
+    !collectMode.value &&
+    isRecommendSalaryLoopPage()
+  );
 };
 
 const getRecommendLoopTargetUrl = () => {
-  const href = String((Tools.window?.location ? Tools.window.location.href : location.href) || "");
+  const href = String((Tools.window?.location ? Tools.window.location.href : location.href) || '');
   try {
     const url = new URL(href);
     return `${url.origin}/web/geek/jobs?salary=406`;
   } catch (_error) {
-    return "https://www.zhipin.com/web/geek/jobs?salary=406";
+    return 'https://www.zhipin.com/web/geek/jobs?salary=406';
   }
 };
 
 const navigateToRecommendLoopTarget = (targetUrl = getRecommendLoopTargetUrl()) => {
-  if (Tools.window?.location && typeof Tools.window.location.assign === "function") {
+  if (Tools.window?.location && typeof Tools.window.location.assign === 'function') {
     Tools.window.location.assign(targetUrl);
   } else {
     window.location.href = targetUrl;
@@ -334,8 +405,8 @@ const navigateToRecommendLoopTarget = (targetUrl = getRecommendLoopTargetUrl()) 
 const markRecommendLoopReload = () => {
   const payload = {
     ts: Date.now(),
-    mode: collectMode.value ? "collect" : "push",
-    targetUrl: getRecommendLoopTargetUrl()
+    mode: collectMode.value ? 'collect' : 'push',
+    targetUrl: getRecommendLoopTargetUrl(),
   };
   localStorage.setItem(RECOMMEND_LOOP_RELOAD_KEY, JSON.stringify(payload));
 };
@@ -363,11 +434,11 @@ const clearRecommendLoopReload = () => {
 };
 
 const getPlatformLastStopReason = () => {
-  return `${platform?.lastStopReason || ""}`.trim();
+  return `${platform?.lastStopReason || ''}`.trim();
 };
 
 const parseSafetyCooldownWaitMs = (reason: string) => {
-  const match = `${reason || ""}`.match(/(\d+)\s*分钟后可继续/);
+  const match = `${reason || ''}`.match(/(\d+)\s*分钟后可继续/);
   if (!match) {
     return 0;
   }
@@ -395,9 +466,9 @@ const prepareRecommendLoopBeforeStart = async (enabled: boolean, silent = false)
     markRecommendLoopReload();
     if (!silent) {
       showAppMessage({
-        message: "推荐页无限循环：当前不在目标页，正在跳转到推荐页",
-        type: "info",
-        duration: 2200
+        message: '推荐页无限循环：当前不在目标页，正在跳转到推荐页',
+        type: 'info',
+        duration: 2200,
       });
     }
     navigateToRecommendLoopTarget(jumpUrl);
@@ -409,13 +480,13 @@ const prepareRecommendLoopBeforeStart = async (enabled: boolean, silent = false)
     return true;
   }
 
-  const warnMessage = "未定位到“其他职位(深圳)”入口，本轮按当前推荐列表继续";
+  const warnMessage = '未定位到“其他职位(深圳)”入口，本轮按当前推荐列表继续';
   logRecorder.warn(`推荐页无限循环：${warnMessage}`);
   if (!silent) {
     showAppMessage({
       message: warnMessage,
-      type: "warning",
-      duration: 2500
+      type: 'warning',
+      duration: 2500,
     });
   }
   return true;
@@ -435,8 +506,8 @@ const scheduleRecommendLoopCooldownRetry = (reason: string, forceEnabled = false
 
   showAppMessage({
     message: `${reason}，推荐页无限循环将在冷却结束后自动继续`,
-    type: "warning",
-    duration: 2800
+    type: 'warning',
+    duration: 2800,
   });
 
   return true;
@@ -445,22 +516,22 @@ const scheduleRecommendLoopCooldownRetry = (reason: string, forceEnabled = false
 const updateLatestPushRecords = () => {
   const allLogs = logRecorder.getLogs(1, logRecorder.getLogCount());
   const operationKeywords = [
-    "投递",
-    "收藏",
-    "下一页",
-    "工作",
-    "推荐",
-    "循环",
-    "暂停",
-    "停止",
-    "安全",
-    "冷却",
-    "验证",
-    "阈值",
-    "熔断"
+    '投递',
+    '收藏',
+    '下一页',
+    '工作',
+    '推荐',
+    '循环',
+    '暂停',
+    '停止',
+    '安全',
+    '冷却',
+    '验证',
+    '阈值',
+    '熔断',
   ];
   const pushLogs = allLogs.filter((log) => {
-    const message = String(log.message || "").toLowerCase();
+    const message = String(log.message || '').toLowerCase();
     return operationKeywords.some((keyword) => message.includes(keyword));
   });
   latestPushRecords.value = pushLogs.slice(-10);
@@ -472,20 +543,20 @@ const updateLatestPushRecords = () => {
 };
 
 const getRecordLevelClass = (level: string) => {
-  const normalized = String(level || "").toLowerCase();
+  const normalized = String(level || '').toLowerCase();
   switch (normalized) {
-    case "error":
-      return "record-error";
-    case "warn":
-      return "record-warn";
-    case "info":
-      return "record-info";
-    case "debug":
-      return "record-debug";
-    case "trace":
-      return "record-trace";
+    case 'error':
+      return 'record-error';
+    case 'warn':
+      return 'record-warn';
+    case 'info':
+      return 'record-info';
+    case 'debug':
+      return 'record-debug';
+    case 'trace':
+      return 'record-trace';
     default:
-      return "record-info";
+      return 'record-info';
   }
 };
 
@@ -507,7 +578,7 @@ const stopRecordsUpdate = () => {
 const scrollToTop = () => {
   window.scrollTo({
     top: 0,
-    behavior: "smooth"
+    behavior: 'smooth',
   });
 };
 
@@ -519,23 +590,23 @@ const getDeliveryModeFlags = () => {
   const preference = userStore?.user?.preference ? userStore.user.preference : {};
   return {
     aiDeliveryJudgeEnabled: Tools.getAiDeliveryJudgeConfig(preference).enabled,
-    traditionalDeliveryEnabled: normalizePreferenceBoolean(preference.traditionalDeliveryE, true)
+    traditionalDeliveryEnabled: normalizePreferenceBoolean(preference.traditionalDeliveryE, true),
   };
 };
 
 const ensurePreferenceLoadedForStart = (options = { silent: false }) => {
-  if (userStore.preferenceLoadStatus === "success") {
+  if (userStore.preferenceLoadStatus === 'success') {
     return true;
   }
   const { aiDeliveryJudgeEnabled, traditionalDeliveryEnabled } = getDeliveryModeFlags();
   const aiOnlyMode = aiDeliveryJudgeEnabled && !traditionalDeliveryEnabled;
 
-  if (userStore.preferenceLoadStatus === "loading") {
+  if (userStore.preferenceLoadStatus === 'loading') {
     if (!options.silent) {
       showAppMessage({
-        message: "投递设置加载中，请稍后再启动",
-        type: "warning",
-        duration: 2500
+        message: '投递设置加载中，请稍后再启动',
+        type: 'warning',
+        duration: 2500,
       });
     }
     return false;
@@ -546,9 +617,9 @@ const ensurePreferenceLoadedForStart = (options = { silent: false }) => {
   if (aiOnlyMode) {
     if (!options.silent) {
       showAppMessage({
-        message: "已按 AI 投递模式启动，投递设置将在后台同步",
-        type: "info",
-        duration: 2500
+        message: '已按 AI 投递模式启动，投递设置将在后台同步',
+        type: 'info',
+        duration: 2500,
       });
     }
     return true;
@@ -557,11 +628,11 @@ const ensurePreferenceLoadedForStart = (options = { silent: false }) => {
   if (!options.silent) {
     showAppMessage({
       message:
-        userStore.preferenceLoadStatus === "failed"
-          ? "投递设置加载失败，正在重试加载，请稍后再启动"
-          : "投递设置加载中，请稍后再启动",
-      type: "warning",
-      duration: 2500
+        userStore.preferenceLoadStatus === 'failed'
+          ? '投递设置加载失败，正在重试加载，请稍后再启动'
+          : '投递设置加载中，请稍后再启动',
+      type: 'warning',
+      duration: 2500,
     });
   }
   return false;
@@ -579,7 +650,10 @@ const startPush = async (options: StartPushOptions = {}) => {
     return false;
   }
 
-  const recommendLoopPrepared = await prepareRecommendLoopBeforeStart(recommendLoopEnabledForRun, silent);
+  const recommendLoopPrepared = await prepareRecommendLoopBeforeStart(
+    recommendLoopEnabledForRun,
+    silent
+  );
   if (!recommendLoopPrepared) {
     return false;
   }
@@ -587,92 +661,97 @@ const startPush = async (options: StartPushOptions = {}) => {
   platform.collectMode = collectMode.value;
   platform.pushMock = mockPush.value;
   pushStatus.value = PushStatus.PUSHING;
-  pushBtnType.value = "warning";
+  pushBtnType.value = 'warning';
   pushBtnText.value = `停止${actionLabel.value}`;
   startRecordsUpdate();
 
   const pushResultPromise = platform.startPush();
-  pushResultPromise.then(() => {
-    const stopReason = getPlatformLastStopReason();
-    const hasStopReason = !!stopReason;
-    const shouldShowPauseNotice = hasStopReason && [PushStatus.LIMIT, PushStatus.PAUSE].includes(platform.pushStatus);
-    if (shouldShowPauseNotice) {
-      logRecorder.warn(`暂停通知：${stopReason}`);
-      updateLatestPushRecords();
-    }
-
-    if (platform.pushStatus === PushStatus.LIMIT) {
-      pushStatus.value = PushStatus.LIMIT;
-      pushBtnType.value = "primary";
-      pushBtnText.value = getStartButtonText();
-      stopRecordsUpdate();
-
-      const scheduled = recommendLoopEnabledForRun && scheduleRecommendLoopCooldownRetry(stopReason, true);
-      if (!scheduled && stopReason) {
-        showAppMessage({
-          message: stopReason,
-          type: "warning",
-          duration: 2500
-        });
+  pushResultPromise
+    .then(() => {
+      const stopReason = getPlatformLastStopReason();
+      const hasStopReason = !!stopReason;
+      const shouldShowPauseNotice =
+        hasStopReason && [PushStatus.LIMIT, PushStatus.PAUSE].includes(platform.pushStatus);
+      if (shouldShowPauseNotice) {
+        logRecorder.warn(`暂停通知：${stopReason}`);
+        updateLatestPushRecords();
       }
-      return;
-    }
 
-    if (platform.pushStatus === PushStatus.PAUSE) {
-      pushStatus.value = PushStatus.PAUSE;
-      pushBtnType.value = "primary";
-      pushBtnText.value = getStartButtonText();
-      stopRecordsUpdate();
-      if (stopReason) {
-        showAppMessage({
-          message: stopReason,
-          type: "warning",
-          duration: 2500
-        });
+      if (platform.pushStatus === PushStatus.LIMIT) {
+        pushStatus.value = PushStatus.LIMIT;
+        pushBtnType.value = 'primary';
+        pushBtnText.value = getStartButtonText();
+        stopRecordsUpdate();
+
+        const scheduled =
+          recommendLoopEnabledForRun && scheduleRecommendLoopCooldownRetry(stopReason, true);
+        if (!scheduled && stopReason) {
+          showAppMessage({
+            message: stopReason,
+            type: 'warning',
+            duration: 2500,
+          });
+        }
+        return;
       }
-      return;
-    }
 
-    const shouldLoopRestart = pushStatus.value === PushStatus.PUSHING && recommendLoopEnabledForRun;
-    if (shouldLoopRestart) {
-      markRecommendLoopReload();
+      if (platform.pushStatus === PushStatus.PAUSE) {
+        pushStatus.value = PushStatus.PAUSE;
+        pushBtnType.value = 'primary';
+        pushBtnText.value = getStartButtonText();
+        stopRecordsUpdate();
+        if (stopReason) {
+          showAppMessage({
+            message: stopReason,
+            type: 'warning',
+            duration: 2500,
+          });
+        }
+        return;
+      }
+
+      const shouldLoopRestart =
+        pushStatus.value === PushStatus.PUSHING && recommendLoopEnabledForRun;
+      if (shouldLoopRestart) {
+        markRecommendLoopReload();
+        showAppMessage({
+          message: '推荐页无限循环：本轮完成，正在刷新并自动继续投递',
+          type: 'info',
+          duration: 2500,
+        });
+        stopRecordsUpdate();
+        setTimeout(() => {
+          navigateToRecommendLoopTarget();
+        }, 1200);
+        return;
+      }
+
       showAppMessage({
-        message: "推荐页无限循环：本轮完成，正在刷新并自动继续投递",
-        type: "info",
-        duration: 2500
+        message: `批量${actionLabel.value}完成`,
+        type: 'success',
+        duration: 3000,
       });
-      stopRecordsUpdate();
+
       setTimeout(() => {
-        navigateToRecommendLoopTarget();
-      }, 1200);
-      return;
-    }
-
-    showAppMessage({
-      message: `批量${actionLabel.value}完成`,
-      type: "success",
-      duration: 3000
-    });
-
-    setTimeout(() => {
+        pushStatus.value = PushStatus.PAUSE;
+        pushBtnType.value = 'primary';
+        pushBtnText.value = getStartButtonText();
+        stopRecordsUpdate();
+      }, 200);
+    })
+    .catch((error: unknown) => {
+      const errorMsg = error instanceof Error ? error.message : String(error || '未知错误');
+      logRecorder.error(`启动${actionLabel.value}失败：${errorMsg}`);
       pushStatus.value = PushStatus.PAUSE;
-      pushBtnType.value = "primary";
+      pushBtnType.value = 'primary';
       pushBtnText.value = getStartButtonText();
       stopRecordsUpdate();
-    }, 200);
-  }).catch((error: unknown) => {
-    const errorMsg = error instanceof Error ? error.message : String(error || "未知错误");
-    logRecorder.error(`启动${actionLabel.value}失败：${errorMsg}`);
-    pushStatus.value = PushStatus.PAUSE;
-    pushBtnType.value = "primary";
-    pushBtnText.value = getStartButtonText();
-    stopRecordsUpdate();
-    showAppMessage({
-      message: `启动${actionLabel.value}失败：${errorMsg}`,
-      type: "error",
-      duration: 3000
+      showAppMessage({
+        message: `启动${actionLabel.value}失败：${errorMsg}`,
+        type: 'error',
+        duration: 3000,
+      });
     });
-  });
 
   return true;
 };
@@ -680,7 +759,7 @@ const startPush = async (options: StartPushOptions = {}) => {
 const pausePush = () => {
   platform.pausePush();
   pushStatus.value = PushStatus.PAUSE;
-  pushBtnType.value = "primary";
+  pushBtnType.value = 'primary';
   pushBtnText.value = getStartButtonText();
   stopRecordsUpdate();
 };
@@ -705,17 +784,17 @@ const handlerFixedStopPush = () => {
 };
 
 const handlerClearPushRecords = () => {
-  if (typeof logRecorder.clearLogs === "function") {
+  if (typeof logRecorder.clearLogs === 'function') {
     logRecorder.clearLogs();
   }
   latestPushRecords.value = [];
-  if (typeof pushResultCounter.clearCounts === "function") {
+  if (typeof pushResultCounter.clearCounts === 'function') {
     pushResultCounter.clearCounts();
   }
   showAppMessage({
-    message: "已清理投递成功/失败记录",
-    type: "success",
-    duration: 2000
+    message: '已清理投递成功/失败记录',
+    type: 'success',
+    duration: 2000,
   });
 };
 
@@ -738,15 +817,15 @@ const tryAutoResumeRecommendLoop = async () => {
       return;
     }
 
-    collectMode.value = latestPayload.mode === "collect";
+    collectMode.value = latestPayload.mode === 'collect';
 
     if (pushStatus.value !== PushStatus.PUSHING) {
       const started = await startPush({ silent: true, forceRecommendLoop: true });
       if (started) {
         showAppMessage({
-          message: "推荐页无限循环：页面已刷新，已继续自动运行",
-          type: "info",
-          duration: 2000
+          message: '推荐页无限循环：页面已刷新，已继续自动运行',
+          type: 'info',
+          duration: 2000,
         });
         return;
       }
@@ -756,16 +835,16 @@ const tryAutoResumeRecommendLoop = async () => {
   }
 
   showAppMessage({
-    message: "推荐页无限循环恢复超时，正在重新进入目标页",
-    type: "warning",
-    duration: 2500
+    message: '推荐页无限循环恢复超时，正在重新进入目标页',
+    type: 'warning',
+    duration: 2500,
   });
   navigateToRecommendLoopTarget(jumpUrl);
 };
 
 if (!loginStore.login && !loginStore.loginFailStatus) {
-  logger.info("页面静默登录");
-  silentlyLogin("").catch(() => {});
+  logger.info('页面静默登录');
+  silentlyLogin('').catch(() => {});
 }
 
 setTimeout(() => {
@@ -810,7 +889,7 @@ onUnmounted(() => {
 }
 
 .card-title::before {
-  content: "";
+  content: '';
   display: inline-block;
   width: 3px;
   height: 14px;

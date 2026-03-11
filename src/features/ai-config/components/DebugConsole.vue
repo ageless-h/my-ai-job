@@ -1,7 +1,10 @@
 <template>
   <el-dialog v-model="debugDialogVisible" title="调户提示词" width="800px">
     <div class="chat-history">
-      <el-empty v-if="debugHistory.length === 0" description="暂无历史消息，请在下方开始你的调试吧" />
+      <el-empty
+        v-if="debugHistory.length === 0"
+        description="暂无历史消息，请在下方开始你的调试吧"
+      />
       <div
         v-for="(m, idx) in debugHistory"
         :key="idx"
@@ -14,7 +17,12 @@
             <el-tag v-for="(t, i) in m.answerTypes || []" :key="`a-${i}`" size="small" type="info">
               {{ mapAnswerType(t) }}
             </el-tag>
-            <el-tag v-for="(t, i) in m.operationTypes || []" :key="`o-${i}`" size="small" type="success">
+            <el-tag
+              v-for="(t, i) in m.operationTypes || []"
+              :key="`o-${i}`"
+              size="small"
+              type="success"
+            >
               {{ mapOperationType(t) }}
             </el-tag>
           </div>
@@ -33,12 +41,22 @@
           placeholder="作为招聘的HR角色提出你的问题,AI代聊将结合你的偏好设置与微调提示词给出最终回答"
           clearable
         />
-        <el-button class="send-btn" type="primary" :loading="isDebugLoading" @click="handleSendDebug">发送</el-button>
+        <el-button
+          class="send-btn"
+          type="primary"
+          :loading="isDebugLoading"
+          @click="handleSendDebug"
+          >发送</el-button
+        >
       </div>
     </div>
 
     <template #footer>
-      <el-button type="warning" :disabled="isDebugLoading || debugHistory.length === 0" @click="handleClearHistory">
+      <el-button
+        type="warning"
+        :disabled="isDebugLoading || debugHistory.length === 0"
+        @click="handleClearHistory"
+      >
         清空历史
       </el-button>
       <el-button @click="debugDialogVisible = false">关闭</el-button>
@@ -58,7 +76,9 @@ if (!state) {
   throw new Error('DebugConsole 缺少 aiConfigState 注入');
 }
 const DEBUG_MOCK_VARS: Record<string, string> = {};
-PROMPT_VARIABLE_DEFS.forEach((v) => { DEBUG_MOCK_VARS[v.key] = `[示例${v.label}]`; });
+PROMPT_VARIABLE_DEFS.forEach((v) => {
+  DEBUG_MOCK_VARS[v.key] = `[示例${v.label}]`;
+});
 
 const debugDialogVisible = ref(false);
 const debugQuestion = ref('');
@@ -70,7 +90,10 @@ const finalPromptPreview = computed(() => {
   const enabledMergedText = state
     .getMergedPresetList()
     .filter((preset) => preset.enabled !== false)
-    .map((preset, index) => `# ${preset.scope === 'personal' ? '模型' : '全局'}预设${index + 1} ${preset.name}\n${preset.content}`)
+    .map(
+      (preset, index) =>
+        `# ${preset.scope === 'personal' ? '模型' : '全局'}预设${index + 1} ${preset.name}\n${preset.content}`
+    )
     .join('\n\n');
   return enabledMergedText || '暂无可用提示词内容';
 });
@@ -129,7 +152,10 @@ const handleSendDebug = async () => {
     return;
   }
   if (debugHistory.value.length >= 20) {
-    state.showAppMessage({ type: 'warning', message: '总对话长度不能超过20条，请先清空历史消息重试' });
+    state.showAppMessage({
+      type: 'warning',
+      message: '总对话长度不能超过20条，请先清空历史消息重试',
+    });
     return;
   }
 
@@ -154,7 +180,12 @@ const handleSendDebug = async () => {
       });
       messages.push({ role: 'user', content: question });
       const answer = await directAiCall(directConfig, messages);
-      debugHistory.value.push({ role: 'assistant', content: answer || '(未返回内容)', answerTypes: [1], operationTypes: [] });
+      debugHistory.value.push({
+        role: 'assistant',
+        content: answer || '(未返回内容)',
+        answerTypes: [1],
+        operationTypes: [],
+      });
       persistCurrentDebugHistory();
     } else {
       // 走后端
@@ -226,19 +257,73 @@ defineExpose({
 </script>
 
 <style scoped>
-:deep(.chat-history){max-height:420px;overflow-y:auto;padding:8px 4px;background:#fafafa;border:1px solid #eee;border-radius:6px}
-:deep(.chat-composer){display:flex;gap:10px;margin-top:10px}
-:deep(.composer-input){position:relative;width:100%}
-:deep(.composer-input .el-textarea__inner){padding-right:84px;padding-bottom:50px}
-:deep(.composer-input .el-input__count){bottom:40px;right:8px}
-:deep(.send-btn){position:absolute;right:8px;bottom:8px}
-:deep(.chat-row){display:flex;margin:8px 0}
-:deep(.chat-row.from-user){justify-content:flex-start}
-:deep(.chat-row.from-ai){justify-content:flex-end}
-:deep(.bubble){max-width:80%;padding:8px 10px;border-radius:8px;background:#fff;box-shadow:0 1px 2px #0000000f}
-:deep(.from-user .bubble){background:#f5f7fa}
-:deep(.from-ai .bubble){background:#e8f6f3}
-:deep(.bubble .content){white-space:pre-wrap;word-break:break-word;font-size:13px}
-:deep(.bubble .meta){font-size:12px;color:#909399;margin-bottom:4px}
-:deep(.bubble .tags){margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+:deep(.chat-history) {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 8px 4px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+:deep(.chat-composer) {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+:deep(.composer-input) {
+  position: relative;
+  width: 100%;
+}
+:deep(.composer-input .el-textarea__inner) {
+  padding-right: 84px;
+  padding-bottom: 50px;
+}
+:deep(.composer-input .el-input__count) {
+  bottom: 40px;
+  right: 8px;
+}
+:deep(.send-btn) {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+}
+:deep(.chat-row) {
+  display: flex;
+  margin: 8px 0;
+}
+:deep(.chat-row.from-user) {
+  justify-content: flex-start;
+}
+:deep(.chat-row.from-ai) {
+  justify-content: flex-end;
+}
+:deep(.bubble) {
+  max-width: 80%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 2px #0000000f;
+}
+:deep(.from-user .bubble) {
+  background: #f5f7fa;
+}
+:deep(.from-ai .bubble) {
+  background: #e8f6f3;
+}
+:deep(.bubble .content) {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+}
+:deep(.bubble .meta) {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+:deep(.bubble .tags) {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 </style>

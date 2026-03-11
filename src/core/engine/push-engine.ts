@@ -1,17 +1,17 @@
 // -*- coding: utf-8 -*-
-import { getPreferenceValue } from "@/shared/utils/preference";
-import type { PushResultCounterRuntime, RuntimeUserStore } from "@/core/runtime/runtime-contracts";
-import { Logger, LogLevel } from "@/shared/utils/logger";
-import { TampermonkeyApi } from "@/shared/utils/tampermonkey";
-import { Tools } from "@/shared/utils/tools";
+import { getPreferenceValue } from '@/shared/utils/preference';
+import type { PushResultCounterRuntime, RuntimeUserStore } from '@/core/runtime/runtime-contracts';
+import { Logger, LogLevel } from '@/shared/utils/logger';
+import { TampermonkeyApi } from '@/shared/utils/tampermonkey';
+import { Tools } from '@/shared/utils/tools';
 import {
   NotMatchError,
   PushRequestError,
   FavoriteRequestError,
   FetchJobDetailError,
   PushStopError,
-  PushLimitError
-} from "@/shared/errors";
+  PushLimitError,
+} from '@/shared/errors';
 
 const logger = Logger.rootLogger;
 
@@ -29,22 +29,25 @@ const createFallbackCounterRuntime = (): PushResultCounterRuntime => ({
   collectSuccessIncr: () => undefined,
   collectFailIncr: () => undefined,
   clearOnceSuccessCount: () => undefined,
-  clearOnceCollectSuccessCount: () => undefined
+  clearOnceCollectSuccessCount: () => undefined,
 });
 
 const createFallbackUserRuntime = (): RuntimeUserStore => ({
   user: {
-    preference: {}
+    preference: {},
   },
   platformType: undefined,
-  preferenceLoadStatus: "idle",
-  preferenceLoadError: ""
+  preferenceLoadStatus: 'idle',
+  preferenceLoadError: '',
 });
 
 export let pushResultCounter: PushResultCounterRuntime = createFallbackCounterRuntime();
 export let runtimeUserStore: RuntimeUserStore = createFallbackUserRuntime();
 
-export function bindPlatformRuntime(counter: PushResultCounterRuntime, userStore: RuntimeUserStore): void {
+export function bindPlatformRuntime(
+  counter: PushResultCounterRuntime,
+  userStore: RuntimeUserStore
+): void {
   pushResultCounter = counter;
   runtimeUserStore = userStore;
 }
@@ -58,7 +61,7 @@ function runtimeUserStoreRef(): RuntimeUserStore {
 }
 
 function formatLogTimestamp(date: Date): string {
-  const pad = (value: number, size = 2): string => `${value}`.padStart(size, "0");
+  const pad = (value: number, size = 2): string => `${value}`.padStart(size, '0');
   const hours = pad(date.getHours());
   const minutes = pad(date.getMinutes());
   const seconds = pad(date.getSeconds());
@@ -70,13 +73,13 @@ export enum PushStatus {
   NOT_START = 0,
   PUSHING = 1,
   PAUSE = 2,
-  LIMIT = 3
+  LIMIT = 3,
 }
 
 export enum PushResultStatus {
   NOT_START = -1,
   SUCCESS = 0,
-  FAIL = 1
+  FAIL = 1,
 }
 
 type LogEntry = {
@@ -86,17 +89,17 @@ type LogEntry = {
 };
 
 export class LogRecorder extends Logger {
-  static LOGS_STORAGE_KEY = "logs_data";
+  static LOGS_STORAGE_KEY = 'logs_data';
   static logs: LogEntry[] = [];
 
   persistTimer: number | null = null;
   maxLogs = 1000;
 
-  constructor(name = "") {
+  constructor(name = '') {
     super(name);
     this.loadLogsFromStorage();
     this.startPersistTimer();
-    
+
     // 页面卸载时清理定时器
     window.addEventListener('beforeunload', () => {
       this.destroy();
@@ -121,7 +124,7 @@ export class LogRecorder extends Logger {
       window.clearInterval(this.persistTimer);
       this.persistTimer = null;
     }
-    this.persistLogs();  // 最后一次持久化
+    this.persistLogs(); // 最后一次持久化
   }
 
   persistLogs(): void {
@@ -142,32 +145,32 @@ export class LogRecorder extends Logger {
   }
 
   error(...messages: unknown[]): void {
-    const msg = messages.join(" ");
-    this.addLog("error", msg);
+    const msg = messages.join(' ');
+    this.addLog('error', msg);
     super.error(msg);
   }
 
   warn(...messages: unknown[]): void {
-    const msg = messages.join(" ");
-    this.addLog("warn", msg);
+    const msg = messages.join(' ');
+    this.addLog('warn', msg);
     super.warn(msg);
   }
 
   info(...messages: unknown[]): void {
-    const msg = messages.join(" ");
-    this.addLog("info", msg);
+    const msg = messages.join(' ');
+    this.addLog('info', msg);
     super.info(msg);
   }
 
   debug(...messages: unknown[]): void {
-    const msg = messages.join(" ");
-    this.addLog("debug", msg);
+    const msg = messages.join(' ');
+    this.addLog('debug', msg);
     super.debug(msg);
   }
 
   trace(...messages: unknown[]): void {
-    const msg = messages.join(" ");
-    this.addLog("trace", msg);
+    const msg = messages.join(' ');
+    this.addLog('trace', msg);
     super.trace(msg);
   }
 
@@ -182,23 +185,23 @@ export class LogRecorder extends Logger {
 }
 
 export abstract class AbsPlatform {
-  preferenceLogRecorder = new LogRecorder("recorder");
+  preferenceLogRecorder = new LogRecorder('recorder');
   pushStatus = PushStatus.NOT_START;
   protected _pushMock = false;
   protected _selfDefPushCountLimit = -1;
   protected _collectMode = false;
-  protected _lastStopReason = "";
+  protected _lastStopReason = '';
 
   get lastStopReason(): string {
     return this._lastStopReason;
   }
 
   protected setLastStopReason(reason: string): void {
-    this._lastStopReason = `${reason || ""}`.trim();
+    this._lastStopReason = `${reason || ''}`.trim();
   }
 
   protected clearLastStopReason(): void {
-    this._lastStopReason = "";
+    this._lastStopReason = '';
   }
 
   private getSafetyConfig(): {
@@ -215,15 +218,15 @@ export abstract class AbsPlatform {
 
     // 硬编码安全上限，防止用户绕过限制导致账号风险
     const HARD_LIMITS = {
-      minActionIntervalSec: 8,      // 最小间隔不能低于8秒
-      maxSessionActions: 100,        // 单次会话最多100次
-      maxDailyActions: 200,          // 每日最多200次
-      maxActionsPerMinute: 12        // 每分钟最多12次
+      minActionIntervalSec: 8, // 最小间隔不能低于8秒
+      maxSessionActions: 100, // 单次会话最多100次
+      maxDailyActions: 200, // 每日最多200次
+      maxActionsPerMinute: 12, // 每分钟最多12次
     };
 
     const minActionIntervalSec = Math.max(
       HARD_LIMITS.minActionIntervalSec,
-      toNumberOr(getPreferenceValue(preference, "pushIntervalSec", "pi"), 8)
+      toNumberOr(getPreferenceValue(preference, 'pushIntervalSec', 'pi'), 8)
     );
     const maxSessionActions = Math.min(
       HARD_LIMITS.maxSessionActions,
@@ -242,7 +245,7 @@ export abstract class AbsPlatform {
       minActionIntervalSec,
       maxSessionActions,
       maxDailyActions,
-      maxActionsPerMinute
+      maxActionsPerMinute,
     };
   }
 
@@ -288,13 +291,13 @@ export abstract class AbsPlatform {
   }
 
   next = async (): Promise<boolean> => {
-    const actionName = this._collectMode ? "收藏" : "投递";
+    const actionName = this._collectMode ? '收藏' : '投递';
     const waitSecRaw = Number(runtimeUserStoreRef()?.user?.preference?.npi);
     const waitSec = Number.isFinite(waitSecRaw) ? Math.max(0, waitSecRaw) : 0;
 
     const hasProgress = this.hasNext();
     if (!hasProgress) {
-      this.preferenceLogRecorder.info("未检测到下一页进展，执行兜底滚动重试");
+      this.preferenceLogRecorder.info('未检测到下一页进展，执行兜底滚动重试');
       if (!(await this.ensureNoManualVerification(actionName))) {
         return false;
       }
@@ -305,11 +308,11 @@ export abstract class AbsPlatform {
       await this.acquireDataPre();
       const recovered = await this.waitForNextProgress(9000);
       if (!recovered) {
-        this.preferenceLogRecorder.info("无下一页数据");
+        this.preferenceLogRecorder.info('无下一页数据');
         return false;
       }
 
-      this.preferenceLogRecorder.info("兜底滚动后检测到新岗位，继续执行");
+      this.preferenceLogRecorder.info('兜底滚动后检测到新岗位，继续执行');
       return true;
     }
 
@@ -347,12 +350,12 @@ export abstract class AbsPlatform {
 
   async startPush(): Promise<void> {
     this.clearLastStopReason();
-    const actionName = this._collectMode ? "收藏" : "投递";
+    const actionName = this._collectMode ? '收藏' : '投递';
     const safety = this.getSafetyConfig();
     const currentHost = Tools.getCurrentHostname();
     if (!Tools.isBossDomainHost(currentHost)) {
       this.pushStatus = PushStatus.LIMIT;
-      const reason = `当前域名(${currentHost || "unknown"})不受信任，已阻止自动${actionName}`;
+      const reason = `当前域名(${currentHost || 'unknown'})不受信任，已阻止自动${actionName}`;
       this.setLastStopReason(reason);
       this.preferenceLogRecorder.warn(reason);
       return;
@@ -361,10 +364,10 @@ export abstract class AbsPlatform {
     // 多标签页并发检测和锁机制
     const lockKey = TampermonkeyApi.PUSH_LOCK;
     const lockValue = `${Date.now()}_${Math.random()}`;
-    const existingLock = TampermonkeyApi.GmGetValue<string>(lockKey, "");
-    
+    const existingLock = TampermonkeyApi.GmGetValue<string>(lockKey, '');
+
     if (existingLock) {
-      const lockTimestamp = parseInt(existingLock.split("_")[0] || "0");
+      const lockTimestamp = parseInt(existingLock.split('_')[0] || '0');
       const lockAge = Date.now() - lockTimestamp;
       // 如果锁存在且未过期（5分钟内），拒绝启动
       if (lockAge < 5 * 60 * 1000) {
@@ -375,15 +378,17 @@ export abstract class AbsPlatform {
         return;
       }
       // 锁已过期，可能是异常退出，清理旧锁
-      this.preferenceLogRecorder.warn(`检测到过期的${actionName}锁（${Math.floor(lockAge / 1000)}秒前），已清理`);
+      this.preferenceLogRecorder.warn(
+        `检测到过期的${actionName}锁（${Math.floor(lockAge / 1000)}秒前），已清理`
+      );
     }
-    
+
     // 获取锁
     TampermonkeyApi.GmSetValue(lockKey, lockValue);
     await Tools.sleep(100); // 等待其他标签页可能的写入
-    
+
     // 验证锁是否成功获取
-    const actualLock = TampermonkeyApi.GmGetValue<string>(lockKey, "");
+    const actualLock = TampermonkeyApi.GmGetValue<string>(lockKey, '');
     if (actualLock !== lockValue) {
       this.pushStatus = PushStatus.LIMIT;
       const reason = `获取${actionName}锁失败，其他标签页可能同时启动`;
@@ -391,16 +396,16 @@ export abstract class AbsPlatform {
       this.preferenceLogRecorder.warn(reason);
       return;
     }
-    
+
     this.preferenceLogRecorder.info(`成功获取${actionName}锁 lock=${lockValue}`);
 
     if (!(await this.ensureNoManualVerification(actionName))) {
-      TampermonkeyApi.GmSetValue(lockKey, ""); // 释放锁
+      TampermonkeyApi.GmSetValue(lockKey, ''); // 释放锁
       return;
     }
 
     this.preferenceLogRecorder.info(`开始${actionName}`);
-    
+
     // 使用 try-finally 确保锁被释放
     try {
       if (this._collectMode) {
@@ -420,187 +425,221 @@ export abstract class AbsPlatform {
             return;
           }
 
-         const dailySuccess = this._collectMode 
-           ? Number(runtimeCounter().collectSuccessCount || 0)
-           : Number(runtimeCounter().successCount || 0);
-         if (dailySuccess >= safety.maxDailyActions) {
-           throw new PushLimitError(`触发安全阈值：今日最多${safety.maxDailyActions}次成功${actionName}`);
-         }
-
-         if (sessionSuccessCount >= safety.maxSessionActions) {
-           throw new PushLimitError(`触发安全阈值：单次会话最多${safety.maxSessionActions}次成功${actionName}`);
-         }
-
-        const now = Date.now();
-        while (recentActionTs.length > 0 && now - recentActionTs[0] > 60_000) {
-          recentActionTs.shift();
-        }
-        if (recentActionTs.length >= safety.maxActionsPerMinute) {
-          throw new PushLimitError(`触发安全阈值：每分钟最多${safety.maxActionsPerMinute}次${actionName}`);
-        }
-
-        try {
-          this.preMatchJob();
-          await this.matchJob(jobDetail);
-
-          if (this._collectMode) {
-            this.collectPreHandler(jobDetail);
-            const collectResult = await this.collect(jobDetail);
-            await this.collectAfterHandler(collectResult, jobDetail);
-            recentActionTs.push(Date.now());
-            sessionSuccessCount++;
-            continue;
+          const dailySuccess = this._collectMode
+            ? Number(runtimeCounter().collectSuccessCount || 0)
+            : Number(runtimeCounter().successCount || 0);
+          if (dailySuccess >= safety.maxDailyActions) {
+            throw new PushLimitError(
+              `触发安全阈值：今日最多${safety.maxDailyActions}次成功${actionName}`
+            );
           }
 
-          this.pushPreHandler(jobDetail);
-          const pushResult = await this.push(jobDetail);
-          await this.pushAfterHandler(pushResult, jobDetail);
-          recentActionTs.push(Date.now());
-          sessionSuccessCount++;
-        } catch (error: any) {
-          switch (true) {
-            case error instanceof NotMatchError:
-              if (this.preferenceLogRecorder.getLogLevel() === LogLevel.Debug) {
-                this.preferenceLogRecorder.info(`工作【${error.jobTitle}】被过滤 原因：${error.message} 当前值:${error.data}`);
-              } else {
-                this.preferenceLogRecorder.info(`工作【${error.jobTitle}】被过滤 原因：${error.message}`);
-              }
-              runtimeCounter().notMatchIncr();
-              break;
-             case error instanceof PushRequestError:
-             case error instanceof FavoriteRequestError:
-               this.preferenceLogRecorder.warn(`工作【${error.jobTitle}】${actionName}失败 原因：${error.message}`);
-               if (this._collectMode) {
-                 runtimeCounter().collectFailIncr();
-               } else {
-                 runtimeCounter().failIncr();
-               }
-               break;
-            case error instanceof FetchJobDetailError:
-              this.preferenceLogRecorder.warn(`工作【${error.jobTitle}】发送自定义招呼语失败 原因：${error.message}`);
-              break;
-            case error instanceof PushStopError:
-              if (`${error?.message || ""}`.includes("手动暂停")) {
+          if (sessionSuccessCount >= safety.maxSessionActions) {
+            throw new PushLimitError(
+              `触发安全阈值：单次会话最多${safety.maxSessionActions}次成功${actionName}`
+            );
+          }
+
+          const now = Date.now();
+          while (recentActionTs.length > 0 && now - recentActionTs[0] > 60_000) {
+            recentActionTs.shift();
+          }
+          if (recentActionTs.length >= safety.maxActionsPerMinute) {
+            throw new PushLimitError(
+              `触发安全阈值：每分钟最多${safety.maxActionsPerMinute}次${actionName}`
+            );
+          }
+
+          try {
+            this.preMatchJob();
+            await this.matchJob(jobDetail);
+
+            if (this._collectMode) {
+              this.collectPreHandler(jobDetail);
+              const collectResult = await this.collect(jobDetail);
+              await this.collectAfterHandler(collectResult, jobDetail);
+              recentActionTs.push(Date.now());
+              sessionSuccessCount++;
+              continue;
+            }
+
+            this.pushPreHandler(jobDetail);
+            const pushResult = await this.push(jobDetail);
+            await this.pushAfterHandler(pushResult, jobDetail);
+            recentActionTs.push(Date.now());
+            sessionSuccessCount++;
+          } catch (error: any) {
+            switch (true) {
+              case error instanceof NotMatchError:
+                if (this.preferenceLogRecorder.getLogLevel() === LogLevel.Debug) {
+                  this.preferenceLogRecorder.info(
+                    `工作【${error.jobTitle}】被过滤 原因：${error.message} 当前值:${error.data}`
+                  );
+                } else {
+                  this.preferenceLogRecorder.info(
+                    `工作【${error.jobTitle}】被过滤 原因：${error.message}`
+                  );
+                }
+                runtimeCounter().notMatchIncr();
+                break;
+              case error instanceof PushRequestError:
+              case error instanceof FavoriteRequestError:
+                this.preferenceLogRecorder.warn(
+                  `工作【${error.jobTitle}】${actionName}失败 原因：${error.message}`
+                );
+                if (this._collectMode) {
+                  runtimeCounter().collectFailIncr();
+                } else {
+                  runtimeCounter().failIncr();
+                }
+                break;
+              case error instanceof FetchJobDetailError:
+                this.preferenceLogRecorder.warn(
+                  `工作【${error.jobTitle}】发送自定义招呼语失败 原因：${error.message}`
+                );
+                break;
+              case error instanceof PushStopError:
+                if (`${error?.message || ''}`.includes('手动暂停')) {
+                  this.setLastStopReason(`手动暂停${actionName} ${error.message}`);
+                  this.preferenceLogRecorder.info(`手动暂停${actionName} ${error.message}`);
+                  return;
+                }
+
+                if (
+                  Tools.isManualVerificationText(error?.message) ||
+                  this.getManualVerificationReason()
+                ) {
+                  const reason = `${error?.message || this.getManualVerificationReason() || '检测到人工验证'}`;
+                  this.preferenceLogRecorder.warn(`检测到人工验证，进入安全等待：${reason}`);
+                  if (!(await this.ensureNoManualVerification(actionName))) {
+                    return;
+                  }
+                  break;
+                }
+
                 this.setLastStopReason(`手动暂停${actionName} ${error.message}`);
                 this.preferenceLogRecorder.info(`手动暂停${actionName} ${error.message}`);
                 return;
-              }
-
-              if (Tools.isManualVerificationText(error?.message) || this.getManualVerificationReason()) {
-                const reason = `${error?.message || this.getManualVerificationReason() || "检测到人工验证"}`;
-                this.preferenceLogRecorder.warn(`检测到人工验证，进入安全等待：${reason}`);
-                if (!(await this.ensureNoManualVerification(actionName))) {
-                  return;
-                }
-                break;
-              }
-
-              this.setLastStopReason(`手动暂停${actionName} ${error.message}`);
-              this.preferenceLogRecorder.info(`手动暂停${actionName} ${error.message}`);
-              return;
-            case error instanceof PushLimitError:
-              this.pushStatus = PushStatus.LIMIT;
-              this.setLastStopReason(`停止${actionName} ${error.message}`);
-              this.preferenceLogRecorder.info(`停止${actionName} ${error.message}`);
-              return;
-            default: {
-              const isNetwork = this.isNetworkError(error);
-              if (isNetwork) {
-                const maxRetries = 3;
-                let retried = false;
-                for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                  const delayMs = Math.pow(2, attempt) * 1000;
-                  this.preferenceLogRecorder.warn(`网络异常，${delayMs / 1000}s 后第 ${attempt}/${maxRetries} 次重试... 原因：${error?.message || error}`);
-                  await Tools.sleep(delayMs);
-                  if (Number(this.pushStatus) === PushStatus.PAUSE) {
-                    this.preferenceLogRecorder.info(`重试期间手动暂停`);
-                    return;
-                  }
-                   if (!(await this.ensureNoManualVerification(actionName))) {
-                     return;
-                   }
-                  try {
-                    this.preMatchJob();
-                    await this.matchJob(jobDetail);
-                    if (this._collectMode) {
-                      this.collectPreHandler(jobDetail);
-                      const collectResult = await this.collect(jobDetail);
-                      await this.collectAfterHandler(collectResult, jobDetail);
-                    } else {
-                      this.pushPreHandler(jobDetail);
-                      const pushResult = await this.push(jobDetail);
-                      await this.pushAfterHandler(pushResult, jobDetail);
+              case error instanceof PushLimitError:
+                this.pushStatus = PushStatus.LIMIT;
+                this.setLastStopReason(`停止${actionName} ${error.message}`);
+                this.preferenceLogRecorder.info(`停止${actionName} ${error.message}`);
+                return;
+              default: {
+                const isNetwork = this.isNetworkError(error);
+                if (isNetwork) {
+                  const maxRetries = 3;
+                  let retried = false;
+                  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    const delayMs = Math.pow(2, attempt) * 1000;
+                    this.preferenceLogRecorder.warn(
+                      `网络异常，${delayMs / 1000}s 后第 ${attempt}/${maxRetries} 次重试... 原因：${error?.message || error}`
+                    );
+                    await Tools.sleep(delayMs);
+                    if (Number(this.pushStatus) === PushStatus.PAUSE) {
+                      this.preferenceLogRecorder.info(`重试期间手动暂停`);
+                      return;
                     }
-                    retried = true;
-                    break;
-                  } catch (retryError: any) {
-                    if (!this.isNetworkError(retryError)) {
-                      logger.error("重试后非网络异常--->", retryError);
-                      break;
+                    if (!(await this.ensureNoManualVerification(actionName))) {
+                      return;
                     }
-                    if (attempt === maxRetries) {
-                      const reason = `网络异常重试 ${maxRetries} 次后仍失败，进入安全等待后继续${actionName}`;
-                      this.setLastStopReason(reason);
-                      this.preferenceLogRecorder.warn(reason);
-                      await Tools.sleep(Math.max(8000, safety.minActionIntervalSec * 2000));
+                    try {
+                      this.preMatchJob();
+                      await this.matchJob(jobDetail);
+                      if (this._collectMode) {
+                        this.collectPreHandler(jobDetail);
+                        const collectResult = await this.collect(jobDetail);
+                        await this.collectAfterHandler(collectResult, jobDetail);
+                      } else {
+                        this.pushPreHandler(jobDetail);
+                        const pushResult = await this.push(jobDetail);
+                        await this.pushAfterHandler(pushResult, jobDetail);
+                      }
+                      retried = true;
                       break;
+                    } catch (retryError: any) {
+                      if (!this.isNetworkError(retryError)) {
+                        logger.error('重试后非网络异常--->', retryError);
+                        break;
+                      }
+                      if (attempt === maxRetries) {
+                        const reason = `网络异常重试 ${maxRetries} 次后仍失败，进入安全等待后继续${actionName}`;
+                        this.setLastStopReason(reason);
+                        this.preferenceLogRecorder.warn(reason);
+                        await Tools.sleep(Math.max(8000, safety.minActionIntervalSec * 2000));
+                        break;
+                      }
                     }
                   }
+                  if (!retried) {
+                    // 网络失败不计入连续失败，仅记录
+                    this.preferenceLogRecorder.warn(
+                      `网络异常导致${actionName}失败，继续处理下一个`
+                    );
+                  }
+                } else {
+                  logger.error('未捕获异常--->', error);
+                  // 未知异常仅记录，不触发熔断
+                  this.preferenceLogRecorder.error(
+                    `未知异常导致${actionName}失败：${error?.message || error}`
+                  );
                 }
-                if (!retried) {
-                  // 网络失败不计入连续失败，仅记录
-                  this.preferenceLogRecorder.warn(`网络异常导致${actionName}失败，继续处理下一个`);
-                }
-              } else {
-                logger.error("未捕获异常--->", error);
-                // 未知异常仅记录，不触发熔断
-                this.preferenceLogRecorder.error(`未知异常导致${actionName}失败：${error?.message || error}`);
               }
             }
           }
+
+          await Tools.sleep(safety.minActionIntervalSec * 1000 + Tools.getRandomNumber(400, 1600));
         }
+      } while (await this.next());
 
-        await Tools.sleep(safety.minActionIntervalSec * 1000 + Tools.getRandomNumber(400, 1600));
-      }
-    } while (await this.next());
-
-    this.preferenceLogRecorder.info(`结束${actionName}`);
+      this.preferenceLogRecorder.info(`结束${actionName}`);
     } finally {
       // 释放锁
-      TampermonkeyApi.GmSetValue(lockKey, "");
+      TampermonkeyApi.GmSetValue(lockKey, '');
       this.preferenceLogRecorder.info(`释放${actionName}锁 lock=${lockValue}`);
     }
   }
 
-  pausePush(): void {
-  }
+  pausePush(): void {}
 
   /** 检测是否为网络异常 */
   protected isNetworkError(error: any): boolean {
     if (!error) return false;
     const code = error?.code || '';
-    if (['ECONNABORTED', 'ERR_NETWORK', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'].includes(code)) return true;
+    if (['ECONNABORTED', 'ERR_NETWORK', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'].includes(code))
+      return true;
     const msg = `${error?.message || ''}`.toLowerCase();
-    return msg.includes('timeout') || msg.includes('network') || msg.includes('econnaborted') || msg.includes('fetch');
+    return (
+      msg.includes('timeout') ||
+      msg.includes('network') ||
+      msg.includes('econnaborted') ||
+      msg.includes('fetch')
+    );
   }
 
   preMatchJob(): void {
-    if (this._selfDefPushCountLimit !== -1 && runtimeCounter().onceSuccessCount >= this._selfDefPushCountLimit) {
-      throw new PushLimitError("自定义投递次数限制");
+    if (
+      this._selfDefPushCountLimit !== -1 &&
+      runtimeCounter().onceSuccessCount >= this._selfDefPushCountLimit
+    ) {
+      throw new PushLimitError('自定义投递次数限制');
     }
 
     if (this.pushStatus === PushStatus.PAUSE) {
-      throw new PushStopError("手动暂停投递");
+      throw new PushStopError('手动暂停投递');
     }
   }
 
   async push(jobDetail: any): Promise<any> {
     if (this.pushStatus === PushStatus.PAUSE) {
-      throw new PushStopError("手动暂停投递");
+      throw new PushStopError('手动暂停投递');
     }
 
-    if (this._selfDefPushCountLimit !== -1 && runtimeCounter().onceSuccessCount >= this._selfDefPushCountLimit) {
-      throw new PushLimitError("自定义投递次数限制");
+    if (
+      this._selfDefPushCountLimit !== -1 &&
+      runtimeCounter().onceSuccessCount >= this._selfDefPushCountLimit
+    ) {
+      throw new PushLimitError('自定义投递次数限制');
     }
 
     const limitResult = this.isLimit(jobDetail);
@@ -610,10 +649,10 @@ export abstract class AbsPlatform {
 
     if (this._pushMock) {
       const jobTitle = this.getJobKey(jobDetail);
-      logger.debug("mock投递 ", jobTitle);
+      logger.debug('mock投递 ', jobTitle);
       return {
-        message: "Success",
-        code: 0
+        message: 'Success',
+        code: 0,
       };
     }
 
@@ -626,19 +665,22 @@ export abstract class AbsPlatform {
 
   async collect(jobDetail: any): Promise<any> {
     if (this.pushStatus === PushStatus.PAUSE) {
-      throw new PushStopError("手动暂停收藏");
+      throw new PushStopError('手动暂停收藏');
     }
 
-    if (this._selfDefPushCountLimit !== -1 && runtimeCounter().onceCollectSuccessCount >= this._selfDefPushCountLimit) {
-      throw new PushLimitError("自定义收藏次数限制");
+    if (
+      this._selfDefPushCountLimit !== -1 &&
+      runtimeCounter().onceCollectSuccessCount >= this._selfDefPushCountLimit
+    ) {
+      throw new PushLimitError('自定义收藏次数限制');
     }
 
     if (this._pushMock) {
       const jobTitle = this.getJobKey(jobDetail);
-      logger.debug("mock收藏 ", jobTitle);
+      logger.debug('mock收藏 ', jobTitle);
       return {
-        message: "Success",
-        code: 0
+        message: 'Success',
+        code: 0,
       };
     }
 
@@ -647,26 +689,30 @@ export abstract class AbsPlatform {
 
   async collectAfterHandler(collectResult: any, jobDetail: any): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
-    if (collectResult.message === "Success" && collectResult.code === 0 && collectResult.verified !== false) {
+    if (
+      collectResult.message === 'Success' &&
+      collectResult.code === 0 &&
+      collectResult.verified !== false
+    ) {
       runtimeCounter().collectSuccessIncr();
       this.preferenceLogRecorder.info(`工作【${jobTitle}】 收藏成功`);
       return jobDetail;
     }
 
-    throw new FavoriteRequestError(jobTitle, collectResult.message || "收藏未确认成功");
+    throw new FavoriteRequestError(jobTitle, collectResult.message || '收藏未确认成功');
   }
 
   async doCollect(_jobDetail: any): Promise<{ message: string; code: number }> {
     return {
-      message: "当前平台暂不支持收藏",
-      code: 1
+      message: '当前平台暂不支持收藏',
+      code: 1,
     };
   }
 
   isLimit(jobDetail: any): { limit: boolean; msg: string } {
     return {
       limit: false,
-      msg: this.getJobKey(jobDetail)
+      msg: this.getJobKey(jobDetail),
     };
   }
 

@@ -1,109 +1,189 @@
+<!--
+/**
+ * Panel.vue - AI 工作猎手主面板组件
+ * 
+ * 这是用户脚本的核心 UI 组件，提供可折叠、可调整大小的侧边栏面板。
+ * 
+ * 主要功能：
+ * - 侧边栏展开/收起控制
+ * - 面板宽度拖拽调整（380-800px）
+ * - 浮动按钮（FAB）智能定位，避免与页面元素冲突
+ * - 多标签页切换（工作台、AI配置、投递判定等）
+ * - 响应式布局适配桌面和移动端
+ * 
+ * 技术特性：
+ * - 使用 IntersectionObserver 监听页面元素变化
+ * - 防抖优化 FAB 定位性能
+ * - localStorage 持久化面板状态
+ * - KeepAlive 缓存标签页组件状态
+ * 
+ * @component
+ */
+-->
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, onUpdated, ref, shallowRef, watch } from "vue";
-import AiConfig from "@/features/ai-config/components/AiConfig.vue";
-import Account from "@/features/account/components/Account.vue";
-import AiDeliveryJudge from "@/features/ai-delivery-judge/components/AiDeliveryJudge.vue";
-import AiJob from "@/features/job-assistant/components/AiJob.vue";
-import MemorySession from "@/features/memory-session/components/MemorySession.vue";
-import Preference from "@/features/preference/components/Preference.vue";
-import RunRecord from "@/features/run-record/components/RunRecord.vue";
+import { nextTick, onBeforeUnmount, onMounted, onUpdated, ref, shallowRef, watch } from 'vue';
+import AiConfig from '@/features/ai-config/components/AiConfig.vue';
+import Account from '@/features/account/components/Account.vue';
+import AiDeliveryJudge from '@/features/ai-delivery-judge/components/AiDeliveryJudge.vue';
+import AiJob from '@/features/job-assistant/components/AiJob.vue';
+import MemorySession from '@/features/memory-session/components/MemorySession.vue';
+import Preference from '@/features/preference/components/Preference.vue';
+import RunRecord from '@/features/run-record/components/RunRecord.vue';
 
-const STORAGE_KEY = "ai-job-panel-collapsed";
-const WIDTH_STORAGE_KEY = "ai-job-panel-width";
+// ============================================================================
+// 常量定义
+// ============================================================================
 
+/** 面板折叠状态的 localStorage 键名 */
+const STORAGE_KEY = 'ai-job-panel-collapsed';
+
+/** 面板宽度的 localStorage 键名 */
+const WIDTH_STORAGE_KEY = 'ai-job-panel-width';
+
+/** 侧边栏展开时的 z-index（低于 FAB） */
 const Z_INDEX_SIDEBAR_EXPANDED = 99999;
+
+/** 侧边栏收起时的 z-index（低于 FAB） */
 const Z_INDEX_SIDEBAR_COLLAPSED = 99997;
+
+/** FAB 展开时的 z-index（低于侧边栏） */
 const Z_INDEX_FAB_EXPANDED = 99998;
+
+/** FAB 收起时的 z-index（高于侧边栏） */
 const Z_INDEX_FAB_COLLAPSED = 100000;
 
-const SVG_OPEN = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/></svg>';
-const SVG_CLOSE = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-const SVG_MINIMIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+/** 展开按钮的 SVG 图标（机器人图标） */
+const SVG_OPEN =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/></svg>';
 
+/** 关闭按钮的 SVG 图标（X 图标） */
+const SVG_CLOSE =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+/** 最小化按钮的 SVG 图标（右箭头） */
+const SVG_MINIMIZE =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+
+/** FAB 按钮的尺寸（像素） */
 const FAB_SIZE = 46;
+
+/** FAB 与页面元素的安全间距（像素） */
 const FAB_SAFE_GAP = 14;
+
+/** 桌面端 FAB 的基础位置 */
 const FAB_BASE_DESKTOP = { right: 24, bottom: 108 };
+
+/** 移动端 FAB 的基础位置 */
 const FAB_BASE_MOBILE = { right: 16, bottom: 88 };
+
+/** FAB 锚定到侧边栏时的右侧偏移量（像素） */
 const FAB_ANCHOR_RIGHT_SHIFT_PX = 15;
+
+/** FAB 锚定到侧边栏时的顶部偏移量（像素） */
 const FAB_ANCHOR_TOP_OFFSET_PX = 70;
+
+/** 面板最小宽度（像素） */
 const MIN_PANEL_WIDTH = 380;
+
+/** 面板最大宽度（像素） */
 const MAX_PANEL_WIDTH = 800;
 
+/**
+ * FAB 碰撞检测选择器列表
+ * 用于检测 FAB 是否与页面元素重叠，需要调整位置
+ */
 const FAB_COLLISION_SELECTORS = [
-  ".zp-side-entry-jobs",
-  ".zp-side-entry-question",
-  ".side-entry.side-entry-jobs",
-  ".side-entry.side-entry-question",
-  ".c-job-tools.job-tools",
-  ".vip-guide.sider-box",
-  ".job-tools-banners",
-  ".banner-item.template-banner"
+  '.zp-side-entry-jobs',
+  '.zp-side-entry-question',
+  '.side-entry.side-entry-jobs',
+  '.side-entry.side-entry-question',
+  '.c-job-tools.job-tools',
+  '.vip-guide.sider-box',
+  '.job-tools-banners',
+  '.banner-item.template-banner',
 ] as const;
 
+/**
+ * FAB 锚定选择器列表
+ * 当检测到这些元素时，FAB 会锚定到它们附近
+ */
 const FAB_ANCHOR_SELECTORS = [
-  ".zp-side-entry-jobs",
-  ".zp-side-entry-question",
-  ".side-entry.side-entry-jobs",
-  ".side-entry.side-entry-question"
+  '.zp-side-entry-jobs',
+  '.zp-side-entry-question',
+  '.side-entry.side-entry-jobs',
+  '.side-entry.side-entry-question',
 ] as const;
 
+/**
+ * 标签页配置列表
+ * 定义侧边栏中的所有功能模块
+ */
 const tabs = [
   {
-    key: "1",
-    name: "工作台",
+    key: '1',
+    name: '工作台',
     component: AiJob,
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>'
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
   },
   {
-    key: "2",
-    name: "AI 配置",
+    key: '2',
+    name: 'AI 配置',
     component: AiConfig,
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>'
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
   },
   {
-    key: "3",
-    name: "投递判定",
+    key: '3',
+    name: '投递判定',
     component: AiDeliveryJudge,
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>'
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>',
   },
   {
-    key: "4",
-    name: "传统投递",
+    key: '4',
+    name: '传统投递',
     component: Preference,
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.72V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.17a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>'
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.72V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.17a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
   },
   {
-    key: "5",
-    name: "对话通知",
+    key: '5',
+    name: '对话通知',
     component: MemorySession,
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
   },
   {
-    key: "6",
-    name: "运行记录",
+    key: '6',
+    name: '运行记录',
     component: RunRecord,
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>'
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>',
   },
   {
-    key: "7",
-    name: "账户",
+    key: '7',
+    name: '账户',
     component: Account,
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
   },
-  
 ] as const;
 
+// ============================================================================
+// 类型定义
+// ============================================================================
+
+/** FAB 位置类型 */
 type Position = { right: number; bottom: number };
 
+// ============================================================================
+// 响应式状态
+// ============================================================================
+
+/** 当前显示的组件 */
 const showComponent = shallowRef(AiJob);
-const activeMenuKey = ref("1");
+const activeMenuKey = ref('1');
 const collapsed = ref(false);
 const panelWidth = ref(480);
 const isResizing = ref(false);
 const isTransitioning = ref(false);
 const fabDynamicStyle = ref({
   right: `${FAB_BASE_DESKTOP.right}px`,
-  bottom: `${FAB_BASE_DESKTOP.bottom}px`
+  bottom: `${FAB_BASE_DESKTOP.bottom}px`,
 });
 const sidebarZIndex = ref(Z_INDEX_SIDEBAR_COLLAPSED);
 const fabZIndex = ref(Z_INDEX_FAB_COLLAPSED);
@@ -146,14 +226,19 @@ function hasIntersection(a: DOMRect | ReturnType<typeof getFabRect>, b: DOMRect,
   );
 }
 
-function getFabRect(position: Position): { left: number; top: number; right: number; bottom: number } {
+function getFabRect(position: Position): {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+} {
   const left = window.innerWidth - position.right - FAB_SIZE;
   const top = window.innerHeight - position.bottom - FAB_SIZE;
   return {
     left,
     top,
     right: left + FAB_SIZE,
-    bottom: top + FAB_SIZE
+    bottom: top + FAB_SIZE,
   };
 }
 
@@ -163,7 +248,7 @@ function clampFabPosition(position: Position): Position {
   const maxBottom = Math.max(minInset, window.innerHeight - FAB_SIZE - minInset);
   return {
     right: Math.max(minInset, Math.min(position.right, maxRight)),
-    bottom: Math.max(minInset, Math.min(position.bottom, maxBottom))
+    bottom: Math.max(minInset, Math.min(position.bottom, maxBottom)),
   };
 }
 
@@ -223,7 +308,7 @@ function resolveFabCollisionPosition(): Position {
 
   const candidates = [
     { right: base.right, bottom: raisedBottom },
-    { right: base.right + 220, bottom: raisedBottom }
+    { right: base.right + 220, bottom: raisedBottom },
   ].map(clampFabPosition);
 
   const best = candidates.find((position) => {
@@ -238,7 +323,7 @@ function applyFabPosition(): void {
   const resolved = resolveFabCollisionPosition();
   fabDynamicStyle.value = {
     right: `${Math.round(resolved.right)}px`,
-    bottom: `${Math.round(resolved.bottom)}px`
+    bottom: `${Math.round(resolved.bottom)}px`,
   };
 }
 
@@ -248,13 +333,13 @@ function scheduleFabPosition(): void {
     clearTimeout(fabDebounceTimer);
     fabDebounceTimer = 0;
   }
-  
+
   // 清除之前的RAF
   if (fabRepositionRaf) {
     cancelAnimationFrame(fabRepositionRaf);
     fabRepositionRaf = 0;
   }
-  
+
   // 使用防抖：100ms内的连续调用只执行最后一次
   fabDebounceTimer = window.setTimeout(() => {
     fabDebounceTimer = 0;
@@ -265,18 +350,16 @@ function scheduleFabPosition(): void {
   }, 100);
 }
 
-
-
 function cleanupPreference(): void {
   nextTick(() => {
     document
-      .querySelectorAll(".form-preference .el-form-item__label, .ai-config .el-form-item__label")
+      .querySelectorAll('.form-preference .el-form-item__label, .ai-config .el-form-item__label')
       .forEach((label) => {
         const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
         let node = walker.nextNode() as Text | null;
         while (node) {
-          const currentText = node.textContent ?? "";
-          const cleanedText = currentText.replace(/[\u00a0]/g, " ").trim();
+          const currentText = node.textContent ?? '';
+          const cleanedText = currentText.replace(/[\u00a0]/g, ' ').trim();
           if (cleanedText !== currentText) {
             node.textContent = cleanedText;
           }
@@ -289,7 +372,7 @@ function cleanupPreference(): void {
 function toggleCollapse(): void {
   isTransitioning.value = true;
   collapsed.value = !collapsed.value;
-  
+
   // 更新z-index：展开时侧边栏在上，收起时FAB在上
   if (collapsed.value) {
     sidebarZIndex.value = Z_INDEX_SIDEBAR_COLLAPSED;
@@ -298,7 +381,7 @@ function toggleCollapse(): void {
     sidebarZIndex.value = Z_INDEX_SIDEBAR_EXPANDED;
     fabZIndex.value = Z_INDEX_FAB_EXPANDED;
   }
-  
+
   safeSetItem(STORAGE_KEY, String(collapsed.value));
   nextTick(() => {
     scheduleFabPosition();
@@ -328,15 +411,15 @@ function startResize(event: MouseEvent): void {
   mouseUpHandler = () => {
     isResizing.value = false;
     if (mouseMoveHandler) {
-      document.removeEventListener("mousemove", mouseMoveHandler);
+      document.removeEventListener('mousemove', mouseMoveHandler);
       mouseMoveHandler = null;
     }
     if (mouseUpHandler) {
-      document.removeEventListener("mouseup", mouseUpHandler);
+      document.removeEventListener('mouseup', mouseUpHandler);
       mouseUpHandler = null;
     }
     if (visibilityChangeHandler) {
-      document.removeEventListener("visibilitychange", visibilityChangeHandler);
+      document.removeEventListener('visibilitychange', visibilityChangeHandler);
       visibilityChangeHandler = null;
     }
     safeSetItem(WIDTH_STORAGE_KEY, String(panelWidth.value));
@@ -348,14 +431,14 @@ function startResize(event: MouseEvent): void {
     }
   };
 
-  document.addEventListener("mousemove", mouseMoveHandler);
-  document.addEventListener("mouseup", mouseUpHandler);
-  document.addEventListener("visibilitychange", visibilityChangeHandler);
+  document.addEventListener('mousemove', mouseMoveHandler);
+  document.addEventListener('mouseup', mouseUpHandler);
+  document.addEventListener('visibilitychange', visibilityChangeHandler);
 }
 
 onMounted(() => {
   const savedCollapsed = safeGetItem(STORAGE_KEY);
-  if (savedCollapsed === "true") {
+  if (savedCollapsed === 'true') {
     collapsed.value = true;
     sidebarZIndex.value = Z_INDEX_SIDEBAR_COLLAPSED;
     fabZIndex.value = Z_INDEX_FAB_COLLAPSED;
@@ -375,39 +458,42 @@ onMounted(() => {
   nextTick(() => {
     applyFabPosition();
     // 使用IntersectionObserver监听动态内容变化
-    const observer = new IntersectionObserver(() => {
-      scheduleFabPosition();
-    }, { threshold: [0, 0.5, 1] });
-    
-    FAB_COLLISION_SELECTORS.forEach(selector => {
-      document.querySelectorAll(selector).forEach(el => {
+    const observer = new IntersectionObserver(
+      () => {
+        scheduleFabPosition();
+      },
+      { threshold: [0, 0.5, 1] }
+    );
+
+    FAB_COLLISION_SELECTORS.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((el) => {
         observer.observe(el);
       });
     });
   });
 
-  window.addEventListener("resize", scheduleFabPosition);
-  window.addEventListener("scroll", scheduleFabPosition, true);
+  window.addEventListener('resize', scheduleFabPosition);
+  window.addEventListener('scroll', scheduleFabPosition, true);
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener("resize", scheduleFabPosition);
-  window.removeEventListener("scroll", scheduleFabPosition, true);
-  
+  window.removeEventListener('resize', scheduleFabPosition);
+  window.removeEventListener('scroll', scheduleFabPosition, true);
+
   // 清理resize事件监听器
   if (mouseMoveHandler) {
-    document.removeEventListener("mousemove", mouseMoveHandler);
+    document.removeEventListener('mousemove', mouseMoveHandler);
     mouseMoveHandler = null;
   }
   if (mouseUpHandler) {
-    document.removeEventListener("mouseup", mouseUpHandler);
+    document.removeEventListener('mouseup', mouseUpHandler);
     mouseUpHandler = null;
   }
   if (visibilityChangeHandler) {
-    document.removeEventListener("visibilitychange", visibilityChangeHandler);
+    document.removeEventListener('visibilitychange', visibilityChangeHandler);
     visibilityChangeHandler = null;
   }
-  
+
   // 清理FAB定位相关的定时器和RAF
   if (fabDebounceTimer) {
     clearTimeout(fabDebounceTimer);
@@ -433,18 +519,29 @@ onUpdated(() => {
     <div
       class="ai-fab"
       :class="{ 'ai-fab--close': !collapsed }"
-      :style="{ ...fabDynamicStyle, zIndex: fabZIndex, pointerEvents: isTransitioning ? 'none' : 'auto' }"
+      :style="{
+        ...fabDynamicStyle,
+        zIndex: fabZIndex,
+        pointerEvents: isTransitioning ? 'none' : 'auto',
+      }"
       :title="collapsed ? '展开 AI 助手面板' : '收起面板'"
       @click="toggleCollapse"
       data-testid="fab-button"
     >
-      <div style="pointer-events: none; display: flex; align-items: center; justify-content: center;" v-html="collapsed ? SVG_OPEN : SVG_CLOSE" />
+      <div
+        style="pointer-events: none; display: flex; align-items: center; justify-content: center"
+        v-html="collapsed ? SVG_OPEN : SVG_CLOSE"
+      />
     </div>
 
     <div
       class="ai-sidebar"
       :class="{ 'is-resizing': isResizing, 'is-collapsed': collapsed }"
-      :style="{ width: `${panelWidth}px`, zIndex: sidebarZIndex, pointerEvents: isTransitioning || collapsed ? 'none' : 'auto' }"
+      :style="{
+        width: `${panelWidth}px`,
+        zIndex: sidebarZIndex,
+        pointerEvents: isTransitioning || collapsed ? 'none' : 'auto',
+      }"
       @transitionend="isTransitioning = false"
       data-testid="panel-container"
     >
@@ -452,8 +549,21 @@ onUpdated(() => {
 
       <div class="ai-sidebar-header">
         <div class="ai-sidebar-title">AI 工作猎手</div>
-        <div class="ai-sidebar-minimize" title="收起面板" @click="toggleCollapse" data-testid="panel-minimize">
-          <div style="pointer-events: none; display: flex; align-items: center; justify-content: center;" v-html="SVG_MINIMIZE" />
+        <div
+          class="ai-sidebar-minimize"
+          title="收起面板"
+          @click="toggleCollapse"
+          data-testid="panel-minimize"
+        >
+          <div
+            style="
+              pointer-events: none;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            "
+            v-html="SVG_MINIMIZE"
+          />
         </div>
       </div>
 
@@ -466,8 +576,8 @@ onUpdated(() => {
           @click="handleSelect(tab.key)"
           :data-testid="`tab-${tab.name}`"
         >
-          <div style="pointer-events: none;" v-html="tab.icon" />
-          <span style="pointer-events: none;">{{ tab.name }}</span>
+          <div style="pointer-events: none" v-html="tab.icon" />
+          <span style="pointer-events: none">{{ tab.name }}</span>
         </div>
       </div>
 
@@ -520,7 +630,9 @@ onUpdated(() => {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   overflow: hidden;
-  transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1), width 0.3s ease;
+  transition:
+    transform 0.4s cubic-bezier(0.19, 1, 0.22, 1),
+    width 0.3s ease;
   will-change: transform, width;
   transform: translateX(0);
 }
@@ -586,12 +698,12 @@ onUpdated(() => {
 }
 
 :deep(.ai-sidebar-title::before) {
-  content: "";
+  content: '';
   width: 20px;
   height: 20px;
   flex-shrink: 0;
   border-radius: 4px;
-  background: url("https://z.zhipin.com/web/v2/favicon.ico") center / cover no-repeat;
+  background: url('https://z.zhipin.com/web/v2/favicon.ico') center / cover no-repeat;
 }
 
 :deep(.ai-sidebar-minimize) {
@@ -713,8 +825,14 @@ onUpdated(() => {
 }
 
 @keyframes ai-fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Custom Scrollbar */
@@ -765,7 +883,9 @@ onUpdated(() => {
 }
 
 :deep(.el-input .el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--ai-primary) inset, 0 0 0 3px var(--ai-primary-light) !important;
+  box-shadow:
+    0 0 0 1px var(--ai-primary) inset,
+    0 0 0 3px var(--ai-primary-light) !important;
 }
 
 :deep(.el-switch.is-checked .el-switch__core) {
@@ -791,7 +911,7 @@ onUpdated(() => {
 /* ===== 传统投递 Tab: Top-label layout ===== */
 
 /* --- Core: all flex pair containers wrap --- */
-:deep(.form-preference > div > div[style*="display: flex"]) {
+:deep(.form-preference > div > div[style*='display: flex']) {
   flex-wrap: wrap !important;
   gap: 0 !important;
 }
@@ -827,33 +947,32 @@ onUpdated(() => {
 }
 
 /* --- Form items in flex containers: full width for vertical stacking --- */
-:deep(.form-preference > div > div[style*="display: flex"] > .el-form-item) {
+:deep(.form-preference > div > div[style*='display: flex'] > .el-form-item) {
   flex: 0 0 100% !important;
 }
 
-
 /* --- DEFAULT: checkboxes in flex containers → full width (vertical) --- */
 /* This covers items 14 (高意向) and 17 (邮件通知) */
-:deep(.form-preference > div > div[style*="display: flex"] > label.el-checkbox) {
+:deep(.form-preference > div > div[style*='display: flex'] > label.el-checkbox) {
   width: 100% !important;
   flex: 0 0 100% !important;
 }
 
 /* --- OVERRIDE: item 10 (margin-bottom container) — wrap layout, each logical group on own row --- */
-:deep(.form-preference > div > div[style*="margin-bottom"]) {
+:deep(.form-preference > div > div[style*='margin-bottom']) {
   flex-wrap: wrap !important;
   flex-direction: row !important;
   align-items: center !important;
   gap: 6px 8px !important;
 }
 /* Each checkbox: full width = own row */
-:deep(.form-preference > div > div[style*="margin-bottom"] > label.el-checkbox) {
+:deep(.form-preference > div > div[style*='margin-bottom'] > label.el-checkbox) {
   width: 100% !important;
   flex: 0 0 100% !important;
 }
 
 /* --- 高意向 area: clean up negative margin hacks --- */
-:deep(.form-preference > div > div[style*="display: flex"] > span[style*="margin-top"]) {
+:deep(.form-preference > div > div[style*='display: flex'] > span[style*='margin-top']) {
   margin-top: -4px !important;
   width: 100%;
   font-weight: 600;
@@ -894,7 +1013,7 @@ onUpdated(() => {
 
 /* ===== 传统投递: 投递间隔/翻页间隔排版 ===== */
 /* 间隔组元素保持 inline，与前面的 checkbox 分开 */
-:deep(.form-preference > div > div[style*="margin-bottom"] > p.time-interval) {
+:deep(.form-preference > div > div[style*='margin-bottom'] > p.time-interval) {
   font-size: 13px;
   font-weight: 500;
   color: var(--ai-text-main);
@@ -902,10 +1021,9 @@ onUpdated(() => {
   line-height: 34px;
   white-space: nowrap;
 }
-:deep(.form-preference > div > div[style*="margin-bottom"] > .el-input-number) {
+:deep(.form-preference > div > div[style*='margin-bottom'] > .el-input-number) {
   flex: 0 0 auto;
 }
-
 
 /* ===== 传统投递: 图片简历按钮 UI 统一 ===== */
 :deep(.form-preference .form-item-upload .el-upload .el-button) {
@@ -1004,16 +1122,16 @@ onUpdated(() => {
   width: 100%;
 }
 /* Memory strategy row: wrap switch + select + number cleanly */
-:deep(.ai-config .el-form-item__content > div[style*="flex"]) {
+:deep(.ai-config .el-form-item__content > div[style*='flex']) {
   flex-wrap: wrap !important;
   gap: 8px !important;
   width: 100%;
 }
-:deep(.ai-config .el-form-item__content > div[style*="flex"] > .el-select) {
+:deep(.ai-config .el-form-item__content > div[style*='flex'] > .el-select) {
   flex: 1;
   min-width: 120px;
 }
-:deep(.ai-config .el-form-item__content > div[style*="flex"] > .el-input-number) {
+:deep(.ai-config .el-form-item__content > div[style*='flex'] > .el-input-number) {
   flex: 0 0 auto;
 }
 
@@ -1138,4 +1256,3 @@ onUpdated(() => {
   }
 }
 </style>
-

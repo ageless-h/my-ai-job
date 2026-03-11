@@ -21,7 +21,7 @@ export class NotMatchError<TData = unknown> extends PushError {
   jobTitle: string;
   data: TData;
 
-  constructor(jobTitle: string, data: TData, message = "") {
+  constructor(jobTitle: string, data: TData, message = '') {
     super(message);
     this.jobTitle = jobTitle;
     this.data = data;
@@ -31,7 +31,7 @@ export class NotMatchError<TData = unknown> extends PushError {
 export class PushRequestError extends PushError {
   jobTitle: string;
 
-  constructor(jobTitle: string, message = "") {
+  constructor(jobTitle: string, message = '') {
     super(message);
     this.jobTitle = jobTitle;
   }
@@ -40,7 +40,7 @@ export class PushRequestError extends PushError {
 export class FavoriteRequestError extends PushError {
   jobTitle: string;
 
-  constructor(jobTitle: string, message = "") {
+  constructor(jobTitle: string, message = '') {
     super(message);
     this.jobTitle = jobTitle;
   }
@@ -49,7 +49,7 @@ export class FavoriteRequestError extends PushError {
 export class FetchJobDetailError extends PushError {
   jobTitle: string;
 
-  constructor(jobTitle: string, message = "") {
+  constructor(jobTitle: string, message = '') {
     super(message);
     this.jobTitle = jobTitle;
   }

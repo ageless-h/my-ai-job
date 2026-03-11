@@ -1,8 +1,33 @@
+<!--
+/**
+ * Preference.vue - 传统投递偏好设置组件
+ * 
+ * 提供传统投递规则的配置界面，用于精准过滤职位。
+ * 
+ * 主要功能：
+ * - 基本要求过滤（薪资、公司规模、融资阶段、活跃度）
+ * - 公司黑名单（排除特定公司）
+ * - 岗位名称黑名单（排除特定职位）
+ * - 投递规则开关（启用/禁用传统规则）
+ * - 配置持久化到服务器
+ * 
+ * 技术特性：
+ * - 实时保存配置到后端
+ * - 表单验证（薪资范围、公司规模格式）
+ * - 响应式布局适配
+ * 
+ * @component
+ */
+-->
 <template>
   <div class="preference-tab">
     <div class="header-title">传统投递偏好</div>
 
-    <el-text v-if="Tools.window.location.href.includes('job-recommend')" class="mx-1 top-title top-title-danger" type="danger">
+    <el-text
+      v-if="Tools.window.location.href.includes('job-recommend')"
+      class="mx-1 top-title top-title-danger"
+      type="danger"
+    >
       !!!请前往顶部【搜索】按钮所在页面保存传统投递设置!!!
     </el-text>
 
@@ -17,7 +42,9 @@
         <div class="setting-row">
           <div class="switch-content">
             <span class="label">启用传统投递规则</span>
-            <div class="sub-desc mt-4">关闭后将跳过传统规则过滤（如公司名/岗位名/薪资等），仅保留基础状态检查。</div>
+            <div class="sub-desc mt-4">
+              关闭后将跳过传统规则过滤（如公司名/岗位名/薪资等），仅保留基础状态检查。
+            </div>
           </div>
           <el-switch
             v-model="userStore.user.preference.traditionalDeliveryE"
@@ -25,7 +52,10 @@
             inactive-text="关"
             inline-prompt
             data-testid="enable-rules-switch"
-            :style="{ '--el-switch-on-color': 'var(--boss-primary, #00bebd)', '--el-switch-off-color': '#dcdfe6' }"
+            :style="{
+              '--el-switch-on-color': 'var(--boss-primary, #00bebd)',
+              '--el-switch-off-color': '#dcdfe6',
+            }"
           />
         </div>
       </div>
@@ -36,29 +66,55 @@
         <div class="responsive-grid">
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.srE">薪资要求 (月薪k)</el-checkbox>
-            <el-input v-model="userStore.user.preference.sr" placeholder="例如：15-30" data-testid="salary-filter-switch" />
+            <el-input
+              v-model="userStore.user.preference.sr"
+              placeholder="例如：15-30"
+              data-testid="salary-filter-switch"
+            />
           </el-form-item>
 
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.csrE">公司规模范围</el-checkbox>
-            <el-input v-model="userStore.user.preference.csr" placeholder="例如：100-9999" data-testid="company-scale-filter" />
+            <el-input
+              v-model="userStore.user.preference.csr"
+              placeholder="例如：100-9999"
+              data-testid="company-scale-filter"
+            />
           </el-form-item>
         </div>
 
         <div class="judge-divider"></div>
 
         <div class="switch-grid mt-16">
-          <el-checkbox v-model="userStore.user.preference.fhE" border class="boss-grid-check">自动过滤猎头岗位</el-checkbox>
-          <el-checkbox v-model="userStore.user.preference.polE" border class="boss-grid-check">仅投递 BOSS 刚刚活跃/在线</el-checkbox>
+          <el-checkbox v-model="userStore.user.preference.fhE" border class="boss-grid-check"
+            >自动过滤猎头岗位</el-checkbox
+          >
+          <el-checkbox v-model="userStore.user.preference.polE" border class="boss-grid-check"
+            >仅投递 BOSS 刚刚活跃/在线</el-checkbox
+          >
         </div>
 
         <div class="activity-filter mt-16">
-          <el-checkbox v-model="userStore.user.preference.acE" class="mr-12" border>启用活跃度过滤</el-checkbox>
+          <el-checkbox v-model="userStore.user.preference.acE" class="mr-12" border
+            >启用活跃度过滤</el-checkbox
+          >
           <div class="activity-dims" :class="{ 'is-disabled': !userStore.user.preference.acE }">
             <span class="dim-label">允许的活跃维度：</span>
-            <el-checkbox v-model="userStore.user.preference.acW" :disabled="!userStore.user.preference.acE">本周活跃</el-checkbox>
-            <el-checkbox v-model="userStore.user.preference.acM" :disabled="!userStore.user.preference.acE">本月活跃</el-checkbox>
-            <el-checkbox v-model="userStore.user.preference.acY" :disabled="!userStore.user.preference.acE">半年前活跃</el-checkbox>
+            <el-checkbox
+              v-model="userStore.user.preference.acW"
+              :disabled="!userStore.user.preference.acE"
+              >本周活跃</el-checkbox
+            >
+            <el-checkbox
+              v-model="userStore.user.preference.acM"
+              :disabled="!userStore.user.preference.acE"
+              >本月活跃</el-checkbox
+            >
+            <el-checkbox
+              v-model="userStore.user.preference.acY"
+              :disabled="!userStore.user.preference.acE"
+              >半年前活跃</el-checkbox
+            >
           </div>
         </div>
       </div>
@@ -69,7 +125,8 @@
         <div class="responsive-grid mt-16">
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.cniE">
-              公司名 <el-tag size="small" type="success" effect="light" round class="ml-4">包含</el-tag>
+              公司名
+              <el-tag size="small" type="success" effect="light" round class="ml-4">包含</el-tag>
             </el-checkbox>
             <el-select
               v-model="userStore.user.preference.cni"
@@ -88,7 +145,8 @@
 
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.cneE">
-              公司名 <el-tag size="small" type="danger" effect="light" round class="ml-4">排除</el-tag>
+              公司名
+              <el-tag size="small" type="danger" effect="light" round class="ml-4">排除</el-tag>
             </el-checkbox>
             <el-select
               v-model="userStore.user.preference.cne"
@@ -108,7 +166,8 @@
         <div class="responsive-grid">
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.jniE">
-              岗位名称 <el-tag size="small" type="success" effect="light" round class="ml-4">包含</el-tag>
+              岗位名称
+              <el-tag size="small" type="success" effect="light" round class="ml-4">包含</el-tag>
             </el-checkbox>
             <el-select
               v-model="userStore.user.preference.jni"
@@ -126,7 +185,8 @@
 
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.jneE">
-              岗位名称 <el-tag size="small" type="danger" effect="light" round class="ml-4">排除</el-tag>
+              岗位名称
+              <el-tag size="small" type="danger" effect="light" round class="ml-4">排除</el-tag>
             </el-checkbox>
             <el-select
               v-model="userStore.user.preference.jne"
@@ -138,7 +198,12 @@
               :reserve-keyword="false"
               placeholder="例如：外包, 实习 (输入后回车)"
             >
-              <el-option v-for="item in jobNameExcludeHints" :key="item" :label="item" :value="item" />
+              <el-option
+                v-for="item in jobNameExcludeHints"
+                :key="item"
+                :label="item"
+                :value="item"
+              />
             </el-select>
           </el-form-item>
         </div>
@@ -146,7 +211,8 @@
         <div class="responsive-grid">
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.jciE">
-              工作内容JD <el-tag size="small" type="success" effect="light" round class="ml-4">包含</el-tag>
+              工作内容JD
+              <el-tag size="small" type="success" effect="light" round class="ml-4">包含</el-tag>
               <span class="text-xs text-muted ml-4">(任一命中)</span>
             </el-checkbox>
             <el-select
@@ -165,7 +231,8 @@
 
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.jceE">
-              工作内容JD <el-tag size="small" type="danger" effect="light" round class="ml-4">排除</el-tag>
+              工作内容JD
+              <el-tag size="small" type="danger" effect="light" round class="ml-4">排除</el-tag>
             </el-checkbox>
             <el-select
               v-model="userStore.user.preference.jce"
@@ -177,7 +244,12 @@
               :reserve-keyword="false"
               placeholder="例如：驻场, 催收 (输入后回车)"
             >
-              <el-option v-for="item in jobContentExcludeHints" :key="item" :label="item" :value="item" />
+              <el-option
+                v-for="item in jobContentExcludeHints"
+                :key="item"
+                :label="item"
+                :value="item"
+              />
             </el-select>
           </el-form-item>
         </div>
@@ -194,13 +266,23 @@
         <div class="interval-groups mt-16">
           <div class="interval-item">
             <span class="interval-label">投递频率间隔：</span>
-            <el-input-number v-model="userStore.user.preference.pi" :min="3" :max="60" controls-position="right" />
+            <el-input-number
+              v-model="userStore.user.preference.pi"
+              :min="3"
+              :max="60"
+              controls-position="right"
+            />
             <span class="interval-unit">秒 / 次</span>
           </div>
 
           <div class="interval-item">
             <span class="interval-label">翻页等待间隔：</span>
-            <el-input-number v-model="userStore.user.preference.npi" :min="6" :max="60" controls-position="right" />
+            <el-input-number
+              v-model="userStore.user.preference.npi"
+              :min="6"
+              :max="60"
+              controls-position="right"
+            />
             <span class="interval-unit">秒 / 页</span>
           </div>
         </div>
@@ -209,7 +291,15 @@
       <div class="action-footer mt-24">
         <div class="footer-right buttons">
           <el-button link class="text-muted" @click="resetForm">恢复默认过滤</el-button>
-           <el-button color="#00bebd" type="primary" class="save-btn" style="color: white;" data-testid="save-preference-button" @click="submitForm">保存传统投递偏好</el-button>
+          <el-button
+            color="#00bebd"
+            type="primary"
+            class="save-btn"
+            style="color: white"
+            data-testid="save-preference-button"
+            @click="submitForm"
+            >保存传统投递偏好</el-button
+          >
         </div>
       </div>
     </el-form>
@@ -255,11 +345,31 @@ const preferenceDefaultValueHandler = () => {
   if (typeof userStore.user.preference.traditionalDeliveryE !== 'boolean') {
     userStore.user.preference.traditionalDeliveryE = true;
   }
-  userStore.user.preference.maxSessionActions = upgradePrefNumber(userStore.user.preference.maxSessionActions, 35, 60);
-  userStore.user.preference.maxDailyActions = upgradePrefNumber(userStore.user.preference.maxDailyActions, 80, 120);
-  userStore.user.preference.maxDailyActions = upgradePrefNumber(userStore.user.preference.maxDailyActions, 120, 150);
-  userStore.user.preference.maxActionsPerMinute = upgradePrefNumber(userStore.user.preference.maxActionsPerMinute, 6, 9);
-  userStore.user.preference.imMaxReloadPerDay = upgradePrefNumber(userStore.user.preference.imMaxReloadPerDay, 10, 15);
+  userStore.user.preference.maxSessionActions = upgradePrefNumber(
+    userStore.user.preference.maxSessionActions,
+    35,
+    60
+  );
+  userStore.user.preference.maxDailyActions = upgradePrefNumber(
+    userStore.user.preference.maxDailyActions,
+    80,
+    120
+  );
+  userStore.user.preference.maxDailyActions = upgradePrefNumber(
+    userStore.user.preference.maxDailyActions,
+    120,
+    150
+  );
+  userStore.user.preference.maxActionsPerMinute = upgradePrefNumber(
+    userStore.user.preference.maxActionsPerMinute,
+    6,
+    9
+  );
+  userStore.user.preference.imMaxReloadPerDay = upgradePrefNumber(
+    userStore.user.preference.imMaxReloadPerDay,
+    10,
+    15
+  );
   if (!userStore.user.preference.cleanerMaxScanCount) {
     userStore.user.preference.cleanerMaxScanCount = 120;
   }
@@ -269,13 +379,41 @@ const preferenceDefaultValueHandler = () => {
   if (!userStore.user.preference.cleanerManualConfirmThreshold) {
     userStore.user.preference.cleanerManualConfirmThreshold = 20;
   }
-  userStore.user.preference.autoContactMinIntervalSec = upgradePrefNumber(userStore.user.preference.autoContactMinIntervalSec, 12, 10);
-  userStore.user.preference.maxAutoMessagePerSession = upgradePrefNumber(userStore.user.preference.maxAutoMessagePerSession, 20, 30);
-  userStore.user.preference.maxAutoResumePerSession = upgradePrefNumber(userStore.user.preference.maxAutoResumePerSession, 12, 18);
-  userStore.user.preference.chatMinReplyIntervalSec = upgradePrefNumber(userStore.user.preference.chatMinReplyIntervalSec, 15, 12);
-  userStore.user.preference.chatMaxPerMinute = upgradePrefNumber(userStore.user.preference.chatMaxPerMinute, 4, 6);
-  userStore.user.preference.chatMaxSessionReplies = upgradePrefNumber(userStore.user.preference.chatMaxSessionReplies, 50, 75);
-  userStore.user.preference.autoResumeMaxPerSession = upgradePrefNumber(userStore.user.preference.autoResumeMaxPerSession, 8, 12);
+  userStore.user.preference.autoContactMinIntervalSec = upgradePrefNumber(
+    userStore.user.preference.autoContactMinIntervalSec,
+    12,
+    10
+  );
+  userStore.user.preference.maxAutoMessagePerSession = upgradePrefNumber(
+    userStore.user.preference.maxAutoMessagePerSession,
+    20,
+    30
+  );
+  userStore.user.preference.maxAutoResumePerSession = upgradePrefNumber(
+    userStore.user.preference.maxAutoResumePerSession,
+    12,
+    18
+  );
+  userStore.user.preference.chatMinReplyIntervalSec = upgradePrefNumber(
+    userStore.user.preference.chatMinReplyIntervalSec,
+    15,
+    12
+  );
+  userStore.user.preference.chatMaxPerMinute = upgradePrefNumber(
+    userStore.user.preference.chatMaxPerMinute,
+    4,
+    6
+  );
+  userStore.user.preference.chatMaxSessionReplies = upgradePrefNumber(
+    userStore.user.preference.chatMaxSessionReplies,
+    50,
+    75
+  );
+  userStore.user.preference.autoResumeMaxPerSession = upgradePrefNumber(
+    userStore.user.preference.autoResumeMaxPerSession,
+    8,
+    12
+  );
 };
 
 const submitForm = async () => {
@@ -283,12 +421,16 @@ const submitForm = async () => {
     return;
   }
   await axios2
-    .post('/api/user/save/preference', {
-      ...userStore.user,
-      aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
-    }, {
-      timeout: PREFERENCE_SAVE_TIMEOUT_MS,
-    })
+    .post(
+      '/api/user/save/preference',
+      {
+        ...userStore.user,
+        aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
+      },
+      {
+        timeout: PREFERENCE_SAVE_TIMEOUT_MS,
+      }
+    )
     .then(() => {
       showAppMessage({
         message: '传统投递设置保存成功',

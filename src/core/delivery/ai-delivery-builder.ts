@@ -1,5 +1,5 @@
 // 文件使用 UTF-8 编码保存。
-import { normalizePreferenceBoolean } from "@/shared/utils/preference";
+import { normalizePreferenceBoolean } from '@/shared/utils/preference';
 
 /**
  * AI 投递提示词配置。
@@ -22,7 +22,7 @@ export type AiDeliveryPromptConfig = {
 /**
  * AI 投递失败兜底触发阶段。
  */
-export type AiDeliveryFallbackStage = "ai-error" | "invalid-result";
+export type AiDeliveryFallbackStage = 'ai-error' | 'invalid-result';
 
 /**
  * AI 投递失败后的兜底解析结果。
@@ -57,19 +57,19 @@ type CollectSourceNodeOptions = {
 };
 
 const RESUME_TEXT_SEARCH_KEYS = [
-  "resumeText",
-  "resumePlainText",
-  "resumeBodyText",
-  "resumePageText",
-  "runtimeResumeText",
-  "resumeContent",
-  "cvText",
-  "attachmentResumeText",
-  "parsedResumeText",
-  "ocrText",
-  "resumeRawText",
-  "text",
-  "content"
+  'resumeText',
+  'resumePlainText',
+  'resumeBodyText',
+  'resumePageText',
+  'runtimeResumeText',
+  'resumeContent',
+  'cvText',
+  'attachmentResumeText',
+  'parsedResumeText',
+  'ocrText',
+  'resumeRawText',
+  'text',
+  'content',
 ];
 const IMPORTED_RESUME_SNIPPET_MAX_LENGTH = 900;
 const RESUME_NARRATIVE_SNIPPET_MAX_LENGTH = 360;
@@ -80,10 +80,11 @@ const MAX_RULE_KEYWORD_ITEMS = 12;
 /**
  * AI 评估输出约束，要求模型始终返回单行 JSON，便于后续稳定解析。
  */
-const AI_DELIVERY_OUTPUT_CONTRACT = "仅输出一行JSON，且只能包含两个键：match(boolean) 与 reason(string)。禁止输出Markdown、代码块或额外解释。信息不足时返回 {\"match\":false,\"reason\":\"[INFO_MISSING] 信息不足\"}。";
+const AI_DELIVERY_OUTPUT_CONTRACT =
+  '仅输出一行JSON，且只能包含两个键：match(boolean) 与 reason(string)。禁止输出Markdown、代码块或额外解释。信息不足时返回 {"match":false,"reason":"[INFO_MISSING] 信息不足"}。';
 
 const toRecord = (value: unknown): PlainRecord => {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
     return value as PlainRecord;
   }
   return {};
@@ -94,10 +95,10 @@ const toArray = (value: unknown): unknown[] => {
 };
 
 const normalizeLookupKey = (value: string): string => {
-  return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, "");
+  return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
 };
 
-const toText = (value: unknown, fallback = ""): string => {
+const toText = (value: unknown, fallback = ''): string => {
   return `${value ?? fallback}`;
 };
 
@@ -109,25 +110,21 @@ const getPreferenceValue = (
   return preference[canonicalKey] ?? preference[legacyKey];
 };
 
-const normalizeInlineText = (value: unknown, fallback = "未提供"): string => {
-  const normalized = toText(value)
-    .replace(/\s+/g, " ")
-    .trim();
+const normalizeInlineText = (value: unknown, fallback = '未提供'): string => {
+  const normalized = toText(value).replace(/\s+/g, ' ').trim();
   return normalized || fallback;
 };
 
-const normalizeMultilineText = (value: unknown, fallback = "未提供"): string => {
-  const raw = toText(value)
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n");
-  const lines = raw.split("\n").map((line) => line.replace(/\s+/g, " ").trim());
+const normalizeMultilineText = (value: unknown, fallback = '未提供'): string => {
+  const raw = toText(value).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = raw.split('\n').map((line) => line.replace(/\s+/g, ' ').trim());
   const collapsed: string[] = [];
   let previousBlank = false;
 
   for (const line of lines) {
     if (!line) {
       if (!previousBlank) {
-        collapsed.push("");
+        collapsed.push('');
       }
       previousBlank = true;
       continue;
@@ -136,22 +133,22 @@ const normalizeMultilineText = (value: unknown, fallback = "未提供"): string 
     previousBlank = false;
   }
 
-  const normalized = collapsed.join("\n").trim();
+  const normalized = collapsed.join('\n').trim();
   return normalized || fallback;
 };
 
-const formatList = (value: unknown, fallback = "无"): string => {
+const formatList = (value: unknown, fallback = '无'): string => {
   const list = toArray(value)
-    .map((item) => normalizeInlineText(item, ""))
+    .map((item) => normalizeInlineText(item, ''))
     .filter(Boolean);
-  return list.length ? list.join("、") : fallback;
+  return list.length ? list.join('、') : fallback;
 };
 
 const normalizeKeywordList = (value: unknown, maxItems = MAX_RULE_KEYWORD_ITEMS): string[] => {
   const result: string[] = [];
   const seen = new Set<string>();
   for (const item of toArray(value)) {
-    const text = normalizeInlineText(item, "");
+    const text = normalizeInlineText(item, '');
     if (!text) {
       continue;
     }
@@ -179,20 +176,20 @@ const collectKeywordConflicts = (includes: string[], excludes: string[]): string
 };
 
 const isPrimitive = (value: unknown): boolean => {
-  return ["string", "number", "boolean"].includes(typeof value) || value == null;
+  return ['string', 'number', 'boolean'].includes(typeof value) || value == null;
 };
 
 const isMeaningful = (value: unknown): boolean => {
   if (value == null) {
     return false;
   }
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     return value.trim().length > 0;
   }
   if (Array.isArray(value)) {
     return value.length > 0;
   }
-  if (typeof value === "object") {
+  if (typeof value === 'object') {
     return Object.keys(value as PlainRecord).length > 0;
   }
   return true;
@@ -221,15 +218,23 @@ const collectSourceNodes = (
   value: unknown,
   maxDepth = 5,
   options: CollectSourceNodeOptions = {},
-  rootPath = "user"
+  rootPath = 'user'
 ): SourceNode[] => {
   const result: SourceNode[] = [];
   const visited = new Set<object>();
-  const excludedPaths = toArray(options.excludePathPrefixes).map((item) => normalizeInlineText(item, "")).filter(Boolean);
-  const excludedKeySet = new Set(toArray(options.excludeKeyNames).map((item) => normalizeLookupKey(normalizeInlineText(item, ""))).filter(Boolean));
+  const excludedPaths = toArray(options.excludePathPrefixes)
+    .map((item) => normalizeInlineText(item, ''))
+    .filter(Boolean);
+  const excludedKeySet = new Set(
+    toArray(options.excludeKeyNames)
+      .map((item) => normalizeLookupKey(normalizeInlineText(item, '')))
+      .filter(Boolean)
+  );
 
   const isExcludedPath = (path: string): boolean => {
-    return excludedPaths.some((prefix) => path === prefix || path.startsWith(`${prefix}.`) || path.startsWith(`${prefix}[`));
+    return excludedPaths.some(
+      (prefix) => path === prefix || path.startsWith(`${prefix}.`) || path.startsWith(`${prefix}[`)
+    );
   };
 
   const walk = (current: unknown, path: string, depth: number): void => {
@@ -240,7 +245,7 @@ const collectSourceNodes = (
     if (isExcludedPath(path)) {
       return;
     }
-    if (!current || typeof current !== "object") {
+    if (!current || typeof current !== 'object') {
       return;
     }
     // 记录已访问对象，避免循环引用或共享引用导致重复遍历。
@@ -261,7 +266,7 @@ const collectSourceNodes = (
       if (excludedKeySet.has(normalizeLookupKey(key))) {
         continue;
       }
-      if (child && typeof child === "object") {
+      if (child && typeof child === 'object') {
         walk(child, path ? `${path}.${key}` : key, depth + 1);
       }
     }
@@ -277,33 +282,48 @@ const collectSourceNodes = (
  * @param userInput 用户资料对象。
  * @returns 返回候选简历根节点列表，包含路径与原始值，供后续深度搜索使用。
  */
-const findLikelyResumeRootNodes = (userInput: PlainRecord): Array<{ path: string; value: unknown }> => {
+const findLikelyResumeRootNodes = (
+  userInput: PlainRecord
+): Array<{ path: string; value: unknown }> => {
   const user = toRecord(userInput);
   const roots: Array<{ path: string; value: unknown }> = [];
   const preferredKeys = [
-    "importedResume",
-    "resume",
-    "resumeInfo",
-    "resumeProfile",
-    "resumeDetail",
-    "resumeData",
-    "attachmentResume",
-    "attachmentResumeInfo",
-    "parsedResume",
-    "parsedResumeData",
-    "cv",
-    "profile",
-    "geekResume"
+    'importedResume',
+    'resume',
+    'resumeInfo',
+    'resumeProfile',
+    'resumeDetail',
+    'resumeData',
+    'attachmentResume',
+    'attachmentResumeInfo',
+    'parsedResume',
+    'parsedResumeData',
+    'cv',
+    'profile',
+    'geekResume',
   ];
   const normalizedPreferredKeys = new Set(preferredKeys.map(normalizeLookupKey));
-  const weakTokens = ["resume", "cv", "profile", "geek", "job", "career", "intent", "education", "experience", "简历", "履历", "求职"];
+  const weakTokens = [
+    'resume',
+    'cv',
+    'profile',
+    'geek',
+    'job',
+    'career',
+    'intent',
+    'education',
+    'experience',
+    '简历',
+    '履历',
+    '求职',
+  ];
 
   for (const [key, value] of Object.entries(user)) {
-    if (!value || typeof value !== "object") {
+    if (!value || typeof value !== 'object') {
       continue;
     }
     const normalizedKey = normalizeLookupKey(key);
-    if (!normalizedKey || normalizedKey === "preference" || normalizedKey === "preferencemap") {
+    if (!normalizedKey || normalizedKey === 'preference' || normalizedKey === 'preferencemap') {
       continue;
     }
     if (normalizedPreferredKeys.has(normalizedKey)) {
@@ -325,14 +345,17 @@ const findLikelyResumeRootNodes = (userInput: PlainRecord): Array<{ path: string
  * @param resumeSourceInput 显式传入的简历来源对象，优先作为搜索入口。
  * @returns 返回去重后的节点列表，供简历字段搜索与证据构建复用。
  */
-const collectResumeSourceNodes = (userInput: PlainRecord, resumeSourceInput?: unknown): SourceNode[] => {
+const collectResumeSourceNodes = (
+  userInput: PlainRecord,
+  resumeSourceInput?: unknown
+): SourceNode[] => {
   const user = toRecord(userInput);
   const nodes: SourceNode[] = [];
   const nodeSeen = new Set<PlainRecord>();
   const rootSeen = new Set<string>();
 
   const appendNodes = (value: unknown, rootPath: string, maxDepth = 6): void => {
-    if (!value || typeof value !== "object") {
+    if (!value || typeof value !== 'object') {
       return;
     }
     if (rootSeen.has(rootPath)) {
@@ -343,8 +366,8 @@ const collectResumeSourceNodes = (userInput: PlainRecord, resumeSourceInput?: un
       value,
       maxDepth,
       {
-        excludePathPrefixes: ["user.preference", "user.preferenceMap"],
-        excludeKeyNames: ["preference", "preferenceMap"]
+        excludePathPrefixes: ['user.preference', 'user.preferenceMap'],
+        excludeKeyNames: ['preference', 'preferenceMap'],
       },
       rootPath
     );
@@ -358,11 +381,11 @@ const collectResumeSourceNodes = (userInput: PlainRecord, resumeSourceInput?: un
     }
   };
 
-  appendNodes(resumeSourceInput, "resumeSource", 7);
+  appendNodes(resumeSourceInput, 'resumeSource', 7);
   for (const root of findLikelyResumeRootNodes(user)) {
     appendNodes(root.value, root.path, 7);
   }
-  appendNodes(user, "user", 5);
+  appendNodes(user, 'user', 5);
 
   return nodes;
 };
@@ -371,13 +394,13 @@ const valueToSearchableText = (value: unknown): string => {
   if (!isPrimitive(value)) {
     if (Array.isArray(value) && value.every((item) => isPrimitive(item))) {
       return value
-        .map((item) => normalizeInlineText(item, ""))
+        .map((item) => normalizeInlineText(item, ''))
         .filter(Boolean)
-        .join("、");
+        .join('、');
     }
-    return "";
+    return '';
   }
-  return normalizeInlineText(value, "");
+  return normalizeInlineText(value, '');
 };
 
 const pickFirstTextValue = (
@@ -396,13 +419,13 @@ const pickFirstTextValue = (
       if (text) {
         return {
           value: text,
-          source: `${sourceNode.path}.${key}`
+          source: `${sourceNode.path}.${key}`,
         };
       }
     }
   }
 
-  return { value: "", source: "" };
+  return { value: '', source: '' };
 };
 
 const getSearchResult = (
@@ -421,7 +444,9 @@ const getSearchResult = (
       if (!normalizedKey) {
         continue;
       }
-      const maybeMatch = normalizedTokens.some((token) => normalizedKey.includes(token) || token.includes(normalizedKey));
+      const maybeMatch = normalizedTokens.some(
+        (token) => normalizedKey.includes(token) || token.includes(normalizedKey)
+      );
       if (!maybeMatch) {
         continue;
       }
@@ -429,13 +454,13 @@ const getSearchResult = (
       if (text) {
         return {
           value: text,
-          source: `${sourceNode.path}.${key}`
+          source: `${sourceNode.path}.${key}`,
         };
       }
     }
   }
 
-  return { value: "", source: "" };
+  return { value: '', source: '' };
 };
 
 /**
@@ -445,35 +470,68 @@ const getSearchResult = (
  * @param resumeSourceInput 可选的显式简历来源对象，会优先参与字段搜索。
  * @returns 返回提炼后的简历身份字段集合，并补充缺失字段说明与来源摘要。
  */
-const buildResumeIdentitySnapshot = (userInput: PlainRecord, resumeSourceInput?: unknown): PlainRecord => {
+const buildResumeIdentitySnapshot = (
+  userInput: PlainRecord,
+  resumeSourceInput?: unknown
+): PlainRecord => {
   const user = toRecord(userInput);
   const sourceNodes = collectResumeSourceNodes(user, resumeSourceInput);
   const fieldSearchMap: Record<string, string[]> = {
-    fullName: ["realName", "name", "fullName", "userName", "nickName", "nickname", "resumeName", "geekName"],
-    gender: ["gender", "sex", "genderDesc"],
-    age: ["age"],
-    workYears: ["workYear", "workYears", "workExperience", "experienceYears", "workExp", "experience"],
-    education: ["degree", "education", "educationLevel", "highestDegree", "eduLevel", "schoolDegree"],
-    school: ["school", "schoolName", "graduateSchool", "college", "university"],
-    major: ["major", "majorName", "speciality", "specialty"],
-    currentCity: ["city", "cityName", "currentCity", "liveCity", "location"],
-    expectedCity: ["expectCity", "expectedCity", "intentionCity", "expectLocation"],
-    expectedJob: ["expectJob", "expectedJob", "expectPosition", "expectedPosition", "jobIntention", "desiredPosition"],
-    currentCompany: ["company", "lastCompany", "recentCompany", "companyName", "curCompany"],
-    currentPosition: ["position", "lastPosition", "recentJobTitle", "jobTitle", "curPosition"],
-    expectedSalary: ["expectSalary", "expectedSalary", "desiredSalary", "salaryExpectation"],
-    workStatus: ["workStatus", "jobStatus", "careerStatus", "employmentStatus"],
-    profileSummary: [
-      "selfIntroduction",
-      "introduction",
-      "summary",
-      "personalSummary",
-      "advantage",
-      "resumeSummary",
-      "profileDesc",
-      "selfDescription"
+    fullName: [
+      'realName',
+      'name',
+      'fullName',
+      'userName',
+      'nickName',
+      'nickname',
+      'resumeName',
+      'geekName',
     ],
-    resumeTextSnippet: RESUME_TEXT_SEARCH_KEYS
+    gender: ['gender', 'sex', 'genderDesc'],
+    age: ['age'],
+    workYears: [
+      'workYear',
+      'workYears',
+      'workExperience',
+      'experienceYears',
+      'workExp',
+      'experience',
+    ],
+    education: [
+      'degree',
+      'education',
+      'educationLevel',
+      'highestDegree',
+      'eduLevel',
+      'schoolDegree',
+    ],
+    school: ['school', 'schoolName', 'graduateSchool', 'college', 'university'],
+    major: ['major', 'majorName', 'speciality', 'specialty'],
+    currentCity: ['city', 'cityName', 'currentCity', 'liveCity', 'location'],
+    expectedCity: ['expectCity', 'expectedCity', 'intentionCity', 'expectLocation'],
+    expectedJob: [
+      'expectJob',
+      'expectedJob',
+      'expectPosition',
+      'expectedPosition',
+      'jobIntention',
+      'desiredPosition',
+    ],
+    currentCompany: ['company', 'lastCompany', 'recentCompany', 'companyName', 'curCompany'],
+    currentPosition: ['position', 'lastPosition', 'recentJobTitle', 'jobTitle', 'curPosition'],
+    expectedSalary: ['expectSalary', 'expectedSalary', 'desiredSalary', 'salaryExpectation'],
+    workStatus: ['workStatus', 'jobStatus', 'careerStatus', 'employmentStatus'],
+    profileSummary: [
+      'selfIntroduction',
+      'introduction',
+      'summary',
+      'personalSummary',
+      'advantage',
+      'resumeSummary',
+      'profileDesc',
+      'selfDescription',
+    ],
+    resumeTextSnippet: RESUME_TEXT_SEARCH_KEYS,
   };
 
   const identityFieldSources: PlainRecord = {};
@@ -485,8 +543,11 @@ const buildResumeIdentitySnapshot = (userInput: PlainRecord, resumeSourceInput?:
       continue;
     }
     // 简历原文摘要单独截断，避免在后续 prompt 中注入过长文本。
-    if (field === "resumeTextSnippet") {
-      identityDraft[field] = normalizeMultilineText(hit.value, "").slice(0, RESUME_NARRATIVE_SNIPPET_MAX_LENGTH);
+    if (field === 'resumeTextSnippet') {
+      identityDraft[field] = normalizeMultilineText(hit.value, '').slice(
+        0,
+        RESUME_NARRATIVE_SNIPPET_MAX_LENGTH
+      );
     } else {
       identityDraft[field] = hit.value;
     }
@@ -499,12 +560,14 @@ const buildResumeIdentitySnapshot = (userInput: PlainRecord, resumeSourceInput?:
   const foundIdentityFields = Object.keys(identity);
 
   if (foundIdentityFields.length === 0) {
-    identity.note = "未读取到更多简历身份字段(仅检测到基础账号信息)";
+    identity.note = '未读取到更多简历身份字段(仅检测到基础账号信息)';
   } else {
     // 将未命中的关键字段保留给上层，便于在 prompt 中提示资料完整度不足。
-    const missingFields = Object.keys(fieldSearchMap).filter((field) => !foundIdentityFields.includes(field));
+    const missingFields = Object.keys(fieldSearchMap).filter(
+      (field) => !foundIdentityFields.includes(field)
+    );
     if (missingFields.length) {
-      identity.missingFields = missingFields.join(", ");
+      identity.missingFields = missingFields.join(', ');
     }
   }
 
@@ -512,30 +575,30 @@ const buildResumeIdentitySnapshot = (userInput: PlainRecord, resumeSourceInput?:
     identity.identityFieldSources = identityFieldSources;
     identity.sourceSummary = Object.entries(identityFieldSources)
       .map(([field, source]) => `${field}<=${source}`)
-      .join("; ");
+      .join('; ');
   }
 
   return identity;
 };
 
-const toDisplayText = (value: unknown, fallback = "未提供"): string => {
+const toDisplayText = (value: unknown, fallback = '未提供'): string => {
   if (Array.isArray(value)) {
     return formatList(value, fallback);
   }
-  if (value && typeof value === "object") {
+  if (value && typeof value === 'object') {
     const record = value as PlainRecord;
     return Object.keys(record).length ? JSON.stringify(record) : fallback;
   }
-  if (typeof value === "boolean") {
-    return value ? "是" : "否";
+  if (typeof value === 'boolean') {
+    return value ? '是' : '否';
   }
   return normalizeInlineText(value, fallback);
 };
 
 const truncateInline = (value: unknown, maxLength = 160): string => {
-  const text = normalizeInlineText(value, "");
+  const text = normalizeInlineText(value, '');
   if (!text) {
-    return "";
+    return '';
   }
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 };
@@ -556,31 +619,54 @@ const buildResumeNarrativeText = (resumeIdentityInput: PlainRecord): string => {
     `工作年限${truncateInline(resumeIdentity.workYears, 20)}`,
     `最高学历${truncateInline(resumeIdentity.education, 24)}`,
     `毕业院校${truncateInline(resumeIdentity.school, 40)}`,
-    `专业${truncateInline(resumeIdentity.major, 40)}`
-  ].filter((item) => !item.endsWith("姓名") && !item.endsWith("性别") && !item.endsWith("年龄") && !item.endsWith("工作年限") && !item.endsWith("最高学历") && !item.endsWith("毕业院校") && !item.endsWith("专业"));
+    `专业${truncateInline(resumeIdentity.major, 40)}`,
+  ].filter(
+    (item) =>
+      !item.endsWith('姓名') &&
+      !item.endsWith('性别') &&
+      !item.endsWith('年龄') &&
+      !item.endsWith('工作年限') &&
+      !item.endsWith('最高学历') &&
+      !item.endsWith('毕业院校') &&
+      !item.endsWith('专业')
+  );
 
   const intent = [
-    truncateInline(resumeIdentity.expectedJob, 40) ? `期望岗位${truncateInline(resumeIdentity.expectedJob, 40)}` : "",
-    truncateInline(resumeIdentity.expectedCity, 30) ? `期望城市${truncateInline(resumeIdentity.expectedCity, 30)}` : "",
-    truncateInline(resumeIdentity.expectedSalary, 30) ? `期望薪资${truncateInline(resumeIdentity.expectedSalary, 30)}` : "",
-    truncateInline(resumeIdentity.workStatus, 24) ? `求职状态${truncateInline(resumeIdentity.workStatus, 24)}` : ""
+    truncateInline(resumeIdentity.expectedJob, 40)
+      ? `期望岗位${truncateInline(resumeIdentity.expectedJob, 40)}`
+      : '',
+    truncateInline(resumeIdentity.expectedCity, 30)
+      ? `期望城市${truncateInline(resumeIdentity.expectedCity, 30)}`
+      : '',
+    truncateInline(resumeIdentity.expectedSalary, 30)
+      ? `期望薪资${truncateInline(resumeIdentity.expectedSalary, 30)}`
+      : '',
+    truncateInline(resumeIdentity.workStatus, 24)
+      ? `求职状态${truncateInline(resumeIdentity.workStatus, 24)}`
+      : '',
   ].filter(Boolean);
 
   const experience = [
-    truncateInline(resumeIdentity.currentCompany, 50) ? `最近公司${truncateInline(resumeIdentity.currentCompany, 50)}` : "",
-    truncateInline(resumeIdentity.currentPosition, 40) ? `最近岗位${truncateInline(resumeIdentity.currentPosition, 40)}` : "",
-    truncateInline(resumeIdentity.currentCity, 30) ? `当前城市${truncateInline(resumeIdentity.currentCity, 30)}` : ""
+    truncateInline(resumeIdentity.currentCompany, 50)
+      ? `最近公司${truncateInline(resumeIdentity.currentCompany, 50)}`
+      : '',
+    truncateInline(resumeIdentity.currentPosition, 40)
+      ? `最近岗位${truncateInline(resumeIdentity.currentPosition, 40)}`
+      : '',
+    truncateInline(resumeIdentity.currentCity, 30)
+      ? `当前城市${truncateInline(resumeIdentity.currentCity, 30)}`
+      : '',
   ].filter(Boolean);
 
   const lines: string[] = [];
   if (profile.length) {
-    lines.push(`候选人概况：${profile.join("，")}。`);
+    lines.push(`候选人概况：${profile.join('，')}。`);
   }
   if (intent.length) {
-    lines.push(`求职意向：${intent.join("，")}。`);
+    lines.push(`求职意向：${intent.join('，')}。`);
   }
   if (experience.length) {
-    lines.push(`近期经历：${experience.join("，")}。`);
+    lines.push(`近期经历：${experience.join('，')}。`);
   }
 
   const profileSummary = truncateInline(resumeIdentity.profileSummary, 240);
@@ -588,16 +674,16 @@ const buildResumeNarrativeText = (resumeIdentityInput: PlainRecord): string => {
     lines.push(`个人简介：${profileSummary}`);
   }
 
-  const resumeTextSnippet = normalizeMultilineText(resumeIdentity.resumeTextSnippet, "");
+  const resumeTextSnippet = normalizeMultilineText(resumeIdentity.resumeTextSnippet, '');
   if (resumeTextSnippet) {
     lines.push(`简历原文摘录：${resumeTextSnippet.slice(0, RESUME_NARRATIVE_SNIPPET_MAX_LENGTH)}`);
   }
 
   if (!lines.length) {
-    return "未读取到可用的个人简历文本，请先在账户信息中导入个人页简历。";
+    return '未读取到可用的个人简历文本，请先在账户信息中导入个人页简历。';
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 };
 
 /**
@@ -610,29 +696,29 @@ const buildImportedResumeSnippet = (userInput: PlainRecord): { text: string; sou
   const user = toRecord(userInput);
   const importedResume = toRecord(user.importedResume);
   if (!Object.keys(importedResume).length) {
-    return { text: "", source: "" };
+    return { text: '', source: '' };
   }
 
   const sourceNodes = collectSourceNodes(
     importedResume,
     6,
     {
-      excludePathPrefixes: ["user.preference", "user.preferenceMap"],
-      excludeKeyNames: ["preference", "preferenceMap"]
+      excludePathPrefixes: ['user.preference', 'user.preferenceMap'],
+      excludeKeyNames: ['preference', 'preferenceMap'],
     },
-    "user.importedResume"
+    'user.importedResume'
   );
   const hit = getSearchResult(sourceNodes, RESUME_TEXT_SEARCH_KEYS);
-  const text = normalizeMultilineText(hit.value, "").slice(0, IMPORTED_RESUME_SNIPPET_MAX_LENGTH);
+  const text = normalizeMultilineText(hit.value, '').slice(0, IMPORTED_RESUME_SNIPPET_MAX_LENGTH);
   if (!text) {
-    return { text: "", source: "" };
+    return { text: '', source: '' };
   }
 
   // 优先保留上游明确写入的来源说明；若没有，再退回到自动搜索命中的路径。
-  const explicitSource = normalizeInlineText(importedResume.resumeTextSource, "");
+  const explicitSource = normalizeInlineText(importedResume.resumeTextSource, '');
   return {
     text,
-    source: explicitSource || hit.source || "user.importedResume"
+    source: explicitSource || hit.source || 'user.importedResume',
   };
 };
 
@@ -644,26 +730,26 @@ const buildImportedResumeSnippet = (userInput: PlainRecord): { text: string; sou
  */
 const formatResumeIdentityText = (resumeIdentityInput: PlainRecord): string => {
   const resumeIdentity = toRecord(resumeIdentityInput);
-  const ignoredKeys = new Set(["identityFieldSources", "sourceSummary"]);
+  const ignoredKeys = new Set(['identityFieldSources', 'sourceSummary']);
   const labelMap: Record<string, string> = {
-    fullName: "姓名",
-    gender: "性别",
-    age: "年龄",
-    workYears: "工作年限",
-    education: "最高学历",
-    school: "毕业院校",
-    major: "专业",
-    currentCity: "当前城市",
-    expectedCity: "期望城市",
-    expectedJob: "期望岗位",
-    currentCompany: "最近公司",
-    currentPosition: "最近岗位",
-    expectedSalary: "期望薪资",
-    workStatus: "求职状态",
-    profileSummary: "个人简介",
-    resumeTextSnippet: "简历文本摘要",
-    missingFields: "未命中字段",
-    note: "备注"
+    fullName: '姓名',
+    gender: '性别',
+    age: '年龄',
+    workYears: '工作年限',
+    education: '最高学历',
+    school: '毕业院校',
+    major: '专业',
+    currentCity: '当前城市',
+    expectedCity: '期望城市',
+    expectedJob: '期望岗位',
+    currentCompany: '最近公司',
+    currentPosition: '最近岗位',
+    expectedSalary: '期望薪资',
+    workStatus: '求职状态',
+    profileSummary: '个人简介',
+    resumeTextSnippet: '简历文本摘要',
+    missingFields: '未命中字段',
+    note: '备注',
   };
 
   const lines = Object.entries(resumeIdentity)
@@ -673,7 +759,7 @@ const formatResumeIdentityText = (resumeIdentityInput: PlainRecord): string => {
       return `${label}：${toDisplayText(value)}`;
     });
 
-  return lines.length ? lines.join("\n") : "备注：未读取到更多简历身份字段";
+  return lines.length ? lines.join('\n') : '备注：未读取到更多简历身份字段';
 };
 
 /**
@@ -687,23 +773,33 @@ export const buildTraditionalRuleSnapshot = (preferenceInput: PlainRecord): Plai
   const preference = toRecord(preferenceInput);
   const salaryEnabled = normalizePreferenceBoolean(preference.srE, false);
   return {
-    companyInclude: normalizePreferenceBoolean(preference.cniE, false) ? toArray(preference.cni) : [],
-    companyExclude: normalizePreferenceBoolean(preference.cneE, false) ? toArray(preference.cne) : [],
+    companyInclude: normalizePreferenceBoolean(preference.cniE, false)
+      ? toArray(preference.cni)
+      : [],
+    companyExclude: normalizePreferenceBoolean(preference.cneE, false)
+      ? toArray(preference.cne)
+      : [],
     jobInclude: normalizePreferenceBoolean(preference.jniE, false) ? toArray(preference.jni) : [],
     jobExclude: normalizePreferenceBoolean(preference.jneE, false) ? toArray(preference.jne) : [],
-    contentInclude: normalizePreferenceBoolean(preference.jciE, false) ? toArray(preference.jci) : [],
-    contentExclude: normalizePreferenceBoolean(preference.jceE, false) ? toArray(preference.jce) : [],
-    salaryRange: salaryEnabled ? toText(preference.sr) : "",
-    salaryType: salaryEnabled ? toText(preference.srT, "1") : "",
-    companyScaleRange: normalizePreferenceBoolean(preference.csrE, false) ? toText(preference.csr) : "",
+    contentInclude: normalizePreferenceBoolean(preference.jciE, false)
+      ? toArray(preference.jci)
+      : [],
+    contentExclude: normalizePreferenceBoolean(preference.jceE, false)
+      ? toArray(preference.jce)
+      : [],
+    salaryRange: salaryEnabled ? toText(preference.sr) : '',
+    salaryType: salaryEnabled ? toText(preference.srT, '1') : '',
+    companyScaleRange: normalizePreferenceBoolean(preference.csrE, false)
+      ? toText(preference.csr)
+      : '',
     filterHunter: normalizePreferenceBoolean(preference.fhE, false),
     onlyBossOnline: normalizePreferenceBoolean(preference.polE, false),
     activeFilter: {
       enabled: normalizePreferenceBoolean(preference.acE, false),
       week: normalizePreferenceBoolean(preference.acW, true),
       month: normalizePreferenceBoolean(preference.acM, true),
-      year: normalizePreferenceBoolean(preference.acY, true)
-    }
+      year: normalizePreferenceBoolean(preference.acY, true),
+    },
   };
 };
 
@@ -715,22 +811,32 @@ export const buildTraditionalRuleSnapshot = (preferenceInput: PlainRecord): Plai
  * @returns 返回候选人的联系方式、简历摘要、规则约束、冲突标记与解析后的筛选条件。
  * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
  */
-export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInput: PlainRecord): PlainRecord => {
+export const buildAiDeliveryUserProfile = (
+  userInput: PlainRecord,
+  preferenceInput: PlainRecord
+): PlainRecord => {
   const user = toRecord(userInput);
   const preference = toRecord(preferenceInput);
   const sourceNodes = collectSourceNodes(
     user,
     4,
     {
-      excludePathPrefixes: ["user.preference", "user.preferenceMap"],
-      excludeKeyNames: ["preference", "preferenceMap"]
+      excludePathPrefixes: ['user.preference', 'user.preferenceMap'],
+      excludeKeyNames: ['preference', 'preferenceMap'],
     },
-    "user"
+    'user'
   );
-  const resumeId = getSearchResult(sourceNodes, ["resumeId", "attachmentResumeId", "geekResumeId"]).value || toText(user.resumeId);
+  const resumeId =
+    getSearchResult(sourceNodes, ['resumeId', 'attachmentResumeId', 'geekResumeId']).value ||
+    toText(user.resumeId);
   const resumeIdentity = buildResumeIdentitySnapshot(
     user,
-    user.importedResume || user.parsedResume || user.attachmentResume || user.resume || user.resumeInfo || user.resumeProfile
+    user.importedResume ||
+      user.parsedResume ||
+      user.attachmentResume ||
+      user.resume ||
+      user.resumeInfo ||
+      user.resumeProfile
   );
   const importedResumeSnippet = buildImportedResumeSnippet(user);
   const identityRecord = toRecord(resumeIdentity);
@@ -743,14 +849,26 @@ export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInp
   const excludedContent = normalizeKeywordList(preference.jce);
   // 先识别“既想要又排除”的矛盾关键词，供上层显式提示用户规则存在冲突。
   const conflictJobKeywords = collectKeywordConflicts(expectedJobIncludeRaw, excludedJob);
-  const conflictCompanyKeywords = collectKeywordConflicts(expectedCompanyIncludeRaw, excludedCompany);
-  const conflictContentKeywords = collectKeywordConflicts(expectedContentIncludeRaw, excludedContent);
+  const conflictCompanyKeywords = collectKeywordConflicts(
+    expectedCompanyIncludeRaw,
+    excludedCompany
+  );
+  const conflictContentKeywords = collectKeywordConflicts(
+    expectedContentIncludeRaw,
+    excludedContent
+  );
   // 再从包含条件中剔除冲突关键词，避免把自相矛盾的约束继续传给 AI。
   const expectedJobInclude = excludeConflictedKeywords(expectedJobIncludeRaw, excludedJob);
-  const expectedCompanyInclude = excludeConflictedKeywords(expectedCompanyIncludeRaw, excludedCompany);
-  const expectedContentInclude = excludeConflictedKeywords(expectedContentIncludeRaw, excludedContent);
+  const expectedCompanyInclude = excludeConflictedKeywords(
+    expectedCompanyIncludeRaw,
+    excludedCompany
+  );
+  const expectedContentInclude = excludeConflictedKeywords(
+    expectedContentIncludeRaw,
+    excludedContent
+  );
   const hasIdentityFields = Object.keys(identityRecord).some(
-    (key) => !["note", "missingFields", "sourceSummary", "identityFieldSources"].includes(key)
+    (key) => !['note', 'missingFields', 'sourceSummary', 'identityFieldSources'].includes(key)
   );
   const hasImportedResume = !!resumeId || !!importedResumeSnippet.text || hasIdentityFields;
   return {
@@ -763,7 +881,7 @@ export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInp
     resumeNarrative,
     // “已导入简历”并不只依赖简历 ID；只要存在原文摘要或成功提取到身份字段，也认为具备可用简历上下文。
     hasImportedResume,
-    hasImageResume: !!toText(getPreferenceValue(preference, "customImageSet", "cI")),
+    hasImageResume: !!toText(getPreferenceValue(preference, 'customImageSet', 'cI')),
     resumeIdentity,
     expectedJobInclude,
     expectedCompanyInclude,
@@ -774,9 +892,12 @@ export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInp
     conflictJobKeywords,
     conflictCompanyKeywords,
     conflictContentKeywords,
-    hasRuleConflict: conflictJobKeywords.length > 0 || conflictCompanyKeywords.length > 0 || conflictContentKeywords.length > 0,
+    hasRuleConflict:
+      conflictJobKeywords.length > 0 ||
+      conflictCompanyKeywords.length > 0 ||
+      conflictContentKeywords.length > 0,
     expectedSalary: toText(preference.sr),
-    expectedSalaryType: toText(preference.srT, "1"),
+    expectedSalaryType: toText(preference.srT, '1'),
     resolvedConstraints: {
       includeJobKeywords: expectedJobInclude,
       includeCompanyKeywords: expectedCompanyInclude,
@@ -785,8 +906,8 @@ export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInp
       excludeCompanyKeywords: excludedCompany,
       excludeContentKeywords: excludedContent,
       salaryRange: toText(preference.sr),
-      salaryType: toText(preference.srT, "1")
-    }
+      salaryType: toText(preference.srT, '1'),
+    },
   };
 };
 
@@ -796,14 +917,16 @@ export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInp
  * @param resumeIdentityInput 简历身份快照对象。
  * @returns 返回命中得分、总字段数以及缺失字段中文标签列表。
  */
-const buildProfileCompleteness = (resumeIdentityInput: PlainRecord): { score: number; total: number; missingLabels: string[] } => {
+const buildProfileCompleteness = (
+  resumeIdentityInput: PlainRecord
+): { score: number; total: number; missingLabels: string[] } => {
   const resumeIdentity = toRecord(resumeIdentityInput);
   const criticalFields: Array<{ key: string; label: string }> = [
-    { key: "workYears", label: "工作年限" },
-    { key: "education", label: "最高学历" },
-    { key: "expectedJob", label: "期望岗位" },
-    { key: "expectedCity", label: "期望城市" },
-    { key: "resumeTextSnippet", label: "简历文本" }
+    { key: 'workYears', label: '工作年限' },
+    { key: 'education', label: '最高学历' },
+    { key: 'expectedJob', label: '期望岗位' },
+    { key: 'expectedCity', label: '期望城市' },
+    { key: 'resumeTextSnippet', label: '简历文本' },
   ];
 
   let score = 0;
@@ -819,7 +942,7 @@ const buildProfileCompleteness = (resumeIdentityInput: PlainRecord): { score: nu
   return {
     score,
     total: criticalFields.length,
-    missingLabels
+    missingLabels,
   };
 };
 
@@ -833,19 +956,19 @@ const buildCandidateEvidenceText = (userProfileInput: PlainRecord): string => {
   const userProfile = toRecord(userProfileInput);
   const resumeIdentity = toRecord(userProfile.resumeIdentity);
   const sourceText = [
-    normalizeMultilineText(userProfile.importedResumeTextSnippet, ""),
-    normalizeMultilineText(userProfile.resumeNarrative, ""),
-    normalizeMultilineText(resumeIdentity.resumeTextSnippet, "")
+    normalizeMultilineText(userProfile.importedResumeTextSnippet, ''),
+    normalizeMultilineText(userProfile.resumeNarrative, ''),
+    normalizeMultilineText(resumeIdentity.resumeTextSnippet, ''),
   ].find(Boolean);
 
   if (!sourceText) {
-    return "未读取到可用简历证据，请先在账户信息中导入个人页简历。";
+    return '未读取到可用简历证据，请先在账户信息中导入个人页简历。';
   }
 
   const evidenceLines: string[] = [];
   const seen = new Set<string>();
-  for (const rawLine of sourceText.split("\n")) {
-    const line = rawLine.replace(/^[\s\-•*\d.、()（）]+/, "").trim();
+  for (const rawLine of sourceText.split('\n')) {
+    const line = rawLine.replace(/^[\s\-•*\d.、()（）]+/, '').trim();
     if (!line) {
       continue;
     }
@@ -863,7 +986,7 @@ const buildCandidateEvidenceText = (userProfileInput: PlainRecord): string => {
     }
   }
 
-  const merged = (evidenceLines.length ? evidenceLines.join("\n") : sourceText).trim();
+  const merged = (evidenceLines.length ? evidenceLines.join('\n') : sourceText).trim();
   return merged.slice(0, CANDIDATE_EVIDENCE_MAX_LENGTH);
 };
 
@@ -880,27 +1003,27 @@ export const buildAiDeliveryUserProfileText = (userProfileInput: PlainRecord): s
   const resolvedConstraints = toRecord(userProfile.resolvedConstraints);
   const completeness = buildProfileCompleteness(resumeIdentity);
   const lines = [
-    "[候选人匹配卡]",
+    '[候选人匹配卡]',
     `联系方式：手机号=${toDisplayText(userProfile.phone)}；邮箱=${toDisplayText(userProfile.email)}`,
     `是否已导入个人页简历：${toDisplayText(userProfile.hasImportedResume)}`,
     `是否已配置图片简历：${toDisplayText(userProfile.hasImageResume)}`,
-    `个人页简历来源：${toDisplayText(userProfile.importedResumeTextSource, "未提供")}`,
-    `资料完整度：${completeness.score}/${completeness.total}；缺失关键字段：${completeness.missingLabels.length ? completeness.missingLabels.join("、") : "无"}`,
+    `个人页简历来源：${toDisplayText(userProfile.importedResumeTextSource, '未提供')}`,
+    `资料完整度：${completeness.score}/${completeness.total}；缺失关键字段：${completeness.missingLabels.length ? completeness.missingLabels.join('、') : '无'}`,
     `目标岗位关键词：${formatList(resolvedConstraints.includeJobKeywords || userProfile.expectedJobInclude)}`,
     `目标公司关键词：${formatList(resolvedConstraints.includeCompanyKeywords || userProfile.expectedCompanyInclude)}`,
     `目标内容关键词：${formatList(resolvedConstraints.includeContentKeywords || userProfile.expectedContentInclude)}`,
     `硬性排除岗位关键词：${formatList(resolvedConstraints.excludeJobKeywords || userProfile.excludedJob)}`,
     `硬性排除公司关键词：${formatList(resolvedConstraints.excludeCompanyKeywords || userProfile.excludedCompany)}`,
     `硬性排除内容关键词：${formatList(resolvedConstraints.excludeContentKeywords || userProfile.excludedContent)}`,
-    `薪资约束：范围=${toDisplayText(resolvedConstraints.salaryRange || userProfile.expectedSalary, "未配置")}；类型=${toDisplayText(resolvedConstraints.salaryType || userProfile.expectedSalaryType, "1")}`,
+    `薪资约束：范围=${toDisplayText(resolvedConstraints.salaryRange || userProfile.expectedSalary, '未配置')}；类型=${toDisplayText(resolvedConstraints.salaryType || userProfile.expectedSalaryType, '1')}`,
     `规则冲突标记：岗位=${formatList(userProfile.conflictJobKeywords)}；公司=${formatList(userProfile.conflictCompanyKeywords)}；内容=${formatList(userProfile.conflictContentKeywords)}；存在冲突=${toDisplayText(userProfile.hasRuleConflict)}`,
-    "核心简历证据：",
+    '核心简历证据：',
     buildCandidateEvidenceText(userProfile),
-    "简历身份补充：",
-    formatResumeIdentityText(resumeIdentity)
+    '简历身份补充：',
+    formatResumeIdentityText(resumeIdentity),
   ];
 
-  return lines.join("\n");
+  return lines.join('\n');
 };
 
 /**
@@ -925,8 +1048,8 @@ export const buildTraditionalRuleSnapshotText = (snapshotInput: PlainRecord): st
     `公司规模范围：${toDisplayText(snapshot.companyScaleRange)}`,
     `过滤猎头：${toDisplayText(snapshot.filterHunter)}`,
     `仅Boss在线：${toDisplayText(snapshot.onlyBossOnline)}`,
-    `活跃度过滤：启用=${toDisplayText(activeFilter.enabled)}，过滤周=${toDisplayText(activeFilter.week)}，过滤月=${toDisplayText(activeFilter.month)}，过滤年=${toDisplayText(activeFilter.year)}`
-  ].join("\n");
+    `活跃度过滤：启用=${toDisplayText(activeFilter.enabled)}，过滤周=${toDisplayText(activeFilter.week)}，过滤月=${toDisplayText(activeFilter.month)}，过滤年=${toDisplayText(activeFilter.year)}`,
+  ].join('\n');
 };
 
 /**
@@ -944,12 +1067,12 @@ export const buildAiDeliveryJudgePrompt = (
   traditionalSnapshotInput: PlainRecord
 ): string => {
   const sections: string[] = [];
-  const prompt = normalizeInlineText(config.prompt, "");
+  const prompt = normalizeInlineText(config.prompt, '');
   if (prompt) {
     sections.push(prompt);
   }
 
-  const extraPrompt = normalizeInlineText(config.extraPrompt, "");
+  const extraPrompt = normalizeInlineText(config.extraPrompt, '');
   if (extraPrompt) {
     sections.push(`[附加指令]\n${extraPrompt}`);
   }
@@ -959,10 +1082,10 @@ export const buildAiDeliveryJudgePrompt = (
   if (focusSkills.length || excludeKeywords.length) {
     sections.push(
       [
-        "[重点过滤规则]",
-        `核心技能要求（应重点匹配）：${focusSkills.length ? focusSkills.join("、") : "无"}`,
-        `绝对排除关键词（命中即拒绝）：${excludeKeywords.length ? excludeKeywords.join("、") : "无"}`
-      ].join("\n")
+        '[重点过滤规则]',
+        `核心技能要求（应重点匹配）：${focusSkills.length ? focusSkills.join('、') : '无'}`,
+        `绝对排除关键词（命中即拒绝）：${excludeKeywords.length ? excludeKeywords.join('、') : '无'}`,
+      ].join('\n')
     );
   }
 
@@ -971,13 +1094,15 @@ export const buildAiDeliveryJudgePrompt = (
   }
 
   if (config.includeTraditionalSnapshot) {
-    sections.push(`[传统规则摘要(仅供AI参考)]\n${buildTraditionalRuleSnapshotText(traditionalSnapshotInput)}`);
+    sections.push(
+      `[传统规则摘要(仅供AI参考)]\n${buildTraditionalRuleSnapshotText(traditionalSnapshotInput)}`
+    );
   }
 
   // 输出约束始终放在最后，最大化降低模型追加解释、Markdown 或多段输出的概率。
   sections.push(`[输出约束]\n${AI_DELIVERY_OUTPUT_CONTRACT}`);
 
-  return sections.join("\n\n");
+  return sections.join('\n\n');
 };
 
 /**
@@ -990,27 +1115,30 @@ export const buildAiDeliveryJudgePrompt = (
 export const buildAiDeliveryJobBaseInfoText = (baseInfoInput: PlainRecord): string => {
   const baseInfo = toRecord(baseInfoInput);
   const location = [baseInfo.cityName, baseInfo.areaDistrict, baseInfo.businessDistrict]
-    .map((item) => normalizeInlineText(item, ""))
+    .map((item) => normalizeInlineText(item, ''))
     .filter(Boolean)
-    .join(" / ");
+    .join(' / ');
 
-  const companyParts = [normalizeInlineText(baseInfo.brandName, ""), normalizeInlineText(baseInfo.brandIndustry, "")].filter(Boolean);
+  const companyParts = [
+    normalizeInlineText(baseInfo.brandName, ''),
+    normalizeInlineText(baseInfo.brandIndustry, ''),
+  ].filter(Boolean);
 
   return [
-    "[岗位匹配卡]",
+    '[岗位匹配卡]',
     `岗位职能：${toDisplayText(baseInfo.jobName)}`,
     `行业领域：${toDisplayText(baseInfo.brandIndustry)}`,
     `经验要求：${toDisplayText(baseInfo.jobExperience)}`,
     `学历要求：${toDisplayText(baseInfo.jobDegree)}`,
     `技能关键词：${formatList(baseInfo.skills)}`,
-    `工作地点：${location || "未提供"}`,
+    `工作地点：${location || '未提供'}`,
     `薪资描述：${toDisplayText(baseInfo.salaryDesc)}`,
     `岗位标签：${formatList(baseInfo.jobLabels)}`,
-    `公司信息：${companyParts.length ? companyParts.join(" | ") : "未提供"}`,
+    `公司信息：${companyParts.length ? companyParts.join(' | ') : '未提供'}`,
     `公司阶段：${toDisplayText(baseInfo.brandStageName)}`,
     `公司规模：${toDisplayText(baseInfo.brandScaleName)}`,
-    `岗位福利：${formatList(baseInfo.welfareList)}`
-  ].join("\n");
+    `岗位福利：${formatList(baseInfo.welfareList)}`,
+  ].join('\n');
 };
 
 /**
@@ -1020,15 +1148,15 @@ export const buildAiDeliveryJobBaseInfoText = (baseInfoInput: PlainRecord): stri
  * @returns 返回去重后的岗位描述摘要；若无内容则返回默认提示。
  */
 const buildJobDescriptionEvidenceText = (postDescriptionInput: unknown): string => {
-  const normalized = normalizeMultilineText(postDescriptionInput, "");
+  const normalized = normalizeMultilineText(postDescriptionInput, '');
   if (!normalized) {
-    return "未提供可用岗位描述。";
+    return '未提供可用岗位描述。';
   }
 
   const pickedLines: string[] = [];
   const seen = new Set<string>();
-  for (const rawLine of normalized.split("\n")) {
-    const line = rawLine.replace(/^[\s\-•*\d.、()（）一二三四五六七八九十]+/, "").trim();
+  for (const rawLine of normalized.split('\n')) {
+    const line = rawLine.replace(/^[\s\-•*\d.、()（）一二三四五六七八九十]+/, '').trim();
     if (!line) {
       continue;
     }
@@ -1046,7 +1174,7 @@ const buildJobDescriptionEvidenceText = (postDescriptionInput: unknown): string 
     }
   }
 
-  const merged = (pickedLines.length ? pickedLines.join("\n") : normalized).trim();
+  const merged = (pickedLines.length ? pickedLines.join('\n') : normalized).trim();
   return merged.slice(0, JOB_DESCRIPTION_SNIPPET_MAX_LENGTH);
 };
 
@@ -1060,12 +1188,12 @@ const buildJobDescriptionEvidenceText = (postDescriptionInput: unknown): string 
 export const buildAiDeliveryJobExtInfoText = (extInfoInput: PlainRecord): string => {
   const extInfo = toRecord(extInfoInput);
   return [
-    "[岗位扩展证据]",
+    '[岗位扩展证据]',
     `Boss活跃度：${toDisplayText(extInfo.activeTimeDesc)}`,
     `工作地址：${toDisplayText(extInfo.address)}`,
-    "岗位描述关键证据：",
-    buildJobDescriptionEvidenceText(extInfo.postDescription)
-  ].join("\n");
+    '岗位描述关键证据：',
+    buildJobDescriptionEvidenceText(extInfo.postDescription),
+  ].join('\n');
 };
 
 /**
@@ -1082,7 +1210,7 @@ export const buildAiDeliveryFilterJobInput = (
 ): { jobBaseInfo: string; jobExtInfo: string } => {
   return {
     jobBaseInfo: buildAiDeliveryJobBaseInfoText(baseInfoInput),
-    jobExtInfo: buildAiDeliveryJobExtInfoText(extInfoInput)
+    jobExtInfo: buildAiDeliveryJobExtInfoText(extInfoInput),
   };
 };
 
@@ -1098,28 +1226,28 @@ export const buildAiDeliveryFilterJobInput = (
 export const resolveAiDeliveryFallback = (
   strategyInput: unknown,
   stage: AiDeliveryFallbackStage,
-  parseModeInput = ""
+  parseModeInput = ''
 ): AiDeliveryFallbackResolution => {
-  const strategy = normalizeInlineText(strategyInput, "reject");
+  const strategy = normalizeInlineText(strategyInput, 'reject');
   // 只有显式启用 fallback-traditional 时才允许回退到传统规则，避免误触发兜底路径。
-  if (strategy !== "fallback-traditional") {
+  if (strategy !== 'fallback-traditional') {
     return {
       enabled: false,
-      parseMode: ""
+      parseMode: '',
     };
   }
 
-  if (stage === "ai-error") {
+  if (stage === 'ai-error') {
     return {
       enabled: true,
-      parseMode: "ai-error.fallback-traditional"
+      parseMode: 'ai-error.fallback-traditional',
     };
   }
 
   // 无效结果场景保留原 parseMode 前缀，便于日志中追踪“哪种解析失败后进入了传统兜底”。
-  const baseParseMode = normalizeInlineText(parseModeInput, "invalid");
+  const baseParseMode = normalizeInlineText(parseModeInput, 'invalid');
   return {
     enabled: true,
-    parseMode: `${baseParseMode}.fallback-traditional`
+    parseMode: `${baseParseMode}.fallback-traditional`,
   };
 };

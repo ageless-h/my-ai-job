@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 
-const AUTH_STORAGE_KEY = "ai-job-auth-state";
-const LEGACY_AUTH_KEY = "Authorization";
+const AUTH_STORAGE_KEY = 'ai-job-auth-state';
+const LEGACY_AUTH_KEY = 'Authorization';
 const DEFAULT_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
 type AuthState = {
@@ -19,7 +19,7 @@ function parseAuthState(raw: string | null): AuthState | null {
 
   try {
     const parsed = JSON.parse(raw) as Partial<AuthState>;
-    const token = `${parsed.token || ""}`;
+    const token = `${parsed.token || ''}`;
     const issuedAt = Number(parsed.issuedAt || 0);
     const expiresAt = Number(parsed.expiresAt || 0);
     if (!token || !Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)) {
@@ -29,7 +29,7 @@ function parseAuthState(raw: string | null): AuthState | null {
     return {
       token,
       issuedAt,
-      expiresAt
+      expiresAt,
     };
   } catch (_e) {
     return null;
@@ -61,21 +61,21 @@ function persistToSessionStorage(state: AuthState | null): void {
 
 function migrateLegacyTokenIfAny(): string {
   try {
-    const legacyToken = `${localStorage.getItem(LEGACY_AUTH_KEY) || ""}`;
+    const legacyToken = `${localStorage.getItem(LEGACY_AUTH_KEY) || ''}`;
     if (!legacyToken) {
-      return "";
+      return '';
     }
 
     setAuthorizationToken(legacyToken, DEFAULT_TOKEN_TTL_MS);
     localStorage.removeItem(LEGACY_AUTH_KEY);
     return legacyToken;
   } catch (_e) {
-    return "";
+    return '';
   }
 }
 
 export function setAuthorizationToken(token: string, ttlMs = DEFAULT_TOKEN_TTL_MS): void {
-  const normalizedToken = `${token || ""}`.trim();
+  const normalizedToken = `${token || ''}`.trim();
   if (!normalizedToken) {
     clearAuthorizationToken();
     return;
@@ -85,7 +85,7 @@ export function setAuthorizationToken(token: string, ttlMs = DEFAULT_TOKEN_TTL_M
   memoryState = {
     token: normalizedToken,
     issuedAt: now,
-    expiresAt: now + Math.max(30_000, Number(ttlMs) || DEFAULT_TOKEN_TTL_MS)
+    expiresAt: now + Math.max(30_000, Number(ttlMs) || DEFAULT_TOKEN_TTL_MS),
   };
   persistToSessionStorage(memoryState);
 }
@@ -108,7 +108,7 @@ export function getAuthorizationToken(): string {
   }
 
   clearAuthorizationToken();
-  return "";
+  return '';
 }
 
 export function clearAuthorizationToken(): void {
