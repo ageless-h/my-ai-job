@@ -1,19 +1,19 @@
-# PROJECT KNOWLEDGE BASE
+# 项目知识库
 
-## Overview
+## 概述
 
-AI Job Hunting is a Tampermonkey userscript project for BOSS job automation.
-Tech stack: Vue 3 + Pinia + Element Plus + Vite + vite-plugin-monkey.
-Build output is a single userscript file: `dist/ai-job-hunting.user.js`.
+AI 求职助手是一个用于 BOSS 直聘求职自动化的 Tampermonkey 用户脚本项目。
+技术栈：Vue 3 + Pinia + Element Plus + Vite + vite-plugin-monkey。
+构建输出为单个用户脚本文件：`dist/ai-job-hunting.user.js`。
 
-## Source Layout
+## 源代码布局
 
 ```text
 src/
-├─ app/            # app bootstrap and root shell
-├─ features/       # user-facing feature modules (panel, ai-config, preference, job-assistant...)
-├─ core/           # runtime and business infrastructure
-│  ├─ platform/    # boss-platform.ts (1894 lines), boss-api-client.ts, boss-dom-adapter.ts
+├─ app/            # 应用启动和根组件
+├─ features/       # 面向用户的功能模块（panel, ai-config, preference, job-assistant...）
+├─ core/           # 运行时和业务基础设施
+│  ├─ platform/    # boss-platform.ts (1894 行), boss-api-client.ts, boss-dom-adapter.ts
 │  ├─ delivery/    # ai-delivery-builder.ts (投递逻辑构建)
 │  ├─ ai/          # AI 能力封装
 │  ├─ auth/        # 认证相关
@@ -21,40 +21,40 @@ src/
 │  ├─ engine/      # 推送引擎
 │  ├─ protocol/    # 协议定义
 │  └─ realtime/    # 实时通信
-├─ state/          # pinia stores
-├─ shared/         # shared utils/errors/types
-│  └─ utils/       # tools.ts (234 lines), salary-utils.ts, url-utils.ts, security-utils.ts, config-manager.ts
+├─ state/          # Pinia 状态管理
+├─ shared/         # 共享工具/错误/类型
+│  └─ utils/       # tools.ts (234 行), salary-utils.ts, url-utils.ts, security-utils.ts, config-manager.ts
 └─ styles/
 ```
 
-## Key Entry Points
+## 关键入口点
 
-- App bootstrap: `src/app/main.ts`
-- Root component: `src/app/App.vue`
-- Main panel: `src/features/panel/components/Panel.vue`
-- Platform factory: `src/core/platform/platform-factory.ts`
-- Core platform logic: `src/core/platform/boss-platform.ts` (1894 lines)
-- API client: `src/core/platform/boss-api-client.ts` (6 core API methods)
-- Delivery builder: `src/core/delivery/ai-delivery-builder.ts` (AI 投递逻辑)
+- 应用启动：`src/app/main.ts`
+- 根组件：`src/app/App.vue`
+- 主面板：`src/features/panel/components/Panel.vue`
+- 平台工厂：`src/core/platform/platform-factory.ts`
+- 核心平台逻辑：`src/core/platform/boss-platform.ts` (1894 行)
+- API 客户端：`src/core/platform/boss-api-client.ts` (6 个核心 API 方法)
+- 投递构建器：`src/core/delivery/ai-delivery-builder.ts` (AI 投递逻辑)
 
-## Dependency Rules
+## 依赖规则
 
 - `app` -> `features | core | state | shared`
 - `features` -> `core | state | shared`
-- `core` -> `state | shared` (avoid direct UI ownership when possible)
+- `core` -> `state | shared` (尽可能避免直接拥有 UI)
 - `state` -> `shared`
-- `shared` -> no business-layer dependencies
+- `shared` -> 不依赖业务层
 
-## Build & Verify
+## 构建与验证
 
 ```bash
 npm run build
 npm run type-check
 ```
 
-## Notes
+## 注意事项
 
-- All `@ts-nocheck` directives have been removed; type safety is enforced across the codebase.
-- Dynamic import and userscript runtime behavior must be validated on real BOSS pages after structural refactors.
-- `tools.ts` has been modularized into specialized utility modules (salary-utils, url-utils, security-utils, config-manager).
-- API calls are centralized in `boss-api-client.ts` for better maintainability.
+- 所有 `@ts-nocheck` 指令已被移除；整个代码库强制执行类型安全。
+- 动态导入和用户脚本运行时行为必须在结构重构后在真实的 BOSS 直聘页面上验证。
+- `tools.ts` 已被模块化为专用工具模块（salary-utils, url-utils, security-utils, config-manager）。
+- API 调用已集中在 `boss-api-client.ts` 中以提高可维护性。

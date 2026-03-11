@@ -1,26 +1,58 @@
-// -*- coding: utf-8 -*-
+// 文件使用 UTF-8 编码保存。
 import { normalizePreferenceBoolean } from "@/shared/utils/preference";
 
+/**
+ * AI 投递提示词配置。
+ */
 export type AiDeliveryPromptConfig = {
+  /** 作为主判断依据的基础提示词。 */
   prompt: string;
+  /** 追加到主提示词后的补充说明。 */
   extraPrompt?: string;
+  /** 需要 AI 重点关注的技能关键词列表。 */
   focusSkills?: string[];
+  /** 命中后应直接判定为不匹配的排除关键词列表。 */
   excludeKeywords?: string[];
+  /** 是否在提示词中附带候选人画像。 */
   includeUserProfile: boolean;
+  /** 是否在提示词中附带传统规则摘要。 */
   includeTraditionalSnapshot: boolean;
 };
 
+/**
+ * AI 投递失败兜底触发阶段。
+ */
 export type AiDeliveryFallbackStage = "ai-error" | "invalid-result";
 
+/**
+ * AI 投递失败后的兜底解析结果。
+ */
 export type AiDeliveryFallbackResolution = {
+  /** 是否启用传统规则兜底。 */
   enabled: boolean;
+  /** 当前使用的解析模式标识。 */
   parseMode: string;
 };
 
 type PlainRecord = Record<string, unknown>;
-type SourceNode = { path: string; record: PlainRecord };
+
+/**
+ * 简历或用户对象树中收集到的可搜索节点。
+ */
+type SourceNode = {
+  /** 节点在原始对象中的访问路径。 */
+  path: string;
+  /** 当前路径对应的扁平对象记录。 */
+  record: PlainRecord;
+};
+
+/**
+ * 遍历候选人资料树时的过滤配置。
+ */
 type CollectSourceNodeOptions = {
+  /** 需要整段跳过的路径前缀列表。 */
   excludePathPrefixes?: string[];
+  /** 需要忽略的字段名列表。 */
   excludeKeyNames?: string[];
 };
 
@@ -44,6 +76,10 @@ const RESUME_NARRATIVE_SNIPPET_MAX_LENGTH = 360;
 const JOB_DESCRIPTION_SNIPPET_MAX_LENGTH = 1200;
 const CANDIDATE_EVIDENCE_MAX_LENGTH = 720;
 const MAX_RULE_KEYWORD_ITEMS = 12;
+
+/**
+ * AI 评估输出约束，要求模型始终返回单行 JSON，便于后续稳定解析。
+ */
 const AI_DELIVERY_OUTPUT_CONTRACT = "仅输出一行JSON，且只能包含两个键：match(boolean) 与 reason(string)。禁止输出Markdown、代码块或额外解释。信息不足时返回 {\"match\":false,\"reason\":\"[INFO_MISSING] 信息不足\"}。";
 
 const toRecord = (value: unknown): PlainRecord => {
@@ -172,6 +208,15 @@ const compactRecord = (record: PlainRecord): PlainRecord => {
   return next;
 };
 
+/**
+ * 深度遍历对象树并收集可用于搜索的节点。
+ *
+ * @param value 待遍历的原始值，通常为用户信息、简历对象或其子树。
+ * @param maxDepth 最大遍历深度，用于控制递归成本并避免无穷展开。
+ * @param options 路径与字段过滤配置，用于排除无关或噪声数据。
+ * @param rootPath 根节点路径标识，便于后续回溯命中来源。
+ * @returns 返回按遍历顺序收集到的节点列表，每个节点都包含路径与对象记录。
+ */
 const collectSourceNodes = (
   value: unknown,
   maxDepth = 5,
@@ -191,12 +236,14 @@ const collectSourceNodes = (
     if (depth > maxDepth) {
       return;
     }
+    // 跳过明确排除的路径，避免把偏好配置等噪声字段混入简历检索上下文。
     if (isExcludedPath(path)) {
       return;
     }
     if (!current || typeof current !== "object") {
       return;
     }
+    // 记录已访问对象，避免循环引用或共享引用导致重复遍历。
     if (visited.has(current as object)) {
       return;
     }
@@ -224,6 +271,12 @@ const collectSourceNodes = (
   return result;
 };
 
+/**
+ * 从用户对象顶层推断最可能承载简历信息的根节点。
+ *
+ * @param userInput 用户资料对象。
+ * @returns 返回候选简历根节点列表，包含路径与原始值，供后续深度搜索使用。
+ */
 const findLikelyResumeRootNodes = (userInput: PlainRecord): Array<{ path: string; value: unknown }> => {
   const user = toRecord(userInput);
   const roots: Array<{ path: string; value: unknown }> = [];
@@ -265,6 +318,13 @@ const findLikelyResumeRootNodes = (userInput: PlainRecord): Array<{ path: string
   return roots;
 };
 
+/**
+ * 聚合所有可能包含简历信息的来源节点。
+ *
+ * @param userInput 用户资料对象。
+ * @param resumeSourceInput 显式传入的简历来源对象，优先作为搜索入口。
+ * @returns 返回去重后的节点列表，供简历字段搜索与证据构建复用。
+ */
 const collectResumeSourceNodes = (userInput: PlainRecord, resumeSourceInput?: unknown): SourceNode[] => {
   const user = toRecord(userInput);
   const nodes: SourceNode[] = [];
@@ -289,6 +349,7 @@ const collectResumeSourceNodes = (userInput: PlainRecord, resumeSourceInput?: un
       rootPath
     );
     for (const node of collected) {
+      // 同一个对象可能被多个路径引用，这里按对象引用去重，避免后续字段命中重复命中同一份内容。
       if (nodeSeen.has(node.record)) {
         continue;
       }
@@ -377,6 +438,13 @@ const getSearchResult = (
   return { value: "", source: "" };
 };
 
+/**
+ * 从候选人资料与简历对象中提取结构化身份快照。
+ *
+ * @param userInput 用户资料对象。
+ * @param resumeSourceInput 可选的显式简历来源对象，会优先参与字段搜索。
+ * @returns 返回提炼后的简历身份字段集合，并补充缺失字段说明与来源摘要。
+ */
 const buildResumeIdentitySnapshot = (userInput: PlainRecord, resumeSourceInput?: unknown): PlainRecord => {
   const user = toRecord(userInput);
   const sourceNodes = collectResumeSourceNodes(user, resumeSourceInput);
@@ -416,6 +484,7 @@ const buildResumeIdentitySnapshot = (userInput: PlainRecord, resumeSourceInput?:
     if (!hit.value) {
       continue;
     }
+    // 简历原文摘要单独截断，避免在后续 prompt 中注入过长文本。
     if (field === "resumeTextSnippet") {
       identityDraft[field] = normalizeMultilineText(hit.value, "").slice(0, RESUME_NARRATIVE_SNIPPET_MAX_LENGTH);
     } else {
@@ -432,6 +501,7 @@ const buildResumeIdentitySnapshot = (userInput: PlainRecord, resumeSourceInput?:
   if (foundIdentityFields.length === 0) {
     identity.note = "未读取到更多简历身份字段(仅检测到基础账号信息)";
   } else {
+    // 将未命中的关键字段保留给上层，便于在 prompt 中提示资料完整度不足。
     const missingFields = Object.keys(fieldSearchMap).filter((field) => !foundIdentityFields.includes(field));
     if (missingFields.length) {
       identity.missingFields = missingFields.join(", ");
@@ -470,6 +540,12 @@ const truncateInline = (value: unknown, maxLength = 160): string => {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 };
 
+/**
+ * 将结构化简历身份快照压缩为可直接拼接到提示词中的候选人叙述文本。
+ *
+ * @param resumeIdentityInput 简历身份快照对象。
+ * @returns 返回多行中文简历摘要文本；若缺少关键数据，则返回缺失提示。
+ */
 const buildResumeNarrativeText = (resumeIdentityInput: PlainRecord): string => {
   const resumeIdentity = toRecord(resumeIdentityInput);
 
@@ -524,6 +600,12 @@ const buildResumeNarrativeText = (resumeIdentityInput: PlainRecord): string => {
   return lines.join("\n");
 };
 
+/**
+ * 从已导入的个人页简历中提取可供 AI 判断使用的原文摘要。
+ *
+ * @param userInput 用户资料对象。
+ * @returns 返回简历原文摘要及其来源路径；若未命中内容则返回空字符串。
+ */
 const buildImportedResumeSnippet = (userInput: PlainRecord): { text: string; source: string } => {
   const user = toRecord(userInput);
   const importedResume = toRecord(user.importedResume);
@@ -546,6 +628,7 @@ const buildImportedResumeSnippet = (userInput: PlainRecord): { text: string; sou
     return { text: "", source: "" };
   }
 
+  // 优先保留上游明确写入的来源说明；若没有，再退回到自动搜索命中的路径。
   const explicitSource = normalizeInlineText(importedResume.resumeTextSource, "");
   return {
     text,
@@ -553,6 +636,12 @@ const buildImportedResumeSnippet = (userInput: PlainRecord): { text: string; sou
   };
 };
 
+/**
+ * 将简历身份快照格式化为可读的中文字段说明。
+ *
+ * @param resumeIdentityInput 简历身份快照对象。
+ * @returns 返回逐行列出的中文字段文本；若无有效字段，则返回默认提示。
+ */
 const formatResumeIdentityText = (resumeIdentityInput: PlainRecord): string => {
   const resumeIdentity = toRecord(resumeIdentityInput);
   const ignoredKeys = new Set(["identityFieldSources", "sourceSummary"]);
@@ -587,6 +676,13 @@ const formatResumeIdentityText = (resumeIdentityInput: PlainRecord): string => {
   return lines.length ? lines.join("\n") : "备注：未读取到更多简历身份字段";
 };
 
+/**
+ * 构建传统规则快照，供 AI 提示词与兜底决策统一复用。
+ *
+ * @param preferenceInput 偏好设置原始对象。
+ * @returns 返回公司、岗位、内容、薪资、活跃度等传统筛选规则的结构化快照。
+ * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
+ */
 export const buildTraditionalRuleSnapshot = (preferenceInput: PlainRecord): PlainRecord => {
   const preference = toRecord(preferenceInput);
   const salaryEnabled = normalizePreferenceBoolean(preference.srE, false);
@@ -611,6 +707,14 @@ export const buildTraditionalRuleSnapshot = (preferenceInput: PlainRecord): Plai
   };
 };
 
+/**
+ * 构建候选人画像，作为 AI 投递判断的核心输入之一。
+ *
+ * @param userInput 用户资料原始对象。
+ * @param preferenceInput 偏好设置原始对象。
+ * @returns 返回候选人的联系方式、简历摘要、规则约束、冲突标记与解析后的筛选条件。
+ * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
+ */
 export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInput: PlainRecord): PlainRecord => {
   const user = toRecord(userInput);
   const preference = toRecord(preferenceInput);
@@ -637,9 +741,11 @@ export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInp
   const excludedJob = normalizeKeywordList(preference.jne);
   const excludedCompany = normalizeKeywordList(preference.cne);
   const excludedContent = normalizeKeywordList(preference.jce);
+  // 先识别“既想要又排除”的矛盾关键词，供上层显式提示用户规则存在冲突。
   const conflictJobKeywords = collectKeywordConflicts(expectedJobIncludeRaw, excludedJob);
   const conflictCompanyKeywords = collectKeywordConflicts(expectedCompanyIncludeRaw, excludedCompany);
   const conflictContentKeywords = collectKeywordConflicts(expectedContentIncludeRaw, excludedContent);
+  // 再从包含条件中剔除冲突关键词，避免把自相矛盾的约束继续传给 AI。
   const expectedJobInclude = excludeConflictedKeywords(expectedJobIncludeRaw, excludedJob);
   const expectedCompanyInclude = excludeConflictedKeywords(expectedCompanyIncludeRaw, excludedCompany);
   const expectedContentInclude = excludeConflictedKeywords(expectedContentIncludeRaw, excludedContent);
@@ -648,12 +754,14 @@ export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInp
   );
   const hasImportedResume = !!resumeId || !!importedResumeSnippet.text || hasIdentityFields;
   return {
+    // 联系方式与简历标识是后续跟踪与调试 AI 判断来源的基础信息。
     phone: toText(user.phone),
     email: toText(user.email),
     resumeId,
     importedResumeTextSnippet: importedResumeSnippet.text,
     importedResumeTextSource: importedResumeSnippet.source,
     resumeNarrative,
+    // “已导入简历”并不只依赖简历 ID；只要存在原文摘要或成功提取到身份字段，也认为具备可用简历上下文。
     hasImportedResume,
     hasImageResume: !!toText(getPreferenceValue(preference, "customImageSet", "cI")),
     resumeIdentity,
@@ -682,6 +790,12 @@ export const buildAiDeliveryUserProfile = (userInput: PlainRecord, preferenceInp
   };
 };
 
+/**
+ * 评估候选人关键资料完整度。
+ *
+ * @param resumeIdentityInput 简历身份快照对象。
+ * @returns 返回命中得分、总字段数以及缺失字段中文标签列表。
+ */
 const buildProfileCompleteness = (resumeIdentityInput: PlainRecord): { score: number; total: number; missingLabels: string[] } => {
   const resumeIdentity = toRecord(resumeIdentityInput);
   const criticalFields: Array<{ key: string; label: string }> = [
@@ -709,6 +823,12 @@ const buildProfileCompleteness = (resumeIdentityInput: PlainRecord): { score: nu
   };
 };
 
+/**
+ * 从候选人画像中提炼最能支持 AI 判断的简历证据片段。
+ *
+ * @param userProfileInput 候选人画像对象。
+ * @returns 返回去重后的证据条目文本；若无简历内容则返回缺失提示。
+ */
 const buildCandidateEvidenceText = (userProfileInput: PlainRecord): string => {
   const userProfile = toRecord(userProfileInput);
   const resumeIdentity = toRecord(userProfile.resumeIdentity);
@@ -729,6 +849,7 @@ const buildCandidateEvidenceText = (userProfileInput: PlainRecord): string => {
     if (!line) {
       continue;
     }
+    // 使用行首片段做近似去重，减少重复项目符号或重复经历对 prompt 的噪声影响。
     const key = normalizeLookupKey(line.slice(0, 64));
     if (key && seen.has(key)) {
       continue;
@@ -746,6 +867,13 @@ const buildCandidateEvidenceText = (userProfileInput: PlainRecord): string => {
   return merged.slice(0, CANDIDATE_EVIDENCE_MAX_LENGTH);
 };
 
+/**
+ * 将候选人画像格式化为 AI 可直接消费的中文文本。
+ *
+ * @param userProfileInput 候选人画像对象。
+ * @returns 返回包含联系方式、资料完整度、规则约束、简历证据与身份补充的多行文本。
+ * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
+ */
 export const buildAiDeliveryUserProfileText = (userProfileInput: PlainRecord): string => {
   const userProfile = toRecord(userProfileInput);
   const resumeIdentity = toRecord(userProfile.resumeIdentity);
@@ -775,6 +903,13 @@ export const buildAiDeliveryUserProfileText = (userProfileInput: PlainRecord): s
   return lines.join("\n");
 };
 
+/**
+ * 将传统规则快照格式化为便于 AI 阅读的中文摘要。
+ *
+ * @param snapshotInput 传统规则快照对象。
+ * @returns 返回逐行描述公司、岗位、内容、薪资与活跃度筛选规则的文本。
+ * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
+ */
 export const buildTraditionalRuleSnapshotText = (snapshotInput: PlainRecord): string => {
   const snapshot = toRecord(snapshotInput);
   const activeFilter = toRecord(snapshot.activeFilter);
@@ -794,6 +929,15 @@ export const buildTraditionalRuleSnapshotText = (snapshotInput: PlainRecord): st
   ].join("\n");
 };
 
+/**
+ * 组合生成 AI 投递判断提示词。
+ *
+ * @param config AI 投递提示词配置。
+ * @param userProfileInput 候选人画像对象。
+ * @param traditionalSnapshotInput 传统规则快照对象。
+ * @returns 返回最终发送给 AI 的完整提示词文本。
+ * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
+ */
 export const buildAiDeliveryJudgePrompt = (
   config: AiDeliveryPromptConfig,
   userProfileInput: PlainRecord,
@@ -830,11 +974,19 @@ export const buildAiDeliveryJudgePrompt = (
     sections.push(`[传统规则摘要(仅供AI参考)]\n${buildTraditionalRuleSnapshotText(traditionalSnapshotInput)}`);
   }
 
+  // 输出约束始终放在最后，最大化降低模型追加解释、Markdown 或多段输出的概率。
   sections.push(`[输出约束]\n${AI_DELIVERY_OUTPUT_CONTRACT}`);
 
   return sections.join("\n\n");
 };
 
+/**
+ * 构建岗位基础信息文本，供 AI 判断岗位是否值得投递。
+ *
+ * @param baseInfoInput 岗位基础信息对象。
+ * @returns 返回岗位名称、经验、学历、地点、薪资、标签与公司信息的中文摘要。
+ * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
+ */
 export const buildAiDeliveryJobBaseInfoText = (baseInfoInput: PlainRecord): string => {
   const baseInfo = toRecord(baseInfoInput);
   const location = [baseInfo.cityName, baseInfo.areaDistrict, baseInfo.businessDistrict]
@@ -861,6 +1013,12 @@ export const buildAiDeliveryJobBaseInfoText = (baseInfoInput: PlainRecord): stri
   ].join("\n");
 };
 
+/**
+ * 从岗位描述中提炼可用于 AI 判断的关键证据行。
+ *
+ * @param postDescriptionInput 岗位描述原文。
+ * @returns 返回去重后的岗位描述摘要；若无内容则返回默认提示。
+ */
 const buildJobDescriptionEvidenceText = (postDescriptionInput: unknown): string => {
   const normalized = normalizeMultilineText(postDescriptionInput, "");
   if (!normalized) {
@@ -874,6 +1032,7 @@ const buildJobDescriptionEvidenceText = (postDescriptionInput: unknown): string 
     if (!line) {
       continue;
     }
+    // 岗位描述常带有重复编号和项目符号，先做归一化去重，再挑选代表性条目。
     const key = normalizeLookupKey(line.slice(0, 64));
     if (key && seen.has(key)) {
       continue;
@@ -891,6 +1050,13 @@ const buildJobDescriptionEvidenceText = (postDescriptionInput: unknown): string 
   return merged.slice(0, JOB_DESCRIPTION_SNIPPET_MAX_LENGTH);
 };
 
+/**
+ * 构建岗位扩展信息文本，补充 Boss 活跃度、地址与岗位描述证据。
+ *
+ * @param extInfoInput 岗位扩展信息对象。
+ * @returns 返回岗位扩展信息中文摘要文本。
+ * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
+ */
 export const buildAiDeliveryJobExtInfoText = (extInfoInput: PlainRecord): string => {
   const extInfo = toRecord(extInfoInput);
   return [
@@ -902,6 +1068,14 @@ export const buildAiDeliveryJobExtInfoText = (extInfoInput: PlainRecord): string
   ].join("\n");
 };
 
+/**
+ * 组合生成 AI 投递筛选所需的岗位输入文本。
+ *
+ * @param baseInfoInput 岗位基础信息对象。
+ * @param extInfoInput 岗位扩展信息对象。
+ * @returns 返回包含基础信息文本与扩展信息文本的对象，供上层统一传给 AI 过滤流程。
+ * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
+ */
 export const buildAiDeliveryFilterJobInput = (
   baseInfoInput: PlainRecord,
   extInfoInput: PlainRecord
@@ -912,12 +1086,22 @@ export const buildAiDeliveryFilterJobInput = (
   };
 };
 
+/**
+ * 解析 AI 投递失败后的传统规则兜底策略。
+ *
+ * @param strategyInput AI 投递策略配置值。
+ * @param stage 当前失败阶段，用于区分模型报错与结果无效两类场景。
+ * @param parseModeInput 现有解析模式标识，供无效结果场景继续追加后缀。
+ * @returns 返回是否启用兜底以及最终解析模式标识。
+ * @throws {TypeError} 当前函数不主动抛出异常；若传入对象存在异常 getter、Proxy 拦截或宿主运行时异常行为，底层异常会被原样透传。
+ */
 export const resolveAiDeliveryFallback = (
   strategyInput: unknown,
   stage: AiDeliveryFallbackStage,
   parseModeInput = ""
 ): AiDeliveryFallbackResolution => {
   const strategy = normalizeInlineText(strategyInput, "reject");
+  // 只有显式启用 fallback-traditional 时才允许回退到传统规则，避免误触发兜底路径。
   if (strategy !== "fallback-traditional") {
     return {
       enabled: false,
@@ -932,6 +1116,7 @@ export const resolveAiDeliveryFallback = (
     };
   }
 
+  // 无效结果场景保留原 parseMode 前缀，便于日志中追踪“哪种解析失败后进入了传统兜底”。
   const baseParseMode = normalizeInlineText(parseModeInput, "invalid");
   return {
     enabled: true,

@@ -58,19 +58,44 @@ interface ResumePreviewResponse {
 
 /**
  * BOSS 直聘 API 客户端
- * 负责所有与 BOSS 平台的 HTTP 交互
+ * 
+ * 负责所有与 BOSS 平台的 HTTP 交互，包括投递、收藏、获取职位详情、简历等操作。
+ * 提供缓存机制以优化性能，支持重试机制处理网络错误。
+ * 
+ * @class BossApiClient
  */
 export class BossApiClient {
+  /** 运行时简历文本缓存 */
   private runtimeResumeTextCache: string | null = null;
+  
+  /** 简历缓存的时间戳 */
   private runtimeResumeTextCacheTime = 0;
+  
+  /** BOSS 数据缓存映射表 */
   private bossDataCache = new Map<string, BossDataResponse>();
+  
+  /** BOSS 数据缓存的最大容量 */
   private readonly BOSS_DATA_CACHE_SIZE = 100;
 
   /**
    * 投递职位（发送打招呼）
-   * @param jobDetail 职位详情
-   * @param retries 重试次数
-   * @returns 投递响应
+   * 
+   * 向 BOSS 直聘平台发送投递请求，支持自动重试机制。
+   * 当遇到网络错误时会自动重试，重试间隔为 (4 - retries) * 1000ms。
+   * 
+   * @param {any} jobDetail - 职位详情对象，包含以下必要字段：
+   *   - jobName: 职位名称
+   *   - brandName: 公司名称
+   *   - securityId: 安全 ID
+   *   - encryptJobId: 加密的职位 ID
+   *   - lid: 列表 ID
+   * @param {number} [retries=3] - 重试次数，默认为 3 次
+   * @returns {Promise<PushResponse>} 投递响应对象，包含：
+   *   - code: 响应码（0 表示成功）
+   *   - message: 响应消息
+   *   - zpData: 响应数据，可能包含对话提示信息
+   * @throws {PushRequestError} 当投递失败且重试次数耗尽时抛出
+   * @throws {Error} 当未找到认证令牌时抛出
    */
   async doPush(jobDetail: any, retries = 3): Promise<PushResponse> {
     const jobTitle = this.getJobKey(jobDetail);
@@ -98,9 +123,9 @@ export class BossApiClient {
     } catch (error: any) {
       const latestError = `${error?.message || "投递请求失败"}`;
       
-      // 检测是否为网络错误
+      // 检测是否为网络错误，如果是则进行重试
       if (this.isNetworkError(error) && retries > 1) {
-        const retryDelay = (4 - retries) * 1000; // 1s, 2s
+        const retryDelay = (4 - retries) * 1000; // 第一次重试延迟 1s，第二次延迟 2s
         logger.debug(`工作【${jobTitle}】投递失败 (尝试${4 - retries}/3); 正在等待重试; 原因：${latestError}`);
         await Tools.sleep(retryDelay);
         return await this.doPush(jobDetail, retries - 1);
@@ -113,9 +138,24 @@ export class BossApiClient {
 
   /**
    * 收藏职位
-   * @param jobDetail 职位详情
-   * @param retries 重试次数
-   * @returns 收藏响应
+   * 
+   * 向 BOSS 直聘平台发送收藏请求，支持双端点备用机制和自动重试。
+   * 首先尝试第一个收藏端点（标记感兴趣），如果失败则尝试第二个端点（收藏职位）。
+   * 当遇到网络错误时会自动重试，重试间隔为 (3 - retries) * 1000ms。
+   * 
+   * @param {any} jobDetail - 职位详情对象，包含以下必要字段：
+   *   - jobName: 职位名称
+   *   - brandName: 公司名称
+   *   - securityId: 安全 ID
+   *   - encryptJobId: 加密的职位 ID
+   *   - lid: 列表 ID
+   * @param {number} [retries=2] - 重试次数，默认为 2 次
+   * @returns {Promise<FavoriteResponse>} 收藏响应对象，包含：
+   *   - code: 响应码（0 表示成功）
+   *   - message: 响应消息
+   *   - zpData: 响应数据
+   * @throws {FavoriteRequestError} 当收藏失败且重试次数耗尽时抛出
+   * @throws {Error} 当未找到认证令牌或两个端点都失败时抛出
    */
   async doCollect(jobDetail: any, retries = 2): Promise<FavoriteResponse> {
     const jobTitle = this.getJobKey(jobDetail);
@@ -133,7 +173,7 @@ export class BossApiClient {
         throw new Error("未找到认证令牌");
       }
 
-      // 尝试第一个端点
+      // 尝试第一个收藏端点（标记感兴趣）
       try {
         const response: AxiosResponse<FavoriteResponse> = await axios.post(
           requests[0].url,
@@ -148,7 +188,7 @@ export class BossApiClient {
         logger.debug(`第一个收藏端点失败，尝试备用端点`);
       }
 
-      // 尝试第二个端点
+      // 尝试第二个收藏端点（收藏职位）
       const response: AxiosResponse<FavoriteResponse> = await axios.post(
         requests[1].url,
         requests[1].data,
@@ -163,6 +203,7 @@ export class BossApiClient {
     } catch (error: any) {
       const latestError = `${error?.message || "收藏请求失败"}`;
       
+      // 检测是否为网络错误，如果是则进行重试
       if (this.isNetworkError(error) && retries > 1) {
         const retryDelay = (3 - retries) * 1000;
         logger.debug(`工作【${jobTitle}】收藏失败 (尝试${3 - retries}/2); 正在等待重试; 原因：${latestError}`);
@@ -177,8 +218,14 @@ export class BossApiClient {
 
   /**
    * 获取 BOSS 数据（对话详情）
-   * @param jobDetail 职位详情对象
-   * @returns BOSS 数据响应
+   * 
+   * 从 BOSS 直聘平台获取与 BOSS 的对话详情信息，包括 BOSS 的基本信息等。
+   * 
+   * @param {any} jobDetail - 职位详情对象，包含以下必要字段：
+   *   - encryptBossId: 加密的 BOSS ID
+   *   - securityId: 安全 ID
+   * @returns {Promise<any>} BOSS 数据对象，包含 BOSS 的详细信息
+   * @throws {Error} 当未获取到认证令牌或 API 返回错误时抛出
    */
   async requestBossData(jobDetail: any): Promise<any> {
     const url = "https://www.zhipin.com/wapi/zpchat/geek/getBossData";
@@ -204,10 +251,18 @@ export class BossApiClient {
 
   /**
    * 获取职位详情扩展信息
-   * @param securityId 安全 ID
-   * @param jobId 职位 ID
-   * @param lid 列表 ID
-   * @returns 职位详情扩展响应
+   * 
+   * 从 BOSS 直聘平台获取职位的详细卡片信息，包括职位描述、要求等详细内容。
+   * 
+   * @param {string} securityId - 安全 ID，用于请求验证
+   * @param {string} jobId - 职位 ID，标识具体的职位
+   * @param {string} lid - 列表 ID，标识职位所在的列表
+   * @returns {Promise<JobDetailExtResponse>} 职位详情扩展响应对象，包含：
+   *   - code: 响应码（0 表示成功）
+   *   - message: 响应消息
+   *   - zpData: 响应数据，包含 jobCard 字段
+   * @throws {FetchJobDetailError} 当获取失败时抛出
+   * @throws {Error} 当未找到认证令牌时抛出
    */
   async obtainBossJobDetailExt(
     securityId: string,
@@ -235,12 +290,17 @@ export class BossApiClient {
 
   /**
    * 获取并缓存运行时简历文本
-   * @returns 简历文本
+   * 
+   * 从 BOSS 直聘平台获取用户的简历内容，并使用 5 分钟的缓存机制。
+   * 如果缓存未过期，直接返回缓存的简历文本；否则重新获取并更新缓存。
+   * 
+   * @returns {Promise<string>} 简历文本内容
+   * @throws {Error} 当获取简历失败时抛出
    */
   async fetchAndCacheRuntimeResumeText(): Promise<string> {
     const now = Date.now();
     
-    // 检查缓存是否有效
+    // 检查缓存是否有效（5 分钟内）
     if (
       this.runtimeResumeTextCache &&
       now - this.runtimeResumeTextCacheTime < RUNTIME_RESUME_REFRESH_INTERVAL_MS
@@ -255,7 +315,7 @@ export class BossApiClient {
       const html = response.data;
       const resumeText = extractResumeTextFromHtml(html);
 
-      // 更新缓存
+      // 更新缓存和时间戳
       this.runtimeResumeTextCache = resumeText;
       this.runtimeResumeTextCacheTime = now;
 
@@ -268,7 +328,12 @@ export class BossApiClient {
 
   /**
    * 从预览 API 获取简历文本
-   * @returns 简历文本
+   * 
+   * 通过 BOSS 直聘的简历预览 API 获取用户的简历内容。
+   * 此方法不使用缓存，每次调用都会从服务器获取最新数据。
+   * 
+   * @returns {Promise<string>} 简历文本内容，如果获取失败则返回空字符串
+   * @throws {Error} 当未找到认证令牌或网络请求失败时抛出
    */
   async fetchRuntimeResumeTextFromPreviewApi(): Promise<string> {
     const url = "https://www.zhipin.com/wapi/zpgeek/resume/geek/preview/data.json";
@@ -308,10 +373,26 @@ export class BossApiClient {
 
   // ========== 辅助方法 ==========
 
+  /**
+   * 获取职位的显示键值（用于日志和错误消息）
+   * 
+   * @private
+   * @param {any} jobDetail - 职位详情对象
+   * @returns {string} 格式为 "职位名称 - 公司名称" 的字符串
+   */
   private getJobKey(jobDetail: any): string {
     return `${jobDetail?.jobName || "未知职位"} - ${jobDetail?.brandName || "未知公司"}`;
   }
 
+  /**
+   * 判断错误是否为网络错误
+   * 
+   * 检查错误是否为网络相关的错误（连接中止、超时等）。
+   * 
+   * @private
+   * @param {any} error - 错误对象
+   * @returns {boolean} 如果是网络错误则返回 true，否则返回 false
+   */
   private isNetworkError(error: any): boolean {
     return (
       error?.code === "ECONNABORTED" ||
@@ -321,6 +402,16 @@ export class BossApiClient {
     );
   }
 
+  /**
+   * 构建收藏 API 请求配置
+   * 
+   * 生成两个备用的收藏 API 端点请求配置。
+   * 第一个端点用于标记感兴趣，第二个端点用于收藏职位。
+   * 
+   * @private
+   * @param {any} jobDetail - 职位详情对象
+   * @returns {Array<{url: string; data: any}>} 包含两个请求配置的数组
+   */
   private buildFavoriteApiRequests(jobDetail: any): Array<{ url: string; data: any }> {
     const { securityId, encryptJobId, lid } = jobDetail;
     
@@ -336,6 +427,14 @@ export class BossApiClient {
     ];
   }
 
+  /**
+   * 判断收藏响应是否成功
+   * 
+   * 通过检查响应码、结果字段和消息内容来判断收藏操作是否成功。
+   * 
+   * @param {any} response - 收藏 API 的响应对象
+   * @returns {boolean} 如果收藏成功则返回 true，否则返回 false
+   */
   isFavoriteSuccess(response: any): boolean {
     if (!response) {
       return false;
@@ -344,12 +443,12 @@ export class BossApiClient {
     const message = `${response?.message || ""}`;
     const result = response?.result ?? response?.zpData?.result;
     
-    // 检查响应码和结果
+    // 检查响应码和结果字段
     if (response?.code === 0 && result !== false) {
       return true;
     }
 
-    // 检查消息内容
+    // 检查消息内容中的成功关键词
     return message.includes("已收藏") || message.includes("取消收藏") || message.includes("感兴趣");
   }
 }

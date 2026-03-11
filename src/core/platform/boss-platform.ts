@@ -118,6 +118,9 @@ async function setChatWebsocket(): Promise<void> {
   logger$1.warn("未发现可用消息通道，自动图片消息将跳过");
 }
 
+/**
+ * 收藏动作在不同执行通道下的统一返回结构。
+ */
 type FavoriteResp = {
   success: boolean;
   verified?: boolean;
@@ -125,39 +128,82 @@ type FavoriteResp = {
   message: string;
 };
 
+/**
+ * BOSS 直聘平台核心适配器。
+ *
+ * 负责岗位列表采集、分页滚动、职位匹配、投递与收藏执行、
+ * 消息通道初始化、简历运行时补全以及相关状态管理。
+ */
 export class BossPlatform extends AbsPlatform {
+  /** 当前页面地址，用于识别所处页面场景。 */
   curUrl: string;
+  /** 平台名称。 */
   name = "Boss";
+  /** 平台匹配所使用的 URL 关键字。 */
   urlList = ["/web/geek", "overseas"];
+  /** 最近一次翻页前记录的列表滚动高度。 */
   lastHeight = 0;
+  /** BOSS 详情缓存，按最近使用时间维护淘汰顺序。 */
   bossDataCache = new Map<string, { data: any; timestamp: number }>();
+  /** BOSS 详情缓存允许保留的最大条目数。 */
   private readonly MAX_BOSS_CACHE = 100;
+  /** 当前运行会话内已自动发送的文本消息数量。 */
   sessionAutoMessageCount = 0;
+  /** 当前运行会话内已自动发送的图片简历数量。 */
   sessionAutoResumeCount = 0;
+  /** 最近一次自动沟通动作的时间戳，用于节流。 */
   lastAutoContactTs = 0;
+  /** 职位列表页上一次记录的岗位卡片数量。 */
   private lastJobCardCount = 0;
+  /** 职位列表页上一次记录的尾部岗位稳定键。 */
   private lastJobsTailKey = "";
+  /** 推荐列表页上一次记录的岗位卡片数量。 */
   private lastRecommendCardCount = 0;
+  /** 推荐列表页上一次记录的尾部岗位稳定键。 */
   private lastRecommendTailKey = "";
+  /** 职位列表页上一次记录的首尾岗位签名。 */
   private lastJobsListSignature = "";
+  /** 推荐列表页上一次记录的首尾岗位签名。 */
   private lastRecommendListSignature = "";
+  /** 推荐页连续未检测到增量数据的轮次计数。 */
   private recommendNoProgressRounds = 0;
+  /** 当前会话内已处理岗位的稳定键集合，用于去重。 */
   private sessionProcessedJobKeys = new Map<string, number>();
+  /** 已处理岗位去重集合允许保留的最大条目数。 */
   private readonly MAX_PROCESSED_JOBS = 500;
+  /** 最近一次尝试刷新运行时简历文本的时间戳。 */
   private lastRuntimeResumeRefreshTs = 0;
+  /** 正在进行中的运行时简历文本刷新任务。 */
   private runtimeResumeRefreshPromise: Promise<void> | null = null;
+  /** BOSS 平台接口客户端。 */
   private apiClient: BossApiClient;
 
+  /**
+   * @param curUrl 当前页面地址。
+   */
   constructor(curUrl: string) {
     super();
     this.curUrl = curUrl;
     this.apiClient = new BossApiClient();
   }
 
+  /**
+   * 获取平台类型编号。
+   *
+   * @returns 固定返回 BOSS 平台对应的类型编号。
+   */
   getPlatformType(): number {
     return 0;
   }
 
+  /**
+   * 获取面板挂载元素以及插入位置。
+   *
+   * 会根据当前 URL 场景选择最合适的挂载节点；如果多次轮询仍未命中，
+   * 则回退到 `body` 或根节点，确保面板仍可渲染。
+   *
+   * @returns 包含挂载元素和插入位置的异步结果。
+   */
   getMountEle(): Promise<{ el: Element; p: string }> {
     return new Promise((resolve) => {
       let count = 0;
@@ -207,6 +253,11 @@ export class BossPlatform extends AbsPlatform {
     });
   }
 
+  /**
+   * 重置一轮批量执行前的运行时状态。
+   *
+   * @returns 无返回值。
+   */
   startPreHandler(): void {
     this.lastHeight = 0;
     this.lastJobCardCount = 0;
@@ -357,6 +408,8 @@ export class BossPlatform extends AbsPlatform {
       const beforeHeight = listContainer.scrollHeight;
       const targetTop = Math.max(0, beforeHeight - listContainer.clientHeight);
       const beforeTop = listContainer.scrollTop;
+
+      // 优先把容器滚到理论底部，触发页面内部的懒加载逻辑。
       listContainer.scrollTop = targetTop;
       listContainer.dispatchEvent(new Event("scroll", { bubbles: true }));
       await Tools.sleep(220);
@@ -365,6 +418,7 @@ export class BossPlatform extends AbsPlatform {
       const movedDistance = Math.abs(listContainer.scrollTop - beforeTop);
       const reachedTarget = Math.abs(listContainer.scrollTop - targetTop) <= 2;
       if (pendingDistance > 2 && (!reachedTarget || movedDistance <= 2)) {
+        // 若容器滚动未生效，则回退到通用整页滚动，兼容页面结构差异。
         await simulateScrollToEnd();
         return;
       }
@@ -372,6 +426,7 @@ export class BossPlatform extends AbsPlatform {
       const afterHeight = listContainer.scrollHeight;
       const afterTargetTop = Math.max(0, afterHeight - listContainer.clientHeight);
       if (Math.abs(listContainer.scrollTop - afterTargetTop) > 2) {
+        // 列表高度在滚动后发生变化时，再次对齐到新的底部，确保继续触发增量加载。
         listContainer.scrollTop = afterTargetTop;
         listContainer.dispatchEvent(new Event("scroll", { bubbles: true }));
         await Tools.sleep(160);
@@ -380,6 +435,7 @@ export class BossPlatform extends AbsPlatform {
       const atBottom = listContainer.scrollTop + listContainer.clientHeight >= listContainer.scrollHeight - 4;
       const heightStable = Math.abs(afterHeight - beforeHeight) <= 2;
       if (atBottom && heightStable) {
+        // 连续多轮“到底且高度稳定”才视为真正无更多数据，避免误判瞬时抖动。
         stableRounds++;
         if (stableRounds >= 3) {
           break;
@@ -391,6 +447,14 @@ export class BossPlatform extends AbsPlatform {
       guard++;
     }
   }
+
+  /**
+   * 执行自动沟通安全校验，限制发送频率和单次会话发送数量。
+   *
+   * @param _kind 本次自动沟通的类型，区分文本消息和图片简历。
+   * @returns 无返回值。
+   * @throws {Error} 当发送过快或超过当前会话的安全上限时抛出。
+   */
   private enforceAutoContactSafety(_kind: "message" | "image"): void {
     const safety = this.getAutoContactSafetyConfig();
     const now = Date.now();
@@ -414,6 +478,11 @@ export class BossPlatform extends AbsPlatform {
     this.lastAutoContactTs = now;
   }
 
+  /**
+   * 读取自动沟通的安全配置。
+   *
+   * @returns 自动消息/图片发送的最小间隔和会话内数量上限。
+   */
   private getAutoContactSafetyConfig(): {
     minIntervalSec: number;
     maxMessagesPerSession: number;
@@ -435,10 +504,23 @@ export class BossPlatform extends AbsPlatform {
     return Tools.isManualVerificationText(text);
   }
 
+  /**
+   * 获取当前页面或运行时环境中识别到的人工验证原因。
+   *
+   * @returns 人工验证原因；若无法识别则返回 `null`。
+   */
   protected getManualVerificationReason(): string | null {
     return Tools.getManualVerificationReason();
   }
 
+  /**
+   * 读取当前页面中的岗位列表数据。
+   *
+   * 会根据页面类型筛选不同的岗位卡片，并过滤掉当前会话已处理或已沟通的岗位，
+   * 以避免重复投递或重复收藏。
+   *
+   * @returns 当前页面可供处理的岗位数据数组。
+   */
   getJobList(): any[] {
     if (this.curUrl.includes("jobs")) {
       const elementNodeList2 = document.querySelectorAll(".job-card-wrap");
@@ -487,6 +569,14 @@ export class BossPlatform extends AbsPlatform {
       .filter((job: any) => !!job);
   }
 
+  /**
+   * 判断当前页面是否还可能存在下一批可获取的岗位数据。
+   *
+   * jobs 与推荐页会结合卡片数量、尾部稳定键、首尾签名及滚动高度等多个指标，
+   * 尽量降低由于虚拟列表、懒加载或局部刷新造成的误判。
+   *
+   * @returns 若仍有机会获取到更多岗位则返回 `true`，否则返回 `false`。
+   */
   hasNext(): boolean {
     logger$1.debug("hasNext");
 
@@ -496,18 +586,22 @@ export class BossPlatform extends AbsPlatform {
         return metrics.cardCount > 0 || metrics.scrollHeight > 0;
       }
 
+      // 优先看列表是否有新增卡片，这是最直接的“有新岗位”信号。
       if (metrics.cardCount > this.lastJobCardCount) {
         return true;
       }
 
+      // 卡片数量不变时，再看尾部岗位是否变化，以兼容虚拟列表复用 DOM 的情况。
       if (metrics.tailKey && metrics.tailKey !== this.lastJobsTailKey) {
         return true;
       }
 
+      // 进一步通过首尾签名识别列表内容整体是否发生替换。
       if (metrics.listSignature && metrics.listSignature !== this.lastJobsListSignature) {
         return true;
       }
 
+      // 最后再回退到滚动高度变化判断，覆盖仅高度变化但卡片复用的页面实现。
       return metrics.scrollHeight > this.lastHeight + 120;
     }
 
@@ -521,6 +615,7 @@ export class BossPlatform extends AbsPlatform {
         return metrics.cardCount > 0 || metrics.scrollHeight > 0;
       }
 
+      // 推荐页会综合多种增量信号，防止某个单一指标失效时过早停止。
       const hasProgress =
         metrics.cardCount > this.lastRecommendCardCount
         || (!!metrics.tailKey && metrics.tailKey !== this.lastRecommendTailKey)
@@ -532,6 +627,7 @@ export class BossPlatform extends AbsPlatform {
         return true;
       }
 
+      // 推荐页允许短暂的“无进展重试”，避免网络抖动或懒加载延迟导致遗漏岗位。
       this.recommendNoProgressRounds += 1;
       if (this.recommendNoProgressRounds < 2) {
         logger$1.info(
@@ -555,6 +651,11 @@ export class BossPlatform extends AbsPlatform {
     return (nextPageBtn.parentElement as HTMLElement).className !== "disabled";
   }
 
+  /**
+   * 在拉取下一批岗位前记录分页状态，并触发对应页面的滚动或翻页动作。
+   *
+   * @returns 无返回值。
+   */
   async acquireDataPre(): Promise<void> {
     if (this.pushStatus === PushStatus.PAUSE) {
       return;
@@ -562,6 +663,8 @@ export class BossPlatform extends AbsPlatform {
 
     if (this.curUrl.includes("jobs")) {
       const metrics = this.getJobsPageMetrics();
+
+      // 先记录翻页前的基线指标，供 hasNext 在滚动后判断是否真正拿到了新数据。
       this.lastHeight = metrics.scrollHeight;
       this.lastJobCardCount = metrics.cardCount;
       this.lastJobsTailKey = metrics.tailKey;
@@ -577,6 +680,8 @@ export class BossPlatform extends AbsPlatform {
 
     if (this.curUrl.includes("job-recommend")) {
       const metrics = this.getRecommendPageMetrics();
+
+      // 推荐页同样要保存滚动前快照，以便后续结合多指标判断是否还有新岗位。
       this.lastHeight = metrics.scrollHeight;
       this.lastRecommendCardCount = metrics.cardCount;
       this.lastRecommendTailKey = metrics.tailKey;
@@ -604,6 +709,16 @@ export class BossPlatform extends AbsPlatform {
     (document.querySelector(".ui-icon-arrow-right") as HTMLElement).click();
   }
 
+  /**
+   * 判断岗位是否满足当前投递条件。
+   *
+   * 该方法会串联通用硬性约束、传统规则过滤、岗位详情扩展拉取、
+   * AI 投递判定与回退策略，并在成功或明确不匹配后记录岗位处理状态。
+   *
+   * @param jobDetail 当前待匹配的岗位详情对象。
+   * @returns 匹配通过时返回 `true`。
+   * @throws {NotMatchError} 当岗位已沟通、不满足传统规则、AI 判定不通过或 AI 回退失败时抛出。
+   */
   async matchJob(jobDetail: any): Promise<boolean> {
     const jobTitle = this.getJobKey(jobDetail);
 
@@ -615,17 +730,17 @@ export class BossPlatform extends AbsPlatform {
       const aiFilterModeEnabled = this.shouldEnableAiDeliveryJudge();
       const traditionalDeliveryEnabled = this.isTraditionalDeliveryEnabled();
 
-      // ✅ 新增：通用硬性约束检查 - 在 AI 和传统模式下都生效
-      // 包括：薪资、公司规模、猎头过滤、在线 BOSS、黑名单等
+      // 先执行 AI 与传统模式共用的硬性约束，尽早拦截明显不满足条件的岗位。
       if (traditionalDeliveryEnabled) {
         this.applyCommonHardConstraints(jobDetail, jobTitle);
       }
 
-      // 传统投递软性过滤（仅传统模式）
+      // 传统模式下再追加白名单等软性规则；AI 模式交由模型综合判断。
       if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
         this.applyTraditionalSoftFilters(jobDetail, jobTitle);
       }
 
+      // 扩展详情包含活跃度、职位描述等列表页没有的关键信息，是后续过滤的重要输入。
       const jobDetailExt = await this.obtainBossJobDetailExt(jobDetail);
       logger$1.debug(`获取工作【${jobTitle}】详情扩展信息用于${aiFilterModeEnabled ? "AI过滤" : "常规过滤"} `, jobDetail);
 
@@ -633,141 +748,157 @@ export class BossPlatform extends AbsPlatform {
         this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
       }
 
+      // 详情接口也可能返回“已沟通”状态，因此需要二次兜底判断。
       if (this.isCommunication(jobDetailExt)) {
         throw new NotMatchError(jobTitle, jobDetailExt.friendStatus, "已经沟通过");
       }
 
       if (aiFilterModeEnabled) {
-      const aiConfig = Tools.getAiDeliveryJudgeConfig(runtimeUserStore?.user?.preference || {});
-      const user = runtimeUserStore?.user || {};
-      await this.ensureRuntimeResumeNarrative(user);
-      const preference = user.preference || {};
-      const userProfile = buildAiDeliveryUserProfile(user, preference);
-      const traditionalSnapshot = buildTraditionalRuleSnapshot(preference);
-      const prompt = buildAiDeliveryJudgePrompt(aiConfig, userProfile, traditionalSnapshot);
-      const baseInfo = this.unpackBaseInfo(jobDetail);
-      const extInfo = this.unpackExtInfo(jobDetailExt);
-      const filterInput = buildAiDeliveryFilterJobInput(baseInfo, extInfo);
-      let judgeResult: { match: boolean; reason: string; valid: boolean; parseMode: string };
-      const judgeTraceId = this.buildAiJudgeTraceId();
-      const filterPath = AiPower.getFilterPath();
-      const aiJudgeStartedAt = Date.now();
-      const maskedUserProfile = this.maskAiDeliveryUserProfile(userProfile);
-      this.preferenceLogRecorder.info(`工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${AI_DELIVERY_JUDGE_TIMEOUT_MS} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`);
-      this.preferenceLogRecorder.info(`工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} includeTraditionalSnapshot=${aiConfig.includeTraditionalSnapshot} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(",")} extKeys=${Object.keys(extInfo).join(",")}`);
-      
-      // AI 请求重试机制
-      const MAX_AI_RETRIES = 3;
-      let lastError: any = null;
-      
-      for (let attempt = 1; attempt <= MAX_AI_RETRIES; attempt++) {
-        try {
-          const filterStartedAt = Date.now();
-          const filterResp = await AiPower.filter(
-            prompt,
-            filterInput.jobBaseInfo,
-            filterInput.jobExtInfo,
-            AI_DELIVERY_JUDGE_TIMEOUT_MS
-          );
-          const filterElapsed = Date.now() - filterStartedAt;
-          const parseStartedAt = Date.now();
-          judgeResult = this.parseAiDeliveryJudgeResult(filterResp);
-          const parseElapsed = Date.now() - parseStartedAt;
-          const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
-          const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
-          const retryInfo = attempt > 1 ? ` (重试${attempt - 1}次后成功)` : '';
-          this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断完成${retryInfo} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`);
-          break; // 成功，跳出重试循环
-        } catch (error: any) {
-          lastError = error;
-          if (attempt < MAX_AI_RETRIES) {
-            const retryDelay = 1000 * attempt; // 指数退避：1s, 2s
-            this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 (尝试${attempt}/${MAX_AI_RETRIES}) trace=${judgeTraceId} 原因：${error?.message || "AI请求失败"}，${retryDelay}ms后重试`);
-            await Tools.sleep(retryDelay);
-          } else {
-            // 最后一次重试也失败了
+        const aiConfig = Tools.getAiDeliveryJudgeConfig(runtimeUserStore?.user?.preference || {});
+        const user = runtimeUserStore?.user || {};
+
+        // AI 过滤依赖候选人画像，因此在请求前尽量补全运行时简历叙述文本。
+        await this.ensureRuntimeResumeNarrative(user);
+        const preference = user.preference || {};
+        const userProfile = buildAiDeliveryUserProfile(user, preference);
+        const traditionalSnapshot = buildTraditionalRuleSnapshot(preference);
+        const prompt = buildAiDeliveryJudgePrompt(aiConfig, userProfile, traditionalSnapshot);
+        const baseInfo = this.unpackBaseInfo(jobDetail);
+        const extInfo = this.unpackExtInfo(jobDetailExt);
+        const filterInput = buildAiDeliveryFilterJobInput(baseInfo, extInfo);
+        let judgeResult: { match: boolean; reason: string; valid: boolean; parseMode: string };
+        const judgeTraceId = this.buildAiJudgeTraceId();
+        const filterPath = AiPower.getFilterPath();
+        const aiJudgeStartedAt = Date.now();
+        const maskedUserProfile = this.maskAiDeliveryUserProfile(userProfile);
+
+        this.preferenceLogRecorder.info(`工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${AI_DELIVERY_JUDGE_TIMEOUT_MS} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`);
+        this.preferenceLogRecorder.info(`工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} includeTraditionalSnapshot=${aiConfig.includeTraditionalSnapshot} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(",")} extKeys=${Object.keys(extInfo).join(",")}`);
+
+        // AI 判定采用有限次重试，缓解短暂网络抖动或模型服务瞬时失败。
+        const MAX_AI_RETRIES = 3;
+        let lastError: any = null;
+
+        for (let attempt = 1; attempt <= MAX_AI_RETRIES; attempt++) {
+          try {
+            const filterStartedAt = Date.now();
+            const filterResp = await AiPower.filter(
+              prompt,
+              filterInput.jobBaseInfo,
+              filterInput.jobExtInfo,
+              AI_DELIVERY_JUDGE_TIMEOUT_MS
+            );
+            const filterElapsed = Date.now() - filterStartedAt;
+
+            // 将模型输出解析成统一结构，方便后续执行业务分支与日志记录。
+            const parseStartedAt = Date.now();
+            judgeResult = this.parseAiDeliveryJudgeResult(filterResp);
+            const parseElapsed = Date.now() - parseStartedAt;
             const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
             const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
-            const aiErrorMessage = `${error?.message || "AI请求失败"}`;
-            this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 (已重试${MAX_AI_RETRIES}次) trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) onAiError=${aiConfig.onAiError} 原因：${aiErrorMessage}`);
-            const aiErrorFallback = resolveAiDeliveryFallback(aiConfig.onAiError, "ai-error");
-            if (aiErrorFallback.enabled) {
-              const fallbackReason = this.normalizeAiJudgeReason(
-                `[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则：${aiErrorMessage}`,
-                "[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则"
-              );
-              this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`);
-              this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
-              jobDetail.aiDeliveryJudge = {
-                traceId: judgeTraceId,
-                path: filterPath,
-                match: true,
-                reason: fallbackReason,
-                valid: true,
-                parseMode: aiErrorFallback.parseMode,
-                judgedAt: new Date().toISOString()
-              };
-              this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
-              return true;
+            const retryInfo = attempt > 1 ? ` (重试${attempt - 1}次后成功)` : "";
+            this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断完成${retryInfo} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`);
+            break;
+          } catch (error: any) {
+            lastError = error;
+            if (attempt < MAX_AI_RETRIES) {
+              const retryDelay = 1000 * attempt;
+              this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 (尝试${attempt}/${MAX_AI_RETRIES}) trace=${judgeTraceId} 原因：${error?.message || "AI请求失败"}，${retryDelay}ms后重试`);
+              await Tools.sleep(retryDelay);
+            } else {
+              // 所有 AI 重试都失败时，根据用户配置决定是否退回传统规则继续判断。
+              const aiJudgeElapsed = Date.now() - aiJudgeStartedAt;
+              const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
+              const aiErrorMessage = `${error?.message || "AI请求失败"}`;
+              this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI投递判断失败 (已重试${MAX_AI_RETRIES}次) trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) onAiError=${aiConfig.onAiError} 原因：${aiErrorMessage}`);
+              const aiErrorFallback = resolveAiDeliveryFallback(aiConfig.onAiError, "ai-error");
+              if (aiErrorFallback.enabled) {
+                const fallbackReason = this.normalizeAiJudgeReason(
+                  `[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则：${aiErrorMessage}`,
+                  "[FALLBACK_TRADITIONAL] AI请求失败，回退传统规则"
+                );
+                this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`);
+                this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
+                jobDetail.aiDeliveryJudge = {
+                  traceId: judgeTraceId,
+                  path: filterPath,
+                  match: true,
+                  reason: fallbackReason,
+                  valid: true,
+                  parseMode: aiErrorFallback.parseMode,
+                  judgedAt: new Date().toISOString()
+                };
+                this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
+                return true;
+              }
+              throw new NotMatchError(jobTitle, aiErrorMessage, "AI投递判断异常");
             }
-            throw new NotMatchError(jobTitle, aiErrorMessage, "AI投递判断异常");
           }
         }
-      }
 
-      jobDetail.aiDeliveryJudge = {
-        traceId: judgeTraceId,
-        path: filterPath,
-        match: judgeResult.match,
-        reason: judgeResult.reason,
-        valid: judgeResult.valid,
-        parseMode: judgeResult.parseMode,
-        judgedAt: new Date().toISOString()
-      };
+        // 无论最终是否命中，都将 AI 判定原始结果挂载到岗位对象，便于后续日志和面板展示。
+        jobDetail.aiDeliveryJudge = {
+          traceId: judgeTraceId,
+          path: filterPath,
+          match: judgeResult.match,
+          reason: judgeResult.reason,
+          valid: judgeResult.valid,
+          parseMode: judgeResult.parseMode,
+          judgedAt: new Date().toISOString()
+        };
 
-      if (!judgeResult.valid) {
-        const invalidResultFallback = resolveAiDeliveryFallback(aiConfig.onInvalidResult, "invalid-result", judgeResult.parseMode);
-        if (invalidResultFallback.enabled) {
-          const fallbackReason = this.normalizeAiJudgeReason(
-            `[FALLBACK_TRADITIONAL] AI结果不可解析，回退传统规则：${judgeResult.reason}`,
-            "[FALLBACK_TRADITIONAL] AI结果不可解析，回退传统规则"
-          );
-          this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI结果不可解析触发传统规则回退 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} reason=${fallbackReason}`);
-          this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
-          jobDetail.aiDeliveryJudge = {
-            traceId: judgeTraceId,
-            path: filterPath,
-            match: true,
-            reason: fallbackReason,
-            valid: true,
-            parseMode: invalidResultFallback.parseMode,
-            judgedAt: new Date().toISOString()
-          };
-          this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
-          return true;
+        if (!judgeResult.valid) {
+          // 当模型结果不可解析时，仍可按配置退回传统规则，避免单次格式异常导致完全跳过岗位。
+          const invalidResultFallback = resolveAiDeliveryFallback(aiConfig.onInvalidResult, "invalid-result", judgeResult.parseMode);
+          if (invalidResultFallback.enabled) {
+            const fallbackReason = this.normalizeAiJudgeReason(
+              `[FALLBACK_TRADITIONAL] AI结果不可解析，回退传统规则：${judgeResult.reason}`,
+              "[FALLBACK_TRADITIONAL] AI结果不可解析，回退传统规则"
+            );
+            this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI结果不可解析触发传统规则回退 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} reason=${fallbackReason}`);
+            this.applyTraditionalFallbackChecks(traditionalDeliveryEnabled, jobDetail, jobDetailExt, jobTitle, fallbackReason);
+            jobDetail.aiDeliveryJudge = {
+              traceId: judgeTraceId,
+              path: filterPath,
+              match: true,
+              reason: fallbackReason,
+              valid: true,
+              parseMode: invalidResultFallback.parseMode,
+              judgedAt: new Date().toISOString()
+            };
+            this.preferenceLogRecorder.info(`工作【${jobTitle}】传统规则回退通过 trace=${judgeTraceId} reason=${fallbackReason}`);
+            return true;
+          }
+          this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI判定结果不可解析 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} onInvalidResult=${aiConfig.onInvalidResult} reason=${judgeResult.reason}`);
+          throw new NotMatchError(jobTitle, judgeResult.reason, "AI投递判断结果不可解析");
         }
-        this.preferenceLogRecorder.warn(`工作【${jobTitle}】AI判定结果不可解析 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} onInvalidResult=${aiConfig.onInvalidResult} reason=${judgeResult.reason}`);
-        throw new NotMatchError(jobTitle, judgeResult.reason, "AI投递判断结果不可解析");
+
+        if (!judgeResult.match) {
+          this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断不通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
+          throw new NotMatchError(jobTitle, judgeResult.reason, "AI投递判断不通过");
+        }
+
+        this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
       }
 
-      if (!judgeResult.match) {
-        this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断不通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
-        throw new NotMatchError(jobTitle, judgeResult.reason, "AI投递判断不通过");
-      }
-
-      this.preferenceLogRecorder.info(`工作【${jobTitle}】AI投递判断通过 trace=${judgeTraceId} reason=${judgeResult.reason}`);
-      }
-
+      // 只有在“明确已处理”时才记录岗位，避免未知异常导致永久跳过该岗位。
       this.markJobProcessed(jobDetail);
       return true;
     } catch (error: any) {
       if (error instanceof NotMatchError) {
+        // 不匹配也视为已完成判定，避免同一轮再次反复处理。
         this.markJobProcessed(jobDetail);
       }
       throw error;
     }
   }
 
+  /**
+   * 提取岗位基础信息，供 AI 判定和日志输出复用。
+   *
+   * @param jobDetail 原始岗位详情对象。
+   * @returns 仅包含基础字段的扁平对象。
+   */
   unpackBaseInfo(jobDetail: any): Record<string, unknown> {
     return {
       jobName: jobDetail.jobName,
@@ -787,6 +918,12 @@ export class BossPlatform extends AbsPlatform {
     };
   }
 
+  /**
+   * 提取岗位扩展信息，供 AI 判定和传统扩展规则复用。
+   *
+   * @param jobDetailExt 岗位详情扩展对象。
+   * @returns 扩展字段组成的扁平对象。
+   */
   unpackExtInfo(jobDetailExt: any): Record<string, unknown> {
     return {
       postDescription: jobDetailExt.postDescription,
@@ -795,14 +932,31 @@ export class BossPlatform extends AbsPlatform {
     };
   }
 
+  /**
+   * 暂停当前批量投递流程。
+   *
+   * @returns 无返回值。
+   */
   pausePush(): void {
     this.pushStatus = PushStatus.PAUSE;
   }
 
+  /**
+   * 构造用于日志和异常提示的岗位标识。
+   *
+   * @param jobDetail 岗位详情对象。
+   * @returns 由岗位名称与地区信息拼接而成的可读字符串。
+   */
   getJobKey(jobDetail: any): string {
     return jobDetail.jobName + "-" + jobDetail.cityName + jobDetail.areaDistrict + jobDetail.businessDistrict;
   }
 
+  /**
+   * 判断当前是否命中了投递总量限制。
+   *
+   * @param _jobDetail 当前岗位详情；该参数当前仅用于兼容统一接口签名。
+   * @returns 是否受限及对应提示信息。
+   */
   isLimit(_jobDetail: any): { limit: boolean; msg: string } {
     return {
       limit: TampermonkeyApi.GmGetValue(TampermonkeyApi.PUSH_LIMIT, false),
@@ -810,6 +964,20 @@ export class BossPlatform extends AbsPlatform {
     };
   }
 
+  /**
+   * 执行单个岗位的投递请求。
+   *
+   * 方法会先遵守用户配置的投递间隔，再调用平台 API 完成投递；当发生网络错误时会有限次重试，
+   * 同时识别人工验证和当日沟通上限等平台级阻断信号。
+   *
+   * @param jobDetail 待投递的岗位详情对象。
+   * @param errorMsg 上一次失败时保留的错误信息。
+   * @param retries 允许的剩余重试次数。
+   * @returns 投递接口返回的结果对象。
+   * @throws {PushRequestError} 当投递请求在多次重试后仍失败时抛出。
+   * @throws {PushStopError} 当平台要求人工验证时抛出。
+   * @throws {PushLimitError} 当识别到当日沟通人数已达上限时抛出。
+   */
   async doPush(jobDetail: any, errorMsg = "", retries = 3): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
@@ -818,20 +986,21 @@ export class BossPlatform extends AbsPlatform {
 
     logger$1.debug("正在投递：" + jobTitle);
 
-    // 应用投递间隔
+    // 无论前一条岗位是否成功，都要遵守用户配置的投递节奏，降低平台风控概率。
     const preference = runtimeUserStore?.user?.preference || {};
     const pushIntervalSec = Number(getPreferenceValue(preference, "pushIntervalSec", "pi")) || 3;
     await Tools.sleep(pushIntervalSec * 1000);
 
     let pushResp: any = { code: PushResultStatus.NOT_START, message: "" };
     try {
-      // 委托给 API 客户端执行 HTTP 请求
-      pushResp = await this.apiClient.doPush(jobDetail, 1); // API 客户端内部不重试，由这里控制
+      // 统一由当前方法控制重试节奏，底层客户端只负责单次 HTTP 请求。
+      pushResp = await this.apiClient.doPush(jobDetail, 1);
     } catch (error: any) {
       const latestError = `${error?.message || "投递请求失败"}`;
-      // 检测是否为网络错误
+
+      // 仅对网络层失败进行递归重试，业务性失败由上层直接感知并处理。
       if (this.isNetworkError(error) && retries > 1) {
-        const retryDelay = (4 - retries) * 1000; // 1s, 2s
+        const retryDelay = (4 - retries) * 1000;
         logger$1.debug(`工作【${jobTitle}】投递失败 (尝试${4 - retries}/3); 正在等待重试; 原因：${latestError}`);
         await Tools.sleep(retryDelay);
         return await this.doPush(jobDetail, latestError, retries - 1);
@@ -840,7 +1009,7 @@ export class BossPlatform extends AbsPlatform {
       throw error;
     }
 
-    // 检查响应中的人工验证和每日限制
+    // 某些失败会通过提醒弹窗文本返回，需要在这里识别出人工验证和每日上限等特殊状态。
     if (pushResp.code === PushResultStatus.FAIL && pushResp?.zpData?.bizData?.chatRemindDialog?.content) {
       const remindContent = `${pushResp?.zpData?.bizData?.chatRemindDialog?.content || ""}`;
       if (this.isManualVerificationText(remindContent)) {
@@ -853,6 +1022,7 @@ export class BossPlatform extends AbsPlatform {
         throw new PushLimitError(`今日沟通人数已达上限(已与${reachedDailyLimit}位BOSS沟通)`);
       }
 
+      // 其余提醒内容统一回传给上层，由上层决定如何展示或记录。
       return {
         code: 1,
         message: pushResp?.zpData?.bizData?.chatRemindDialog?.content
@@ -863,6 +1033,14 @@ export class BossPlatform extends AbsPlatform {
     return pushResp;
   }
 
+  /**
+   * 根据岗位详情定位页面中的岗位卡片元素。
+   *
+   * 会优先使用岗位 ID、加密 ID 等稳定字段匹配，若页面结构不完整则回退到链接包含关系判断。
+   *
+   * @param jobDetail 目标岗位详情对象。
+   * @returns 匹配到的岗位卡片元素；未找到时返回 `null`。
+   */
   findJobCardByJobDetail(jobDetail: any): any {
     const cardSelectors = [".job-card-wrapper", ".job-card-wrap", ".job-card-box"];
     for (const selector of cardSelectors) {
@@ -907,6 +1085,12 @@ export class BossPlatform extends AbsPlatform {
     return null;
   }
 
+  /**
+   * 提取元素上可用于识别“收藏”语义的文本提示。
+   *
+   * @param element 目标 DOM 元素。
+   * @returns 由文本内容和常见属性拼接得到的提示字符串。
+   */
   getFavoriteHint(element: any): string {
     const attrs = [
       element?.textContent,
@@ -920,11 +1104,23 @@ export class BossPlatform extends AbsPlatform {
     return attrs.join(" ").replace(/\s+/g, " ").trim();
   }
 
+  /**
+   * 判断提示文本是否表示当前岗位已处于收藏状态。
+   *
+   * @param hint 候选提示文本。
+   * @returns 若已收藏或可见取消收藏语义则返回 `true`。
+   */
   isFavoriteDoneByHint(hint: string): boolean {
     const text = (hint || "").replace(/\s+/g, "");
     return text.includes("已收藏") || text.includes("取消收藏") || text.includes("已感兴趣");
   }
 
+  /**
+   * 获取岗位当前的收藏态快照。
+   *
+   * @param jobDetail 目标岗位详情对象。
+   * @returns 包含岗位卡片区域与详情区域文本的快照对象。
+   */
   getFavoriteStateSnapshot(jobDetail: any): { cardText: string; detailText: string } {
     const card = this.findJobCardByJobDetail(jobDetail);
     const detailScopes = this.findRelatedDetailScopes(jobDetail);
@@ -934,10 +1130,23 @@ export class BossPlatform extends AbsPlatform {
     };
   }
 
+  /**
+   * 根据收藏态快照判断收藏是否已经生效。
+   *
+   * @param snapshot 收藏态快照。
+   * @returns 任一观察区域出现“已收藏”语义时返回 `true`。
+   */
   isFavoriteConfirmedBySnapshot(snapshot: { cardText: string; detailText: string }): boolean {
     return this.isFavoriteDoneByHint(snapshot.cardText) || this.isFavoriteDoneByHint(snapshot.detailText);
   }
 
+  /**
+   * 等待页面出现明确的收藏成功状态。
+   *
+   * @param jobDetail 目标岗位详情对象。
+   * @param waitMs 最长等待时间，单位毫秒。
+   * @returns 是否确认收藏成功及对应时刻的快照。
+   */
   async waitFavoriteConfirmed(jobDetail: any, waitMs = 1200): Promise<{ confirmed: boolean; snapshot: { cardText: string; detailText: string } }> {
     const startTs = Date.now();
     let snapshot = this.getFavoriteStateSnapshot(jobDetail);
@@ -956,6 +1165,12 @@ export class BossPlatform extends AbsPlatform {
     return { confirmed: false, snapshot };
   }
 
+  /**
+   * 判断提示文本是否像一个可执行的收藏动作入口。
+   *
+   * @param hint 候选提示文本。
+   * @returns 若文本更像“收藏”而非“沟通/投递”按钮则返回 `true`。
+   */
   isFavoriteActionByHint(hint: string): boolean {
     const text = (hint || "").replace(/\s+/g, "");
     const lowerText = text.toLowerCase();
@@ -966,6 +1181,12 @@ export class BossPlatform extends AbsPlatform {
     return text.includes("收藏") || text.includes("感兴趣") || lowerText.includes("collect") || lowerText.includes("favorite") || lowerText.includes("star");
   }
 
+  /**
+   * 判断候选收藏元素是否可见且可交互。
+   *
+   * @param element 候选 DOM 元素。
+   * @returns 可见且未禁用时返回 `true`。
+   */
   isVisibleFavoriteElement(element: any): boolean {
     if (!(element instanceof HTMLElement)) {
       return true;
@@ -984,6 +1205,12 @@ export class BossPlatform extends AbsPlatform {
     return rect.width > 0 && rect.height > 0;
   }
 
+  /**
+   * 查找与当前岗位详情对应的详情区域容器。
+   *
+   * @param jobDetail 目标岗位详情对象。
+   * @returns 与岗位名称或公司名称匹配的详情区域列表。
+   */
   findRelatedDetailScopes(jobDetail: any): any[] {
     const scopes = [
       document.querySelector(".job-detail-box"),
@@ -1012,6 +1239,13 @@ export class BossPlatform extends AbsPlatform {
     return matchedScopes;
   }
 
+  /**
+   * 等待与岗位对应的详情区域渲染完成。
+   *
+   * @param jobDetail 目标岗位详情对象。
+   * @param waitMs 最长等待时间，单位毫秒。
+   * @returns 已找到的详情区域列表；超时则返回当前结果。
+   */
   async waitRelatedDetailScopes(jobDetail: any, waitMs = 1200): Promise<any[]> {
     const startTs = Date.now();
     let scopes = this.findRelatedDetailScopes(jobDetail);
@@ -1023,6 +1257,13 @@ export class BossPlatform extends AbsPlatform {
     return scopes;
   }
 
+  /**
+   * 在给定作用域内查找收藏按钮或已收藏标记。
+   *
+   * @param scope 待搜索的 DOM 作用域。
+   * @param sampleHints 用于调试记录的候选提示文本数组。
+   * @returns 是否已处于收藏态以及可点击的收藏按钮。
+   */
   findFavoriteButtonInScope(scope: Element, sampleHints: string[]): { done: boolean; button: any } {
     const candidateSelector = "button,a,[role='button'],[class*='collect'],[class*='favorite'],[class*='star']";
     const candidates = Array.from(new Set(Array.from(scope.querySelectorAll(candidateSelector))));
@@ -1054,6 +1295,15 @@ export class BossPlatform extends AbsPlatform {
     return { done: false, button: favoriteButton };
   }
 
+  /**
+   * 通过 DOM 交互触发岗位收藏。
+   *
+   * 该方法会先尝试打开岗位详情，再在卡片与详情区域中定位收藏入口，
+   * 最终通过状态快照确认收藏是否真正生效。
+   *
+   * @param jobDetail 目标岗位详情对象。
+   * @returns 收藏执行结果及校验信息。
+   */
   async triggerFavoriteByDom(jobDetail: any): Promise<FavoriteResp> {
     const card = this.findJobCardByJobDetail(jobDetail);
     if (!card) {
@@ -1067,6 +1317,8 @@ export class BossPlatform extends AbsPlatform {
 
     const sampleHints: string[] = [];
     const hoverEvents = ["mouseenter", "mouseover", "mousemove"];
+
+    // 先触发悬浮事件，尽可能唤起卡片级操作栏，兼容鼠标悬停后才显示收藏按钮的页面实现。
     hoverEvents.forEach((eventName) => {
       card.dispatchEvent(new MouseEvent(eventName, { bubbles: true, cancelable: true }));
     });
@@ -1076,6 +1328,7 @@ export class BossPlatform extends AbsPlatform {
     clickTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     await Tools.sleep(300);
 
+    // 同时在卡片区和详情区查找收藏入口，覆盖不同页面布局下按钮位置差异。
     const detailScopes = await this.waitRelatedDetailScopes(jobDetail, 1500);
     const scopeList = [card, ...detailScopes].filter(Boolean);
     const uniqueScopeList = Array.from(new Set(scopeList));
@@ -1112,6 +1365,8 @@ export class BossPlatform extends AbsPlatform {
     await Tools.sleep(250);
     const afterCheck = await this.waitFavoriteConfirmed(jobDetail, 1800);
     const btnHintAfterClick = this.getFavoriteHint(favoriteBtn);
+
+    // 按钮提示与页面文本任一出现收藏态，都视为本次 DOM 操作成功。
     if (afterCheck.confirmed || this.isFavoriteDoneByHint(btnHintAfterClick)) {
       return { success: true, verified: true, channel: "dom-click", message: "Success" };
     }
@@ -1120,6 +1375,18 @@ export class BossPlatform extends AbsPlatform {
     return { success: false, verified: false, message: `点击收藏后未观察到收藏态;${afterHint}` };
   }
 
+  /**
+   * 执行岗位收藏。
+   *
+   * 优先使用 DOM 通道触发收藏并进行页面态校验，必要时再回退到接口调用，
+   * 并在失败时按剩余次数递归重试。
+   *
+   * @param jobDetail 待收藏的岗位详情对象。
+   * @param errorMsg 上一次失败时记录的错误信息。
+   * @param retries 允许的剩余重试次数。
+   * @returns 收藏结果对象。
+   * @throws {FavoriteRequestError} 当收藏在多次重试后仍失败时抛出。
+   */
   async doCollect(jobDetail: any, errorMsg = "", retries = 2): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
@@ -1128,6 +1395,7 @@ export class BossPlatform extends AbsPlatform {
 
     let latestError = errorMsg;
     try {
+      // 先检查页面是否已处于收藏态，避免重复点击或重复请求。
       const beforeState = await this.waitFavoriteConfirmed(jobDetail, 120);
       if (beforeState.confirmed) {
         return {
@@ -1138,6 +1406,7 @@ export class BossPlatform extends AbsPlatform {
         };
       }
 
+      // 优先尝试 DOM 通道，因为它能与页面真实状态保持同步。
       const domResult = await this.triggerFavoriteByDom(jobDetail);
       if (domResult.success && domResult.verified !== false) {
         return {
@@ -1159,6 +1428,7 @@ export class BossPlatform extends AbsPlatform {
       await Tools.sleep(Math.max(500, pushIntervalSec * 600));
       
       try {
+        // DOM 通道失败后再回退到接口调用，并通过页面状态再次确认收藏是否真正成功。
         const apiResp = await this.apiClient.doCollect(jobDetail, retries);
         if (this.apiClient.isFavoriteSuccess(apiResp)) {
           const confirmCheck = await this.waitFavoriteConfirmed(jobDetail, 1000);
@@ -1186,12 +1456,20 @@ export class BossPlatform extends AbsPlatform {
     return await this.doCollect(jobDetail, latestError, retries - 1);
   }
 
+  /**
+   * 获取 BOSS 会话数据，并在本地缓存中复用结果。
+   *
+   * @param jobDetail 当前岗位详情对象。
+   * @returns BOSS 数据接口返回结果。
+   * @throws {FetchJobDetailError} 当底层请求在多次重试后仍失败时抛出。
+   */
   async requestBossDataByCache(jobDetail: any): Promise<any> {
     const cacheKey = `${jobDetail.encryptBossId}-${jobDetail.securityId}`;
     
     if (this.bossDataCache.has(cacheKey)) {
       const cached = this.bossDataCache.get(cacheKey)!;
-      // 更新访问时间（LRU）
+
+      // 命中缓存后刷新访问时间，保持最近访问的数据更不容易被淘汰。
       this.bossDataCache.delete(cacheKey);
       this.bossDataCache.set(cacheKey, { ...cached, timestamp: Date.now() });
       return cached.data;
@@ -1200,7 +1478,7 @@ export class BossPlatform extends AbsPlatform {
     const result = await this.requestBossData(jobDetail);
     this.bossDataCache.set(cacheKey, { data: result, timestamp: Date.now() });
     
-    // LRU清理：超过阈值时删除最早的记录
+    // 超出容量时移除最久未使用的数据，控制会话缓存体积。
     if (this.bossDataCache.size > this.MAX_BOSS_CACHE) {
       const sortedEntries = Array.from(this.bossDataCache.entries())
         .sort((a, b) => a[1].timestamp - b[1].timestamp);
@@ -1211,6 +1489,15 @@ export class BossPlatform extends AbsPlatform {
     return result;
   }
 
+  /**
+   * 请求岗位对应的 BOSS 数据。
+   *
+   * @param jobDetail 当前岗位详情对象。
+   * @param errorMsg 上一次失败时记录的错误信息。
+   * @param retries 允许的剩余重试次数。
+   * @returns BOSS 数据接口返回结果。
+   * @throws {FetchJobDetailError} 当请求在多次重试后仍失败时抛出。
+   */
   async requestBossData(jobDetail: any, errorMsg = "", retries = 3): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
@@ -1224,6 +1511,12 @@ export class BossPlatform extends AbsPlatform {
     }
   }
 
+  /**
+   * 判断通用消息通道对象是否已连接。
+   *
+   * @param channel 运行时消息通道对象。
+   * @returns 通道存在且可发送时返回 `true`。
+   */
   isSendChannelConnected(channel: any): boolean {
     if (!channel) {
       return false;
@@ -1240,6 +1533,12 @@ export class BossPlatform extends AbsPlatform {
     return typeof channel.send === "function";
   }
 
+  /**
+   * 判断 GeekChatCore 通道是否已连接。
+   *
+   * @param geekCore GeekChatCore 运行时实例。
+   * @returns 通道存在且连接正常时返回 `true`。
+   */
   isGeekChannelConnected(geekCore: any): boolean {
     if (!geekCore || typeof geekCore.getInstance !== "function") {
       return false;
@@ -1271,6 +1570,11 @@ export class BossPlatform extends AbsPlatform {
     }
   }
 
+  /**
+   * 汇总当前页面所有可用消息通道的存在性与连接状态。
+   *
+   * @returns 图片、文本和 Geek 通道的状态快照。
+   */
   getSendChannelState(): { imageExists: boolean; imageConnected: boolean; textExists: boolean; textConnected: boolean; geekExists: boolean; geekConnected: boolean } {
     const geekCore = Tools.window.GeekChatCore;
     return {
@@ -1283,6 +1587,12 @@ export class BossPlatform extends AbsPlatform {
     };
   }
 
+  /**
+   * 将消息通道状态格式化为便于日志输出的字符串。
+   *
+   * @param state 消息通道状态对象。
+   * @returns 适合输出到日志或异常信息中的紧凑状态串。
+   */
   formatSendChannelState(state: { imageExists: boolean; imageConnected: boolean; textExists: boolean; textConnected: boolean; geekExists: boolean; geekConnected: boolean }): string {
     return `image(${state.imageExists ? "Y" : "N"}/${state.imageConnected ? "on" : "off"}),text(${state.textExists ? "Y" : "N"}/${state.textConnected ? "on" : "off"}),geek(${state.geekExists ? "Y" : "N"}/${state.geekConnected ? "on" : "off"})`;
   }
@@ -1301,6 +1611,15 @@ export class BossPlatform extends AbsPlatform {
     return `${token || ""}`.trim();
   }
 
+  /**
+   * 确保至少有一条消息发送通道可用。
+   *
+   * 方法会尝试初始化图片/文本通道，随后在限定时间内轮询状态，
+   * 并定期触发重连，以提高自动消息和图片简历发送的成功率。
+   *
+   * @param waitMs 最长等待时间，单位毫秒。
+   * @returns 任一发送通道准备就绪时返回 `true`，否则返回 `false`。
+   */
   async ensureSendChannelReady(waitMs = 4500): Promise<boolean> {
     if (!Tools.window.ChatWebsocketImage && typeof setChatWebsocket === "function") {
       await setChatWebsocket();
@@ -1329,6 +1648,8 @@ export class BossPlatform extends AbsPlatform {
     let reconnectTs = 0;
     while (Date.now() - startTs < waitMs) {
       const state = this.getSendChannelState();
+
+      // 只要任一通道可用，就允许后续发送逻辑继续执行。
       if (state.imageConnected || state.textConnected || state.geekConnected) {
         return true;
       }
@@ -1344,6 +1665,7 @@ export class BossPlatform extends AbsPlatform {
           }
 
           try {
+            // 对仍未连通的通道周期性发起重连，兼容页面懒初始化或掉线重连场景。
             channel.reConnection();
           } catch (e) {
             logger$1.debug("消息通道重连触发失败", e);
@@ -1373,6 +1695,18 @@ export class BossPlatform extends AbsPlatform {
     return Math.max(...heights, 0);
   }
 
+  /**
+   * 处理投递成功或失败后的统一收尾逻辑。
+   *
+   * 投递成功时会更新成功计数、记录 AI 判定理由，并尝试发送图片简历与自定义消息；
+   * 投递失败时则根据平台返回内容转换为明确的业务异常。
+   *
+   * @param pushResult 投递接口返回结果。
+   * @param jobDetail 已执行投递的岗位详情对象。
+   * @returns 投递成功后返回更新过联系状态的岗位对象。
+   * @throws {PushLimitError} 当平台提示当日沟通人数达到上限时抛出。
+   * @throws {PushRequestError} 当投递结果不是成功且不属于每日上限时抛出。
+   */
   async pushAfterHandler(pushResult: any, jobDetail: any): Promise<any> {
     const jobTitle = this.getJobKey(jobDetail);
     if (pushResult.message === "Success" && pushResult.code === 0) {
@@ -1383,6 +1717,8 @@ export class BossPlatform extends AbsPlatform {
       } else {
         this.preferenceLogRecorder.info(`工作【${jobTitle}】 投递成功`);
       }
+
+      // 投递成功后的附加动作互不阻断：图片失败不影响消息发送，消息失败也不回滚投递结果。
       try {
         await this.pushAfterSendImage(jobDetail);
       } catch (e: any) {
@@ -1406,6 +1742,13 @@ export class BossPlatform extends AbsPlatform {
     throw new PushRequestError(jobTitle, pushResult.message);
   }
 
+  /**
+   * 投递成功后发送自定义文本消息。
+   *
+   * @param jobDetail 已投递成功的岗位详情对象。
+   * @returns 无返回值。
+   * @throws {Error} 当消息通道不可用、BOSS 数据获取失败或消息发送失败时抛出。
+   */
   async pushAfterSendMsg(jobDetail: any): Promise<void> {
     const preference = runtimeUserStore?.user?.preference || {};
     const customGreetingEnabled = normalizePreferenceBoolean(getPreferenceValue(preference, "customGreetingEnabled", "cgE"), false);
@@ -1416,6 +1759,7 @@ export class BossPlatform extends AbsPlatform {
     await Tools.sleep(Tools.getRandomNumber(700, 2200));
     this.enforceAutoContactSafety("message");
 
+    // 发送前先确保页面运行时消息通道已就绪，避免直接丢消息。
     const ready = await this.ensureSendChannelReady();
     if (!ready) {
       throw new Error(`消息发送通道不可用(${this.formatSendChannelState(this.getSendChannelState())})`);
@@ -1436,6 +1780,7 @@ export class BossPlatform extends AbsPlatform {
 
     let sendOk = message.send();
     if (!sendOk) {
+      // 首次发送失败时进行一次短暂等待和通道重试，以兼容连接刚恢复但尚未稳定的场景。
       await Tools.sleep(300);
       await this.ensureSendChannelReady(2200);
       sendOk = message.send();
@@ -1446,6 +1791,13 @@ export class BossPlatform extends AbsPlatform {
     }
   }
 
+  /**
+   * 投递成功后发送图片简历。
+   *
+   * @param jobDetail 已投递成功的岗位详情对象。
+   * @returns 无返回值。
+   * @throws {Error} 当图片配置不合法、消息通道不可用、BOSS 数据获取失败或发送失败时抛出。
+   */
   async pushAfterSendImage(jobDetail: any): Promise<void> {
     const preference = runtimeUserStore?.user?.preference || {};
     const customImageEnabled = normalizePreferenceBoolean(getPreferenceValue(preference, "customImageEnabled", "cIE"), false);
@@ -1485,6 +1837,7 @@ export class BossPlatform extends AbsPlatform {
 
     let sendOk = message.send();
     if (!sendOk) {
+      // 图片消息对连接稳定性更敏感，失败后同样进行一次短重连再补发。
       await Tools.sleep(350);
       await this.ensureSendChannelReady(2200);
       sendOk = message.send();
@@ -1495,10 +1848,30 @@ export class BossPlatform extends AbsPlatform {
     }
   }
 
+  /**
+   * 投递前对岗位对象进行预处理。
+   *
+   * 当前实现保持原样透传，预留给未来扩展使用。
+   *
+   * @param jobDetail 待投递岗位详情对象。
+   * @returns 原始岗位详情对象。
+   */
   pushPreHandler(jobDetail: any): any {
     return jobDetail;
   }
 
+  /**
+   * 获取岗位详情页中的扩展信息。
+   *
+   * 扩展信息主要用于活跃度、职位描述等规则判断；当多次获取失败时，
+   * 会将该岗位视为无法安全判断并抛出不匹配异常。
+   *
+   * @param jobDetail 当前岗位详情对象。
+   * @param message 上一次失败时记录的错误信息。
+   * @param retries 允许的剩余重试次数。
+   * @returns 岗位详情扩展信息。
+   * @throws {NotMatchError} 当扩展信息在多次重试后仍无法获取时抛出。
+   */
   async obtainBossJobDetailExt(jobDetail: any, message = "", retries = 3): Promise<any> {
     if (retries === 0) {
       logger$1.warn(`获取工作详情扩展信息异常,用于活跃度过滤以及工作内容过滤; 原因：${message}`);
@@ -1513,6 +1886,12 @@ export class BossPlatform extends AbsPlatform {
     }
   }
 
+  /**
+   * 确保用户画像中存在足够可用的运行时简历叙述文本。
+   *
+   * @param user 当前运行时用户对象。
+   * @returns 无返回值。
+   */
   private async ensureRuntimeResumeNarrative(user: Record<string, unknown>): Promise<void> {
     const importedResume = (user.importedResume as Record<string, unknown>) || {};
     const currentText = `${importedResume.resumeText || ""}`.trim();
@@ -1529,6 +1908,7 @@ export class BossPlatform extends AbsPlatform {
       return;
     }
 
+    // 通过共享中的刷新任务避免同一轮匹配并发重复刷新简历，降低接口压力与状态竞争。
     this.lastRuntimeResumeRefreshTs = now;
     this.runtimeResumeRefreshPromise = this.fetchAndCacheRuntimeResumeText(user)
       .catch((error: any) => {
@@ -1540,6 +1920,12 @@ export class BossPlatform extends AbsPlatform {
     await this.runtimeResumeRefreshPromise;
   }
 
+  /**
+   * 拉取并缓存运行时简历文本。
+   *
+   * @param user 当前运行时用户对象。
+   * @returns 无返回值。
+   */
   private async fetchAndCacheRuntimeResumeText(user: Record<string, unknown>): Promise<void> {
     const token = this.getBossTokenPreferCookie();
     if (!token) {
@@ -1549,6 +1935,7 @@ export class BossPlatform extends AbsPlatform {
     let resumeText = "";
     let resumeTextSource = "";
 
+    // 优先走预览接口，能直接拿到结构化数据并减少页面 HTML 解析成本。
     const previewText = await this.fetchRuntimeResumeTextFromPreviewApi(token).catch(() => "");
     if (previewText.length >= 60) {
       resumeText = previewText;
@@ -1556,6 +1943,7 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (!resumeText) {
+      // 预览接口不可用时回退到页面 HTML 抽取，尽量保证 AI 仍能拿到简历摘要。
       const pageHtml = await this.apiClient.fetchAndCacheRuntimeResumeText(token);
       const pageText = extractResumeTextFromHtml(pageHtml, 12_000);
       if (pageText.length >= 60) {
@@ -1580,11 +1968,24 @@ export class BossPlatform extends AbsPlatform {
     }
   }
 
+  /**
+   * 通过预览接口获取运行时简历文本。
+   *
+   * @param token 页面上下文可用的身份令牌。
+   * @returns 截断后的简历文本。
+   */
   private async fetchRuntimeResumeTextFromPreviewApi(token: string): Promise<string> {
     const zpData = await this.apiClient.fetchRuntimeResumeTextFromPreviewApi(token);
     return this.buildRuntimeResumeTextFromPreviewData(zpData, 12_000);
   }
 
+  /**
+   * 将预览接口返回的结构化简历数据拼装为可供 AI 使用的文本。
+   *
+   * @param dataInput 简历预览接口返回的数据对象。
+   * @param maxLength 输出文本最大长度。
+   * @returns 结构化拼接后的简历文本；若无有效内容则返回空字符串。
+   */
   private buildRuntimeResumeTextFromPreviewData(dataInput: Record<string, unknown>, maxLength = 12_000): string {
     const data = toRecord(dataInput);
     const baseInfo = toRecord(data.baseInfo);
@@ -1594,6 +1995,8 @@ export class BossPlatform extends AbsPlatform {
     const educationExpList = Array.isArray(data.educationExpList) ? data.educationExpList : [];
 
     const sections: string[] = [];
+
+    // 将不同信息块统一整理成可读段落，便于 AI 在单次上下文中理解候选人画像。
     const basicLines = [
       `姓名：${toText(baseInfo.nickName, 80)}`,
       `工作年限：${toText(baseInfo.workYearDesc, 60)}`,
@@ -1657,6 +2060,13 @@ export class BossPlatform extends AbsPlatform {
     return finalText.length > maxLength ? `${finalText.slice(0, maxLength)}...` : finalText;
   }
 
+  /**
+   * 根据偏好配置判断 BOSS 活跃时间是否满足要求。
+   *
+   * @param activeText 页面展示的活跃时间描述。
+   * @param activePreference 活跃度过滤偏好配置。
+   * @returns 满足当前活跃度配置时返回 `true`。
+   */
   bossIsActive(activeText: string, activePreference: Record<string, boolean> = {}): boolean {
     const checkWeek = normalizePreferenceBoolean(activePreference.acW, true);
     const checkMonth = normalizePreferenceBoolean(activePreference.acM, true);
@@ -1677,6 +2087,12 @@ export class BossPlatform extends AbsPlatform {
     return true;
   }
 
+  /**
+   * 判断岗位是否已经存在沟通关系。
+   *
+   * @param jobCardJson 岗位或详情接口返回的数据对象。
+   * @returns 若 `friendStatus` 表示已沟通，则返回 `true`。
+   */
   isCommunication(jobCardJson: any): boolean {
     return jobCardJson?.friendStatus === 1;
   }
@@ -1691,6 +2107,17 @@ export class BossPlatform extends AbsPlatform {
     return normalizePreferenceBoolean(preference.traditionalDeliveryE, true);
   }
 
+  /**
+   * 在 AI 回退到传统规则时执行传统规则校验。
+   *
+   * @param traditionalDeliveryEnabled 是否启用了传统投递规则。
+   * @param jobDetail 岗位基础详情对象。
+   * @param jobDetailExt 岗位扩展详情对象。
+   * @param jobTitle 岗位可读标识。
+   * @param fallbackReason 触发回退的原因说明。
+   * @returns 无返回值。
+   * @throws {NotMatchError} 当未开启传统规则或传统规则校验失败时抛出。
+   */
   private applyTraditionalFallbackChecks(
     traditionalDeliveryEnabled: boolean,
     jobDetail: any,
@@ -1701,13 +2128,19 @@ export class BossPlatform extends AbsPlatform {
     if (!traditionalDeliveryEnabled) {
       throw new NotMatchError(jobTitle, fallbackReason, "AI回退传统投递失败：未开启传统投递规则");
     }
+
+    // 回退时需要完整执行传统基础与扩展规则，确保 AI 失败不会放宽既有约束。
     this.applyTraditionalBaseChecks(jobDetail, jobTitle);
     this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
   }
 
   /**
-   * 通用硬性约束检查 - 在 AI 和传统投递模式下都生效
-   * 包括：薪资、公司规模、猎头过滤、在线 BOSS、黑名单等
+   * 执行 AI 与传统模式共用的硬性约束检查。
+   *
+   * @param jobDetail 岗位详情对象。
+   * @param jobTitle 岗位可读标识。
+   * @returns 无返回值。
+   * @throws {NotMatchError} 当命中猎头过滤、黑名单、薪资范围或公司规模限制时抛出。
    */
   private applyCommonHardConstraints(jobDetail: any, jobTitle: string): void {
     const preference = runtimeUserStore?.user?.preference || {};
@@ -1756,8 +2189,12 @@ export class BossPlatform extends AbsPlatform {
   }
 
   /**
-   * 传统投递软性过滤 - 仅在传统投递模式下生效
-   * 包括：公司名/岗位名白名单等
+   * 执行仅在传统投递模式下生效的软性过滤。
+   *
+   * @param jobDetail 岗位详情对象。
+   * @param jobTitle 岗位可读标识。
+   * @returns 无返回值。
+   * @throws {NotMatchError} 当不满足公司名或岗位名白名单条件时抛出。
    */
   private applyTraditionalSoftFilters(jobDetail: any, jobTitle: string): void {
     const preference = runtimeUserStore?.user?.preference || {};
@@ -1776,24 +2213,41 @@ export class BossPlatform extends AbsPlatform {
   }
 
   /**
-   * 传统投递基础检查 - 兼容旧代码，内部调用通用约束和软性过滤
-   * @deprecated 建议直接使用 applyCommonHardConstraints 和 applyTraditionalSoftFilters
+   * 执行传统投递基础检查。
+   *
+   * @deprecated 建议直接使用 `applyCommonHardConstraints` 与 `applyTraditionalSoftFilters`。
+   * @param jobDetail 岗位详情对象。
+   * @param jobTitle 岗位可读标识。
+   * @returns 无返回值。
+   * @throws {NotMatchError} 当任一基础规则不满足时抛出。
    */
   private applyTraditionalBaseChecks(jobDetail: any, jobTitle: string): void {
     this.applyCommonHardConstraints(jobDetail, jobTitle);
     this.applyTraditionalSoftFilters(jobDetail, jobTitle);
   }
 
+  /**
+   * 执行依赖岗位扩展详情的传统规则检查。
+   *
+   * @param jobDetailExt 岗位扩展详情对象。
+   * @param jobTitle 岗位可读标识。
+   * @returns 无返回值。
+   * @throws {NotMatchError} 当活跃度或职位描述规则不满足时抛出。
+   */
   private applyTraditionalExtChecks(jobDetailExt: any, jobTitle: string): void {
     const preference = runtimeUserStore?.user?.preference || {};
     const activeTimeDesc = jobDetailExt.activeTimeDesc;
     const isActiveFilterEnabled = normalizePreferenceBoolean(preference.acE, false);
+
+    // 活跃度规则用于过滤长时间未上线的招聘方，降低低响应岗位占比。
     if (isActiveFilterEnabled && !this.bossIsActive(activeTimeDesc, preference)) {
       throw new NotMatchError(jobTitle, activeTimeDesc, "不满足活跃度检查");
     }
 
     const jobContent = jobDetailExt.postDescription;
     const jobContentExclude = preference.jce;
+
+    // 先执行职位描述黑名单，再执行白名单，避免命中排除项时被白名单误放行。
     if (preference.jceE && Tools.fuzzyMatch(jobContentExclude, jobContent, false)) {
       throw new NotMatchError(jobTitle, jobContent, "满足排除工作内容");
     }
@@ -1804,6 +2258,12 @@ export class BossPlatform extends AbsPlatform {
     }
   }
 
+  /**
+   * 对 AI 日志中输出的用户画像做脱敏处理。
+   *
+   * @param userProfile 原始用户画像对象。
+   * @returns 已脱敏的用户画像副本。
+   */
   private maskAiDeliveryUserProfile(userProfile: Record<string, unknown>): Record<string, unknown> {
     const maskText = (value: unknown, keepStart = 2, keepEnd = 2): string => {
       const text = `${value || ""}`;
@@ -1827,6 +2287,13 @@ export class BossPlatform extends AbsPlatform {
     };
   }
 
+  /**
+   * 规范化 AI 判定理由文本。
+   *
+   * @param reason 原始理由。
+   * @param fallback 当理由为空时使用的兜底说明。
+   * @returns 清洗并截断后的理由文本。
+   */
   private normalizeAiJudgeReason(reason: unknown, fallback: string): string {
     const normalized = `${reason || ""}`.replace(/\s+/g, " ").trim();
     if (normalized) {
@@ -1835,6 +2302,15 @@ export class BossPlatform extends AbsPlatform {
     return fallback;
   }
 
+  /**
+   * 解析 AI 投递判定结果。
+   *
+   * 会兼容对象、JSON 字符串和启发式字符串等多种返回形态，
+   * 尽可能将模型输出统一转换为稳定的业务结构。
+   *
+   * @param filterResp AI 过滤接口返回结果。
+   * @returns 包含是否匹配、理由、有效性和解析模式的统一结果对象。
+   */
   private parseAiDeliveryJudgeResult(filterResp: any): { match: boolean; reason: string; valid: boolean; parseMode: string } {
     const raw = filterResp?.data?.data;
     if (!raw) {
@@ -1863,6 +2339,7 @@ export class BossPlatform extends AbsPlatform {
     if (typeof raw === "string") {
       const text = raw.trim();
       try {
+        // 优先按 JSON 字符串解析，兼容模型返回被包裹成文本的结构化结果。
         const parsed = JSON.parse(text);
         if (typeof parsed.match === "boolean") {
           return {
@@ -1873,6 +2350,7 @@ export class BossPlatform extends AbsPlatform {
           };
         }
       } catch (_e) {
+        // JSON 解析失败时再做轻量启发式识别，尽量从非标准输出中恢复结论。
         const lower = text.toLowerCase();
         if (lower.includes("\"match\":true") || lower.includes("match:true")) {
           return { match: true, reason: "AI文本判定为可投递", valid: true, parseMode: "heuristic-string.true" };
@@ -1886,6 +2364,11 @@ export class BossPlatform extends AbsPlatform {
     return { match: false, reason: "AI判定结果无法解析", valid: false, parseMode: "invalid" };
   }
 
+  /**
+   * 生成 AI 判定链路追踪标识。
+   *
+   * @returns 由时间戳和随机后缀组成的追踪 ID。
+   */
   private buildAiJudgeTraceId(): string {
     const ts = Date.now().toString(36);
     const randomSuffix = Math.random().toString(36).slice(2, 8);

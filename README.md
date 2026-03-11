@@ -1,16 +1,16 @@
-# AI Job Hunting
+# AI 求职助手
 
-Tampermonkey userscript for BOSS job search automation. It provides batch push/collect workflows, AI-assisted chat replies, preference controls, and operation logs in a Vue 3 + Pinia + Element Plus panel.
+BOSS 直聘求职自动化的 Tampermonkey 用户脚本。提供批量投递/收藏工作流、AI 辅助聊天回复、偏好设置控制和操作日志，基于 Vue 3 + Pinia + Element Plus 面板。
 
-## Key Features
+## 核心功能
 
-- Batch push and batch collect on job list pages
-- AI assistant replies based on resume and prompt settings
-- Preference filters for salary, activity, company and push rules
-- Runtime logs and counters for success/failure tracking
-- AI config with provider/model settings and debug endpoints
+- 职位列表页面批量投递和批量收藏
+- 基于简历和提示词设置的 AI 助手回复
+- 薪资、活跃度、公司和投递规则的偏好过滤器
+- 运行日志和成功/失败计数器
+- AI 配置（提供商/模型设置和调试端点）
 
-## Tech Stack
+## 技术栈
 
 - Vue 3
 - Pinia
@@ -18,15 +18,15 @@ Tampermonkey userscript for BOSS job search automation. It provides batch push/c
 - Vite + vite-plugin-monkey
 - Axios + Protobuf
 
-## Project Structure
+## 项目结构
 
 ```text
 ai-job-hunting/
 ├─ src/
-│  ├─ app/                               # bootstrap and root app shell
+│  ├─ app/                               # 应用启动和根组件
 │  │  ├─ main.ts
 │  │  └─ App.vue
-│  ├─ features/                          # feature-focused UI modules
+│  ├─ features/                          # 功能模块（面向用户的 UI 模块）
 │  │  ├─ panel/
 │  │  ├─ job-assistant/
 │  │  ├─ preference/
@@ -34,12 +34,12 @@ ai-job-hunting/
 │  │  ├─ run-record/
 │  │  ├─ product/
 │  │  └─ conversation-cleaner/
-│  ├─ core/                              # business/runtime infrastructure
+│  ├─ core/                              # 业务/运行时基础设施
 │  │  ├─ ai/ auth/ http/ platform/
 │  │  ├─ engine/ realtime/ protocol/
 │  │  └─ AGENTS.md
-│  ├─ state/                             # pinia stores
-│  └─ shared/                            # shared utils/errors/types
+│  ├─ state/                             # Pinia 状态管理
+│  └─ shared/                            # 共享工具/错误/类型
 ├─ docs/
 │  ├─ README.md
 │  └─ plans/
@@ -47,37 +47,37 @@ ai-job-hunting/
 └─ vite.config.ts
 ```
 
-### Layering Rules
+### 分层规则
 
-- `app` can depend on `features`, `core`, `state`, `shared`.
-- `features` can depend on `core`, `state`, `shared`.
-- `core` can depend on `state`, `shared` but should avoid direct UI ownership.
-- `shared` should stay framework-light and reusable.
+- `app` 可以依赖 `features`、`core`、`state`、`shared`
+- `features` 可以依赖 `core`、`state`、`shared`
+- `core` 可以依赖 `state`、`shared`，但应避免直接拥有 UI
+- `shared` 应保持框架轻量化和可复用性
 
-## Development
+## 开发
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Build
+## 构建
 
 ```bash
 npm run build
 ```
 
-Build output:
+构建输出：
 
 - `dist/ai-job-hunting.user.js`
 
-## Type Check
+## 类型检查
 
 ```bash
 npm run type-check
 ```
 
-## Notes
+## 注意事项
 
-- This repo keeps source code. Do not commit generated `dist/` artifacts.
-- The userscript runs on BOSS pages and depends on page runtime context.
+- 本仓库保留源代码，不要提交生成的 `dist/` 构建产物
+- 用户脚本运行在 BOSS 直聘页面上，依赖页面运行时上下文
