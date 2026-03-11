@@ -97,7 +97,15 @@
       <div class="footer-right buttons">
         <el-button class="boss-btn-text text-muted" link @click="resetToDefault">恢复默认配置</el-button>
         <el-button type="warning" plain :loading="previewLoading" @click="handlePreviewInputOnce">测试重点分析</el-button>
-        <el-button color="#00bebd" class="save-btn" style="color: #fff;" @click="handleSave">保存判定规则</el-button>
+        <el-button 
+          color="#00bebd" 
+          class="save-btn" 
+          style="color: #fff;" 
+          :loading="isSaving"
+          @click="handleSave"
+        >
+          保存判定规则
+        </el-button>
       </div>
     </div>
 
@@ -175,6 +183,7 @@ const currentConfig = Tools.getAiDeliveryJudgeConfig(userStore.user?.preference 
 
 const previewVisible = ref(false);
 const previewLoading = ref(false);
+const isSaving = ref(false);
 const previewJobLabel = ref("");
 const previewPayloadText = ref("");
 const focusSkills = ref<string[]>(currentConfig.focusSkills);
@@ -205,28 +214,33 @@ const form = reactive({
 });
 
 const handleSave = () => {
-  const saved = Tools.saveAiDeliveryJudgeConfig({
-    enabled: form.enabled,
-    focusSkills: focusSkills.value,
-    excludeKeywords: excludeKeywords.value,
-    includeUserProfile: form.includeUserProfile,
-    includeTraditionalSnapshot: form.includeTraditionalSnapshot,
-    onAiError: form.onAiError,
-    onInvalidResult: form.onInvalidResult
-  });
+  isSaving.value = true;
+  try {
+    const saved = Tools.saveAiDeliveryJudgeConfig({
+      enabled: form.enabled,
+      focusSkills: focusSkills.value,
+      excludeKeywords: excludeKeywords.value,
+      includeUserProfile: form.includeUserProfile,
+      includeTraditionalSnapshot: form.includeTraditionalSnapshot,
+      onAiError: form.onAiError,
+      onInvalidResult: form.onInvalidResult
+    });
 
-  form.enabled = saved.enabled;
-  focusSkills.value = saved.focusSkills;
-  excludeKeywords.value = saved.excludeKeywords;
-  form.includeUserProfile = saved.includeUserProfile;
-  form.includeTraditionalSnapshot = saved.includeTraditionalSnapshot;
-  form.onAiError = saved.onAiError;
-  form.onInvalidResult = saved.onInvalidResult;
-  showAppMessage({
-    message: "AI 投递判定设置已保存",
-    type: "success",
-    duration: 2000
-  });
+    form.enabled = saved.enabled;
+    focusSkills.value = saved.focusSkills;
+    excludeKeywords.value = saved.excludeKeywords;
+    form.includeUserProfile = saved.includeUserProfile;
+    form.includeTraditionalSnapshot = saved.includeTraditionalSnapshot;
+    form.onAiError = saved.onAiError;
+    form.onInvalidResult = saved.onInvalidResult;
+    showAppMessage({
+      message: "AI 投递判定设置已保存",
+      type: "success",
+      duration: 2000
+    });
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 const resetToDefault = () => {

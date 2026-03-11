@@ -75,7 +75,7 @@
           </el-form-item>
 
           <el-form-item>
-            <el-button type="info" @click="handleTempSave">暂存</el-button>
+            <el-button type="info" :loading="isTempSaving" @click="handleTempSave">暂存</el-button>
             <el-button type="success" :loading="isTestLoading" @click="handleTest">直连测试</el-button>
             <el-button type="primary" @click="saveApiConfig">保存配置</el-button>
           </el-form-item>
@@ -101,6 +101,7 @@ const apiView = ref('list');
 const editingConfigId = ref(null);
 const formRef = ref();
 const isTestLoading = ref(false);
+const isTempSaving = ref(false);
 const editForm = ref({
   provider: 0,
   modelName: '',
@@ -394,38 +395,43 @@ const handleTempSave = async () => {
     return;
   }
 
-  await formRef.value.validate(async (valid) => {
-    if (!valid) {
-      return;
-    }
+  isTempSaving.value = true;
+  try {
+    await formRef.value.validate(async (valid) => {
+      if (!valid) {
+        return;
+      }
 
-    const id = editingConfigId.value || createApiConfigId();
-    const nextItem = normalizeApiConfigItem({ ...editForm.value, id });
-    const nextList = apiConfigList.value.map((item) => ({ ...item }));
-    const existsIndex = nextList.findIndex((item) => item.id === id);
-    if (existsIndex >= 0) {
-      nextList[existsIndex] = nextItem;
-    } else {
-      nextList.unshift(nextItem);
-    }
+      const id = editingConfigId.value || createApiConfigId();
+      const nextItem = normalizeApiConfigItem({ ...editForm.value, id });
+      const nextList = apiConfigList.value.map((item) => ({ ...item }));
+      const existsIndex = nextList.findIndex((item) => item.id === id);
+      if (existsIndex >= 0) {
+        nextList[existsIndex] = nextItem;
+      } else {
+        nextList.unshift(nextItem);
+      }
 
-    const ext = state.ensureAiConfigExtSchema();
-    let activeId = ext.activeApiConfigId || '';
-    if (nextItem.status === 1) {
-      activeId = id;
-    }
+      const ext = state.ensureAiConfigExtSchema();
+      let activeId = ext.activeApiConfigId || '';
+      if (nextItem.status === 1) {
+        activeId = id;
+      }
 
-    const normalizedStatusList = nextList.map((item) => ({
-      ...item,
-      status: activeId && item.id === activeId ? 1 : activeId ? 0 : item.status,
-    }));
+      const normalizedStatusList = nextList.map((item) => ({
+        ...item,
+        status: activeId && item.id === activeId ? 1 : activeId ? 0 : item.status,
+      }));
 
-    persistApiConfigList(normalizedStatusList, activeId);
-    editingConfigId.value = id;
-    applyApiConfigToForm(nextItem);
-    syncEditFormToParent(nextItem);
-    state.ElMessage({ type: 'success', message: '暂存成功' });
-  });
+      persistApiConfigList(normalizedStatusList, activeId);
+      editingConfigId.value = id;
+      applyApiConfigToForm(nextItem);
+      syncEditFormToParent(nextItem);
+      state.ElMessage({ type: 'success', message: '暂存成功' });
+    });
+  } finally {
+    isTempSaving.value = false;
+  }
 };
 
 const handleTest = async () => {

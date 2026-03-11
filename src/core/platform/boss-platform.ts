@@ -24,6 +24,7 @@ import {
 import { Message } from "@/core/protocol/message";
 import { simulateScrollToEnd } from "@/shared/utils/scroll";
 import { querySelectorWithFallback, querySelectorAllWithFallback } from "@/core/platform/boss-dom-adapter";
+import { BossApiClient } from "@/core/platform/boss-api-client";
 
 const logger$1 = Logger.rootLogger;
 const AI_DELIVERY_JUDGE_TIMEOUT_MS = 12_000;
@@ -145,10 +146,12 @@ export class BossPlatform extends AbsPlatform {
   private readonly MAX_PROCESSED_JOBS = 500;
   private lastRuntimeResumeRefreshTs = 0;
   private runtimeResumeRefreshPromise: Promise<void> | null = null;
+  private apiClient: BossApiClient;
 
   constructor(curUrl: string) {
     super();
     this.curUrl = curUrl;
+    this.apiClient = new BossApiClient();
   }
 
   getPlatformType(): number {
@@ -815,13 +818,15 @@ export class BossPlatform extends AbsPlatform {
 
     logger$1.debug("正在投递：" + jobTitle);
 
-    const publishUrl = `https://www.zhipin.com/wapi/zpgeek/friend/add.json?securityId=${jobDetail.securityId}&jobId=${jobDetail.encryptJobId}&lid=${jobDetail.lid}`;
+    // 应用投递间隔
+    const preference = runtimeUserStore?.user?.preference || {};
+    const pushIntervalSec = Number(getPreferenceValue(preference, "pushIntervalSec", "pi")) || 3;
+    await Tools.sleep(pushIntervalSec * 1000);
+
     let pushResp: any = { code: PushResultStatus.NOT_START, message: "" };
     try {
-      const preference = runtimeUserStore?.user?.preference || {};
-      const pushIntervalSec = Number(getPreferenceValue(preference, "pushIntervalSec", "pi")) || 3;
-      await Tools.sleep(pushIntervalSec * 1000);
-      pushResp = await axios.post(publishUrl, null, { headers: { Zp_token: Tools.getCookieValue("bst") } });
+      // 委托给 API 客户端执行 HTTP 请求
+      pushResp = await this.apiClient.doPush(jobDetail, 1); // API 客户端内部不重试，由这里控制
     } catch (error: any) {
       const latestError = `${error?.message || "投递请求失败"}`;
       // 检测是否为网络错误
@@ -835,8 +840,9 @@ export class BossPlatform extends AbsPlatform {
       throw error;
     }
 
-    if (pushResp.data.code === PushResultStatus.FAIL && pushResp.data?.zpData?.bizData?.chatRemindDialog?.content) {
-      const remindContent = `${pushResp.data?.zpData?.bizData?.chatRemindDialog?.content || ""}`;
+    // 检查响应中的人工验证和每日限制
+    if (pushResp.code === PushResultStatus.FAIL && pushResp?.zpData?.bizData?.chatRemindDialog?.content) {
+      const remindContent = `${pushResp?.zpData?.bizData?.chatRemindDialog?.content || ""}`;
       if (this.isManualVerificationText(remindContent)) {
         throw new PushStopError(this.getManualVerificationReason() || remindContent);
       }
@@ -849,48 +855,12 @@ export class BossPlatform extends AbsPlatform {
 
       return {
         code: 1,
-        message: pushResp.data?.zpData?.bizData?.chatRemindDialog?.content
+        message: pushResp?.zpData?.bizData?.chatRemindDialog?.content
       };
     }
 
     await Tools.sleep(800);
-    return pushResp.data;
-  }
-
-  buildFavoriteApiRequests(jobDetail: any): Array<{ name: string; url: string; data: string; contentType: string }> {
-    const interestBody = new URLSearchParams({
-      securityId: jobDetail.securityId,
-      jobId: jobDetail.encryptJobId,
-      lid: jobDetail.lid,
-      tag: "1",
-      flag: "1",
-      interest: "1"
-    }).toString();
-
-    return [
-      {
-        name: "relation-interest-form",
-        url: "https://www.zhipin.com/wapi/zprelation/geekTag/job/interest",
-        data: interestBody,
-        contentType: "application/x-www-form-urlencoded;charset=UTF-8"
-      },
-      {
-        name: "relation-interest-query",
-        url: `https://www.zhipin.com/wapi/zprelation/geekTag/job/interest?securityId=${encodeURIComponent(jobDetail.securityId)}`,
-        data: interestBody,
-        contentType: "application/x-www-form-urlencoded;charset=UTF-8"
-      }
-    ];
-  }
-
-  isFavoriteSuccess(respData: any): boolean {
-    const message = `${respData?.message || ""}`;
-    const result = respData?.result ?? respData?.zpData?.result;
-    if (respData?.code === 0 && result !== false) {
-      return true;
-    }
-
-    return message.includes("已收藏") || message.includes("取消收藏") || message.includes("感兴趣");
+    return pushResp;
   }
 
   findJobCardByJobDetail(jobDetail: any): any {
@@ -1187,42 +1157,25 @@ export class BossPlatform extends AbsPlatform {
       const preference = runtimeUserStore?.user?.preference || {};
       const pushIntervalSec = Number(getPreferenceValue(preference, "pushIntervalSec", "pi")) || 3;
       await Tools.sleep(Math.max(500, pushIntervalSec * 600));
-      const token = Tools.getCookieValue("bst");
-      if (token) {
-        const headers = { Zp_token: token };
-        for (const favoriteRequest of this.buildFavoriteApiRequests(jobDetail)) {
-          try {
-            const reqHeaders: Record<string, string> = {
-              ...headers
+      
+      try {
+        const apiResp = await this.apiClient.doCollect(jobDetail, retries);
+        if (this.apiClient.isFavoriteSuccess(apiResp)) {
+          const confirmCheck = await this.waitFavoriteConfirmed(jobDetail, 1000);
+          if (confirmCheck.confirmed) {
+            return {
+              code: 0,
+              message: "Success",
+              verified: true,
+              channel: "api"
             };
-            if (favoriteRequest.contentType) {
-              reqHeaders["content-type"] = favoriteRequest.contentType;
-            }
-
-            const resp = await axios.post(favoriteRequest.url, favoriteRequest.data, { headers: reqHeaders });
-            const respData = resp?.data;
-            if (this.isFavoriteSuccess(respData)) {
-              const confirmCheck = await this.waitFavoriteConfirmed(jobDetail, 1000);
-              if (confirmCheck.confirmed) {
-                return {
-                  code: 0,
-                  message: "Success",
-                  verified: true,
-                  channel: favoriteRequest.name
-                };
-              }
-
-              latestError = `${favoriteRequest.name}:接口返回成功但未观察到收藏态`;
-              continue;
-            }
-
-            latestError = `${favoriteRequest.name}:${((respData?.message) || `收藏接口异常(${respData?.code || "unknown"})`).toString()}`;
-          } catch (error: any) {
-            latestError = `${favoriteRequest.name}:${error?.message || "收藏接口请求失败"}`;
           }
+          latestError = "接口返回成功但未观察到收藏态";
+        } else {
+          latestError = `${((apiResp?.message) || `收藏接口异常(${apiResp?.code || "unknown"})`).toString()}`;
         }
-      } else {
-        latestError = "未获取到zp-token";
+      } catch (error: any) {
+        latestError = error?.message || "收藏接口请求失败";
       }
     } catch (error: any) {
       latestError = error?.message || latestError;
@@ -1264,29 +1217,11 @@ export class BossPlatform extends AbsPlatform {
       throw new FetchJobDetailError(jobTitle, errorMsg || "获取boss数据重试多次失败");
     }
 
-    const url = "https://www.zhipin.com/wapi/zpchat/geek/getBossData";
-    const token = Tools.getCookieValue("bst");
-    if (!token) {
-      throw new FetchJobDetailError(jobTitle, "未获取到zp-token");
-    }
-
-    const data = new FormData();
-    data.append("bossId", jobDetail.encryptBossId);
-    data.append("securityId", jobDetail.securityId);
-    data.append("bossSrc", "0");
-
-    let resp: any;
     try {
-      resp = await axios({ url, data, method: "POST", headers: { Zp_token: token } });
+      return await this.apiClient.requestBossData(jobDetail);
     } catch (e: any) {
       return this.requestBossData(jobDetail, e.message, retries - 1);
     }
-
-    if (resp.data.code !== 0) {
-      throw new FetchJobDetailError(jobTitle, resp.data.message);
-    }
-
-    return resp.data.zpData;
   }
 
   isSendChannelConnected(channel: any): boolean {
@@ -1570,10 +1505,8 @@ export class BossPlatform extends AbsPlatform {
       throw new NotMatchError(this.getJobKey(jobDetail), message, "获取工作详情扩展信息异常");
     }
 
-    const params = `lid=${jobDetail.lid}&securityId=${jobDetail.securityId}&sessionId=`;
     try {
-      const resp = await axios.get("https://www.zhipin.com/wapi/zpgeek/job/card.json?" + params, { timeout: 5000 });
-      return (resp as any).data.zpData.jobCard;
+      return await this.apiClient.obtainBossJobDetailExt(jobDetail);
     } catch (error: any) {
       logger$1.debug("获取详情页异常正在重试:", error);
       return this.obtainBossJobDetailExt(jobDetail, error.message, retries - 1);
@@ -1623,11 +1556,8 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (!resumeText) {
-      const resp = await axios.get("https://www.zhipin.com/web/geek/resume", {
-        headers: { Zp_token: token },
-        timeout: 12_000
-      });
-      const pageText = extractResumeTextFromHtml(`${resp?.data || ""}`, 12_000);
+      const pageHtml = await this.apiClient.fetchAndCacheRuntimeResumeText(token);
+      const pageText = extractResumeTextFromHtml(pageHtml, 12_000);
       if (pageText.length >= 60) {
         resumeText = pageText;
         resumeTextSource = "runtime-resume-page";
@@ -1651,16 +1581,7 @@ export class BossPlatform extends AbsPlatform {
   }
 
   private async fetchRuntimeResumeTextFromPreviewApi(token: string): Promise<string> {
-    const resp = await axios.get("https://www.zhipin.com/wapi/zpgeek/resume/geek/preview/data.json", {
-      headers: { Zp_token: token },
-      params: { _: Date.now() },
-      timeout: 12_000
-    });
-    const code = Number(resp?.data?.code ?? -1);
-    if (code !== 0) {
-      throw new Error(`${resp?.data?.message || ""}`.trim() || `resume preview api code=${code}`);
-    }
-    const zpData = toRecord(resp?.data?.zpData);
+    const zpData = await this.apiClient.fetchRuntimeResumeTextFromPreviewApi(token);
     return this.buildRuntimeResumeTextFromPreviewData(zpData, 12_000);
   }
 

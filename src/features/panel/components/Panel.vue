@@ -11,6 +11,11 @@ import RunRecord from "@/features/run-record/components/RunRecord.vue";
 const STORAGE_KEY = "ai-job-panel-collapsed";
 const WIDTH_STORAGE_KEY = "ai-job-panel-width";
 
+const Z_INDEX_SIDEBAR_EXPANDED = 99999;
+const Z_INDEX_SIDEBAR_COLLAPSED = 99997;
+const Z_INDEX_FAB_EXPANDED = 99998;
+const Z_INDEX_FAB_COLLAPSED = 100000;
+
 const SVG_OPEN = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/></svg>';
 const SVG_CLOSE = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 const SVG_MINIMIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
@@ -95,13 +100,19 @@ const activeMenuKey = ref("1");
 const collapsed = ref(false);
 const panelWidth = ref(480);
 const isResizing = ref(false);
+const isTransitioning = ref(false);
 const fabDynamicStyle = ref({
   right: `${FAB_BASE_DESKTOP.right}px`,
   bottom: `${FAB_BASE_DESKTOP.bottom}px`
 });
+const sidebarZIndex = ref(Z_INDEX_SIDEBAR_COLLAPSED);
+const fabZIndex = ref(Z_INDEX_FAB_COLLAPSED);
 
 let fabRepositionRaf = 0;
-const fabRecheckTimers: number[] = [];
+let fabDebounceTimer = 0;
+let mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+let mouseUpHandler: (() => void) | null = null;
+let visibilityChangeHandler: (() => void) | null = null;
 
 function safeGetItem(key: string): string | null {
   try {
@@ -232,23 +243,29 @@ function applyFabPosition(): void {
 }
 
 function scheduleFabPosition(): void {
-  if (fabRepositionRaf) {
-    return;
+  // 清除之前的防抖定时器
+  if (fabDebounceTimer) {
+    clearTimeout(fabDebounceTimer);
+    fabDebounceTimer = 0;
   }
-  fabRepositionRaf = requestAnimationFrame(() => {
+  
+  // 清除之前的RAF
+  if (fabRepositionRaf) {
+    cancelAnimationFrame(fabRepositionRaf);
     fabRepositionRaf = 0;
-    applyFabPosition();
-  });
+  }
+  
+  // 使用防抖：100ms内的连续调用只执行最后一次
+  fabDebounceTimer = window.setTimeout(() => {
+    fabDebounceTimer = 0;
+    fabRepositionRaf = requestAnimationFrame(() => {
+      fabRepositionRaf = 0;
+      applyFabPosition();
+    });
+  }, 100);
 }
 
-function queueFabRechecks(): void {
-  [400, 1200, 2400].forEach((delay) => {
-    const timer = window.setTimeout(() => {
-      scheduleFabPosition();
-    }, delay);
-    fabRecheckTimers.push(timer);
-  });
-}
+
 
 function cleanupPreference(): void {
   nextTick(() => {
@@ -270,7 +287,18 @@ function cleanupPreference(): void {
 }
 
 function toggleCollapse(): void {
+  isTransitioning.value = true;
   collapsed.value = !collapsed.value;
+  
+  // 更新z-index：展开时侧边栏在上，收起时FAB在上
+  if (collapsed.value) {
+    sidebarZIndex.value = Z_INDEX_SIDEBAR_COLLAPSED;
+    fabZIndex.value = Z_INDEX_FAB_COLLAPSED;
+  } else {
+    sidebarZIndex.value = Z_INDEX_SIDEBAR_EXPANDED;
+    fabZIndex.value = Z_INDEX_FAB_EXPANDED;
+  }
+  
   safeSetItem(STORAGE_KEY, String(collapsed.value));
   nextTick(() => {
     scheduleFabPosition();
@@ -292,26 +320,48 @@ function startResize(event: MouseEvent): void {
   const startX = event.clientX;
   const startWidth = panelWidth.value;
 
-  const onMouseMove = (moveEvent: MouseEvent) => {
+  mouseMoveHandler = (moveEvent: MouseEvent) => {
     const delta = startX - moveEvent.clientX;
     panelWidth.value = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, startWidth + delta));
   };
 
-  const onMouseUp = () => {
+  mouseUpHandler = () => {
     isResizing.value = false;
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
+    if (mouseMoveHandler) {
+      document.removeEventListener("mousemove", mouseMoveHandler);
+      mouseMoveHandler = null;
+    }
+    if (mouseUpHandler) {
+      document.removeEventListener("mouseup", mouseUpHandler);
+      mouseUpHandler = null;
+    }
+    if (visibilityChangeHandler) {
+      document.removeEventListener("visibilitychange", visibilityChangeHandler);
+      visibilityChangeHandler = null;
+    }
     safeSetItem(WIDTH_STORAGE_KEY, String(panelWidth.value));
   };
 
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
+  visibilityChangeHandler = () => {
+    if (document.hidden && isResizing.value) {
+      mouseUpHandler?.();
+    }
+  };
+
+  document.addEventListener("mousemove", mouseMoveHandler);
+  document.addEventListener("mouseup", mouseUpHandler);
+  document.addEventListener("visibilitychange", visibilityChangeHandler);
 }
 
 onMounted(() => {
   const savedCollapsed = safeGetItem(STORAGE_KEY);
   if (savedCollapsed === "true") {
     collapsed.value = true;
+    sidebarZIndex.value = Z_INDEX_SIDEBAR_COLLAPSED;
+    fabZIndex.value = Z_INDEX_FAB_COLLAPSED;
+  } else {
+    sidebarZIndex.value = Z_INDEX_SIDEBAR_EXPANDED;
+    fabZIndex.value = Z_INDEX_FAB_EXPANDED;
   }
 
   const savedWidth = safeGetItem(WIDTH_STORAGE_KEY);
@@ -324,7 +374,16 @@ onMounted(() => {
 
   nextTick(() => {
     applyFabPosition();
-    queueFabRechecks();
+    // 使用IntersectionObserver监听动态内容变化
+    const observer = new IntersectionObserver(() => {
+      scheduleFabPosition();
+    }, { threshold: [0, 0.5, 1] });
+    
+    FAB_COLLISION_SELECTORS.forEach(selector => {
+      document.querySelectorAll(selector).forEach(el => {
+        observer.observe(el);
+      });
+    });
   });
 
   window.addEventListener("resize", scheduleFabPosition);
@@ -334,14 +393,30 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("resize", scheduleFabPosition);
   window.removeEventListener("scroll", scheduleFabPosition, true);
+  
+  // 清理resize事件监听器
+  if (mouseMoveHandler) {
+    document.removeEventListener("mousemove", mouseMoveHandler);
+    mouseMoveHandler = null;
+  }
+  if (mouseUpHandler) {
+    document.removeEventListener("mouseup", mouseUpHandler);
+    mouseUpHandler = null;
+  }
+  if (visibilityChangeHandler) {
+    document.removeEventListener("visibilitychange", visibilityChangeHandler);
+    visibilityChangeHandler = null;
+  }
+  
+  // 清理FAB定位相关的定时器和RAF
+  if (fabDebounceTimer) {
+    clearTimeout(fabDebounceTimer);
+    fabDebounceTimer = 0;
+  }
   if (fabRepositionRaf) {
     cancelAnimationFrame(fabRepositionRaf);
     fabRepositionRaf = 0;
   }
-  fabRecheckTimers.forEach((timer) => {
-    clearTimeout(timer);
-  });
-  fabRecheckTimers.length = 0;
 });
 
 watch([collapsed, panelWidth], () => {
@@ -358,24 +433,28 @@ onUpdated(() => {
     <div
       class="ai-fab"
       :class="{ 'ai-fab--close': !collapsed }"
-      :style="fabDynamicStyle"
+      :style="{ ...fabDynamicStyle, zIndex: fabZIndex, pointerEvents: isTransitioning ? 'none' : 'auto' }"
       :title="collapsed ? '展开 AI 助手面板' : '收起面板'"
       @click="toggleCollapse"
-      v-html="collapsed ? SVG_OPEN : SVG_CLOSE"
       data-testid="fab-button"
-    />
+    >
+      <div style="pointer-events: none; display: flex; align-items: center; justify-content: center;" v-html="collapsed ? SVG_OPEN : SVG_CLOSE" />
+    </div>
 
     <div
       class="ai-sidebar"
       :class="{ 'is-resizing': isResizing, 'is-collapsed': collapsed }"
-      :style="{ width: `${panelWidth}px` }"
+      :style="{ width: `${panelWidth}px`, zIndex: sidebarZIndex, pointerEvents: isTransitioning || collapsed ? 'none' : 'auto' }"
+      @transitionend="isTransitioning = false"
       data-testid="panel-container"
     >
       <div class="ai-resize-handle" @mousedown="startResize" data-testid="panel-resize-handle" />
 
       <div class="ai-sidebar-header">
         <div class="ai-sidebar-title">AI 工作猎手</div>
-        <div class="ai-sidebar-minimize" title="收起面板" @click="toggleCollapse" v-html="SVG_MINIMIZE" data-testid="panel-minimize" />
+        <div class="ai-sidebar-minimize" title="收起面板" @click="toggleCollapse" data-testid="panel-minimize">
+          <div style="pointer-events: none; display: flex; align-items: center; justify-content: center;" v-html="SVG_MINIMIZE" />
+        </div>
       </div>
 
       <div class="ai-sidebar-nav ai-sidebar-nav-vertical">
@@ -385,9 +464,11 @@ onUpdated(() => {
           class="ai-nav-tab"
           :class="{ 'is-active': activeMenuKey === tab.key }"
           @click="handleSelect(tab.key)"
-          v-html="`${tab.icon}<span>${tab.name}</span>`"
           :data-testid="`tab-${tab.name}`"
-        />
+        >
+          <div style="pointer-events: none;" v-html="tab.icon" />
+          <span style="pointer-events: none;">{{ tab.name }}</span>
+        </div>
       </div>
 
       <div class="ai-sidebar-body boss-panel-body">
@@ -433,7 +514,6 @@ onUpdated(() => {
   background: var(--ai-bg);
   backdrop-filter: blur(16px);
   box-shadow: var(--ai-shadow);
-  z-index: 99998;
   display: flex;
   flex-direction: column;
   border-left: 1px solid rgba(255, 255, 255, 0.5);
@@ -447,7 +527,6 @@ onUpdated(() => {
 
 :deep(.ai-sidebar.is-collapsed) {
   transform: translateX(100%);
-  pointer-events: none;
 }
 
 :deep(.ai-sidebar.is-resizing) {
@@ -616,7 +695,7 @@ onUpdated(() => {
 
 :deep(.ai-nav-tab svg) {
   flex-shrink: 0;
-  margin-right: 0 !important;
+  margin-right: 0;
   margin-bottom: 2px;
 }
 
@@ -658,9 +737,9 @@ onUpdated(() => {
 }
 
 /* Button内的p标签 */
-:deep(.el-button p) {
+:deep(.ai-sidebar .el-button p) {
   margin: 0;
-  font-size: 14px !important;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -953,7 +1032,6 @@ onUpdated(() => {
   justify-content: center;
   cursor: pointer;
   box-shadow: none;
-  z-index: 99999;
   transition: all 0.22s ease;
   user-select: none;
   color: var(--ai-primary);
@@ -1012,13 +1090,13 @@ onUpdated(() => {
 /* Responsive adaptation */
 @media (max-width: 1200px) {
   :deep(.ai-sidebar) {
-    max-width: 380px !important;
+    max-width: min(480px, 90vw) !important;
   }
 }
 
 @media (max-width: 900px) {
   :deep(.ai-sidebar) {
-    width: 100% !important;
+    width: min(100%, 90vw) !important;
     border-radius: 0;
   }
   .ai-job-root {
@@ -1031,10 +1109,32 @@ onUpdated(() => {
   }
   :deep(.ai-fab) {
     right: 16px;
-    bottom: 88px;
+    bottom: 120px;
   }
   :deep(.ai-fab:hover) {
     transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 768px) {
+  :deep(.ai-sidebar) {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  :deep(.ai-fab) {
+    right: 12px;
+    bottom: 140px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  :deep(.ai-sidebar) {
+    height: 100vh;
+    overflow-y: auto;
+  }
+  :deep(.ai-sidebar-body) {
+    max-height: calc(100vh - var(--ai-header-height) - 20px);
+    overflow-y: auto;
   }
 }
 </style>

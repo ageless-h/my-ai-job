@@ -37,7 +37,12 @@
 
         <div class="spacer"></div>
 
-        <el-button type="danger" plain @click="clearLogs">
+        <el-button 
+          type="danger" 
+          plain 
+          :disabled="totalLogs === 0"
+          @click="clearLogs"
+        >
           <el-icon class="mr-4"><Delete /></el-icon>清空日志
         </el-button>
       </div>

@@ -101,7 +101,14 @@
       <div class="sub-desc mb-16">清除本地存储的简历内容和 API 密钥，保护您的隐私安全。</div>
 
       <div class="data-actions">
-        <el-button type="danger" plain size="small" class="shadow-sm" @click="handleClearSensitiveData">
+        <el-button 
+          type="danger" 
+          plain 
+          size="small" 
+          class="shadow-sm" 
+          :loading="isClearingData"
+          @click="handleClearSensitiveData"
+        >
           <el-icon class="mr-4"><Delete /></el-icon>清除所有敏感数据
         </el-button>
       </div>
@@ -109,7 +116,14 @@
 
     <div class="action-footer">
       <div class="buttons">
-        <el-button type="primary" class="save-btn shadow-sm" @click="handleSave">保存变更</el-button>
+        <el-button 
+          type="primary" 
+          class="save-btn shadow-sm" 
+          :loading="isSaving"
+          @click="handleSave"
+        >
+          保存变更
+        </el-button>
       </div>
     </div>
 
@@ -153,6 +167,8 @@ const importResumeLoading = ref(false);
 const resumeTextPreviewVisible = ref(false);
 const resumeTextPreviewContent = ref('');
 const viewResumeContentLoading = ref(false);
+const isClearingData = ref(false);
+const isSaving = ref(false);
 const hasResume = computed(() => {
   return Boolean(`${userStore.user?.resumeId || ''}`.trim() || getResumeTextForPreview());
 });
@@ -790,6 +806,7 @@ const handleClearSensitiveData = async () => {
     }
   )
     .then(async () => {
+      isClearingData.value = true;
       try {
         const { clearAllSensitiveData } = await import('@/shared/utils/sensitive-data-consent');
         clearAllSensitiveData();
@@ -804,6 +821,7 @@ const handleClearSensitiveData = async () => {
           window.location.reload();
         }, 1000);
       } catch (error) {
+        isClearingData.value = false;
         ElNotification({
           title: '清除失败',
           message: `操作失败：${error?.message || '未知错误'}`,
@@ -822,16 +840,26 @@ const handleSave = async () => {
     showAppMessage({ message: '请填写手机号或邮箱', type: 'error', duration: 2000 });
     return;
   }
-  await axios2
-    .post('/api/user/save/preference', {
-      ...userStore.user,
-      aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
-    }, {
-      timeout: PREFERENCE_SAVE_TIMEOUT_MS,
-    })
-    .then(() => {
-      showAppMessage({ message: '账户信息保存成功', type: 'success', duration: 2000 });
+  
+  isSaving.value = true;
+  try {
+    await axios2
+      .post('/api/user/save/preference', {
+        ...userStore.user,
+        aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
+      }, {
+        timeout: PREFERENCE_SAVE_TIMEOUT_MS,
+      });
+    showAppMessage({ message: '账户信息保存成功', type: 'success', duration: 2000 });
+  } catch (error) {
+    showAppMessage({ 
+      message: `保存失败：${error?.message || '未知错误'}`, 
+      type: 'error', 
+      duration: 2000 
     });
+  } finally {
+    isSaving.value = false;
+  }
 };
 </script>
 

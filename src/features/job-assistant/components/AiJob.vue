@@ -13,12 +13,19 @@
            <span class="stat-value text-danger" data-testid="push-fail-count">{{ collectMode ? pushResultCounter.collectFailCount : pushResultCounter.failCount }}</span>
          </div>
         <div class="stat-divider"></div>
-        <div class="stat-actions">
-           <el-button type="info" size="small" plain data-testid="clear-records-button" @click="handlerClearPushRecords">
-             <el-icon><Delete /></el-icon>
-             清理投递记录
-           </el-button>
-        </div>
+         <div class="stat-actions">
+            <el-button 
+              type="info" 
+              size="small" 
+              plain 
+              :disabled="pushResultCounter.successCount === 0 && pushResultCounter.failCount === 0 && pushResultCounter.collectSuccessCount === 0 && pushResultCounter.collectFailCount === 0"
+              data-testid="clear-records-button" 
+              @click="handlerClearPushRecords"
+            >
+              <el-icon><Delete /></el-icon>
+              清理投递记录
+            </el-button>
+         </div>
       </div>
     </div>
 
@@ -94,7 +101,14 @@
           <span>实时操作记录</span>
           <span class="status-dot ml-8" :class="{ 'is-active': pushStatus === PushStatus.PUSHING }"></span>
         </div>
-        <el-button v-if="latestPushRecords.length > 0" type="primary" link size="small" @click="handlerClearPushRecords">
+        <el-button 
+          v-if="latestPushRecords.length > 0" 
+          type="primary" 
+          link 
+          size="small" 
+          :disabled="latestPushRecords.length === 0"
+          @click="handlerClearPushRecords"
+        >
           清空记录
         </el-button>
       </div>
@@ -113,7 +127,7 @@
     </div>
 
     <transition name="el-fade-in">
-      <div v-show="pushStatus === PushStatus.PUSHING" class="fixed-stop-button">
+      <div v-if="pushStatus === PushStatus.PUSHING" class="fixed-stop-button">
         <el-button type="danger" size="large" shadow="always" data-testid="stop-push-button" @click="handlerFixedStopPush">
           <el-icon class="mr-6">
             <VideoPause />

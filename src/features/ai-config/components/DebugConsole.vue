@@ -1,7 +1,7 @@
 <template>
   <el-dialog v-model="debugDialogVisible" title="调户提示词" width="800px">
     <div class="chat-history">
-      <el-empty v-show="debugHistory.length === 0" description="暂无历史消息，请在下方开始你的调试吧" />
+      <el-empty v-if="debugHistory.length === 0" description="暂无历史消息，请在下方开始你的调试吧" />
       <div
         v-for="(m, idx) in debugHistory"
         :key="idx"
