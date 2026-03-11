@@ -98,7 +98,7 @@
           </div>
 
           <div class="resume-actions-col">
-            <el-checkbox v-model="userStore.user.preference.cIE" border
+            <el-checkbox v-model="userStore.user.preference.customImageEnabled" border
               >启用图片简历发送</el-checkbox
             >
 
@@ -115,7 +115,7 @@
                   type="primary"
                   plain
                   size="small"
-                  :disabled="!userStore.user.preference.cIE"
+                  :disabled="!userStore.user.preference.customImageEnabled"
                 >
                   <el-icon class="mr-4"><Upload /></el-icon>上传简历图片
                 </el-button>
@@ -261,7 +261,7 @@ const isSaving = ref(false);
 const hasResume = computed(() => {
   return Boolean(`${userStore.user?.resumeId || ''}`.trim() || getResumeTextForPreview());
 });
-const hasImageResume = computed(() => Boolean(`${userStore.user?.preference?.cI || ''}`.trim()));
+const hasImageResume = computed(() => Boolean(`${userStore.user?.preference?.customImageSet || ''}`.trim()));
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -392,7 +392,7 @@ const getResumeTextForPreview = (): string => {
 };
 
 const getResumeImagePreview = (): { originImage: string; tinyImage: string } => {
-  const imageSet = `${userStore.user?.preference?.cI || ''}`.trim();
+  const imageSet = `${userStore.user?.preference?.customImageSet || ''}`.trim();
   if (!imageSet) {
     return { originImage: '', tinyImage: '' };
   }
@@ -907,9 +907,9 @@ const beforeUpload = (file: any) => {
   return true;
 };
 const handleUploadSuccess = async (response: any) => {
-  userStore.user.preference.cI = response.zpData.url + '===' + response.zpData.tinyUrl;
+  userStore.user.preference.customImageSet = response.zpData.url + '===' + response.zpData.tinyUrl;
   showAppMessage({
-    message: '图片简历上传成功；点击保存账户信息可持久保存',
+    message: '图片简历上传成功；已自动保存',
     type: 'success',
     duration: 3000,
   });

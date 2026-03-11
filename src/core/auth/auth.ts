@@ -262,7 +262,29 @@ export function userRemoteLoad(): void {
       );
     })
     .then((resp: any) => {
+      // 保留本地数据（如 importedResume），避免被服务器数据覆盖
+      const localImportedResume = runtimeUserStore2.user?.importedResume;
+      const localResumeId = runtimeUserStore2.user?.resumeId;
+      const localParsedResume = runtimeUserStore2.user?.parsedResume;
+      const localAttachmentResume = runtimeUserStore2.user?.attachmentResume;
+      
+      // 合并服务器数据
       runtimeUserStore2.user = resp?.data?.data;
+      
+      // 恢复本地数据
+      if (localImportedResume) {
+        runtimeUserStore2.user.importedResume = localImportedResume;
+      }
+      if (localResumeId) {
+        runtimeUserStore2.user.resumeId = localResumeId;
+      }
+      if (localParsedResume) {
+        runtimeUserStore2.user.parsedResume = localParsedResume;
+      }
+      if (localAttachmentResume) {
+        runtimeUserStore2.user.attachmentResume = localAttachmentResume;
+      }
+      
       if (!runtimeUserStore2?.user) {
         runtimeUserStore2.user = {};
         throw new Error('用户投递设置为空');
