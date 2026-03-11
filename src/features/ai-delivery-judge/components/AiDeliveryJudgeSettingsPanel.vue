@@ -151,7 +151,7 @@ import {
   buildAiDeliveryJudgePrompt,
   buildAiDeliveryUserProfile,
   buildTraditionalRuleSnapshot
-} from "@/shared/utils/ai-delivery";
+} from "@/core/delivery/ai-delivery-builder";
 import { UserStore } from "@/state/user";
 
 type JobPreviewPlatform = {
