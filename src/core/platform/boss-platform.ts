@@ -790,10 +790,8 @@ export class BossPlatform extends AbsPlatform {
       const aiFilterModeEnabled = this.shouldEnableAiDeliveryJudge();
       const traditionalDeliveryEnabled = this.isTraditionalDeliveryEnabled();
 
-      // 先执行 AI 与传统模式共用的硬性约束，尽早拦截明显不满足条件的岗位。
-      if (traditionalDeliveryEnabled) {
-        this.applyCommonHardConstraints(jobDetail, jobTitle);
-      }
+      // 硬性约束始终执行，不受 AI/传统模式影响，这是投递的底线规则。
+      this.applyCommonHardConstraints(jobDetail, jobTitle);
 
       // 传统模式下再追加白名单等软性规则；AI 模式交由模型综合判断。
       if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
@@ -824,8 +822,7 @@ export class BossPlatform extends AbsPlatform {
         await this.ensureRuntimeResumeNarrative(user);
         const preference = user.preference || {};
         const userProfile = buildAiDeliveryUserProfile(user, preference);
-        const traditionalSnapshot = buildTraditionalRuleSnapshot(preference);
-        const prompt = buildAiDeliveryJudgePrompt(aiConfig, userProfile, traditionalSnapshot);
+        const prompt = buildAiDeliveryJudgePrompt(aiConfig, userProfile);
         const baseInfo = this.unpackBaseInfo(jobDetail);
         const extInfo = this.unpackExtInfo(jobDetailExt);
         const filterInput = buildAiDeliveryFilterJobInput(baseInfo, extInfo);
@@ -839,7 +836,7 @@ export class BossPlatform extends AbsPlatform {
           `工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${AI_DELIVERY_JUDGE_TIMEOUT_MS} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`
         );
         this.preferenceLogRecorder.info(
-          `工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} includeTraditionalSnapshot=${aiConfig.includeTraditionalSnapshot} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(',')} extKeys=${Object.keys(extInfo).join(',')}`
+          `工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(',')} extKeys=${Object.keys(extInfo).join(',')}`
         );
 
         // AI 判定采用有限次重试，缓解短暂网络抖动或模型服务瞬时失败。

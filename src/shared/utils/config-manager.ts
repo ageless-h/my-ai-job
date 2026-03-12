@@ -66,8 +66,6 @@ export interface AiDeliveryJudgeConfig {
   excludeKeywords: string[];
   /** 是否将用户画像一并提供给 AI。 */
   includeUserProfile: boolean;
-  /** 是否附带传统规则生成的匹配快照。 */
-  includeTraditionalSnapshot: boolean;
   /** AI 执行异常时的处理策略。 */
   onAiError: 'reject' | 'fallback-traditional';
   /** AI 返回非法结果时的处理策略。 */
@@ -90,7 +88,6 @@ const DEFAULT_AI_DELIVERY_JUDGE_CONFIG: AiDeliveryJudgeConfig = {
   focusSkills: [],
   excludeKeywords: [],
   includeUserProfile: true,
-  includeTraditionalSnapshot: false,
   onAiError: 'reject',
   onInvalidResult: 'reject',
 };
@@ -715,12 +712,6 @@ export function getAiDeliveryJudgeConfig(
           : DEFAULT_AI_DELIVERY_JUDGE_CONFIG.includeUserProfile;
   const includeTraditionalSnapshot =
     typeof extCfg.includeTraditionalSnapshot === 'boolean'
-      ? extCfg.includeTraditionalSnapshot
-      : typeof pref.aiDeliveryJudgeIncludeTraditionalSnapshot === 'boolean'
-        ? (pref.aiDeliveryJudgeIncludeTraditionalSnapshot as boolean)
-        : typeof pref.aiDeliverJudgeIncludeTraditionalSnapshot === 'boolean'
-          ? (pref.aiDeliverJudgeIncludeTraditionalSnapshot as boolean)
-          : DEFAULT_AI_DELIVERY_JUDGE_CONFIG.includeTraditionalSnapshot;
   const onAiError = normalizeFallbackPolicy(
     extCfg.onAiError || pref.aiDeliveryJudgeOnAiError || pref.aiDeliverJudgeOnAiError,
     DEFAULT_AI_DELIVERY_JUDGE_CONFIG.onAiError
@@ -739,7 +730,6 @@ export function getAiDeliveryJudgeConfig(
     focusSkills,
     excludeKeywords,
     includeUserProfile,
-    includeTraditionalSnapshot,
     onAiError,
     onInvalidResult,
   };
@@ -802,10 +792,6 @@ export function saveAiDeliveryJudgeConfig(
       typeof config.includeUserProfile === 'boolean'
         ? config.includeUserProfile
         : current.includeUserProfile,
-    includeTraditionalSnapshot:
-      typeof config.includeTraditionalSnapshot === 'boolean'
-        ? config.includeTraditionalSnapshot
-        : current.includeTraditionalSnapshot,
     onAiError: normalizeFallbackPolicy(config.onAiError, current.onAiError),
     onInvalidResult: normalizeFallbackPolicy(config.onInvalidResult, current.onInvalidResult),
   };
@@ -819,7 +805,6 @@ export function saveAiDeliveryJudgeConfig(
     focusSkills: next.focusSkills,
     excludeKeywords: next.excludeKeywords,
     includeUserProfile: next.includeUserProfile,
-    includeTraditionalSnapshot: next.includeTraditionalSnapshot,
     onAiError: next.onAiError,
     onInvalidResult: next.onInvalidResult,
   };
@@ -858,7 +843,6 @@ export function migrateAiDeliveryJudgeConfigFromPreference(
     focusSkills: next.focusSkills,
     excludeKeywords: next.excludeKeywords,
     includeUserProfile: next.includeUserProfile,
-    includeTraditionalSnapshot: next.includeTraditionalSnapshot,
     onAiError: next.onAiError,
     onInvalidResult: next.onInvalidResult,
   };

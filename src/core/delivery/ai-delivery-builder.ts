@@ -15,8 +15,6 @@ export type AiDeliveryPromptConfig = {
   excludeKeywords?: string[];
   /** 是否在提示词中附带候选人画像。 */
   includeUserProfile: boolean;
-  /** 是否在提示词中附带传统规则摘要。 */
-  includeTraditionalSnapshot: boolean;
 };
 
 /**
@@ -1063,8 +1061,7 @@ export const buildTraditionalRuleSnapshotText = (snapshotInput: PlainRecord): st
  */
 export const buildAiDeliveryJudgePrompt = (
   config: AiDeliveryPromptConfig,
-  userProfileInput: PlainRecord,
-  traditionalSnapshotInput: PlainRecord
+  userProfileInput: PlainRecord
 ): string => {
   const sections: string[] = [];
   const prompt = normalizeInlineText(config.prompt, '');
@@ -1091,12 +1088,6 @@ export const buildAiDeliveryJudgePrompt = (
 
   if (config.includeUserProfile) {
     sections.push(`[求职者个人信息]\n${buildAiDeliveryUserProfileText(userProfileInput)}`);
-  }
-
-  if (config.includeTraditionalSnapshot) {
-    sections.push(
-      `[传统规则摘要(仅供AI参考)]\n${buildTraditionalRuleSnapshotText(traditionalSnapshotInput)}`
-    );
   }
 
   // 输出约束始终放在最后，最大化降低模型追加解释、Markdown 或多段输出的概率。
