@@ -25,6 +25,32 @@
 
     <div class="boss-card">
       <div class="filter-bar">
+        <el-select
+          v-model="filter.actionType"
+          placeholder="操作类型"
+          clearable
+          class="filter-item action-type-select"
+        >
+          <el-option label="全部类型" value="" />
+          <el-option label="投递判定" value="delivery" />
+          <el-option label="AI 对话" value="chat" />
+          <el-option label="系统操作" value="system" />
+        </el-select>
+
+        <el-select
+          v-model="filter.aiDecision"
+          placeholder="判定结果"
+          clearable
+          class="filter-item decision-select"
+        >
+          <el-option label="全部结果" value="" />
+          <el-option label="通过" value="通过" />
+          <el-option label="不通过" value="不通过" />
+          <el-option label="已投递" value="已投递" />
+          <el-option label="失败" value="失败" />
+          <el-option label="不可解析" value="不可解析" />
+        </el-select>
+
         <el-time-picker
           v-model="filter.timeRange"
           is-range
@@ -42,15 +68,15 @@
           class="filter-item level-select"
         >
           <el-option label="全部级别" value="" />
-          <el-option label="Error (错误)" value="error" />
-          <el-option label="Warn (警告)" value="warn" />
-          <el-option label="Info (信息)" value="info" />
-          <el-option label="Debug (调试)" value="debug" />
+          <el-option label="Error" value="error" />
+          <el-option label="Warn" value="warn" />
+          <el-option label="Info" value="info" />
+          <el-option label="Debug" value="debug" />
         </el-select>
 
         <el-input
           v-model="filter.keyword"
-          placeholder="搜索日志内容关键词..."
+          placeholder="搜索关键词..."
           clearable
           class="filter-item search-input"
           :prefix-icon="Search"
@@ -58,8 +84,36 @@
 
         <div class="spacer"></div>
 
+        <el-dropdown trigger="click" class="config-dropdown">
+          <el-button type="primary" plain>
+            <el-icon class="mr-4"><Setting /></el-icon>显示配置
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <div class="display-config-panel">
+                <div class="config-title">显示模式</div>
+                <el-radio-group v-model="displayMode" class="mode-radio-group">
+                  <el-radio value="compact">简洁模式</el-radio>
+                  <el-radio value="detailed">详细模式</el-radio>
+                </el-radio-group>
+
+                <div class="config-divider"></div>
+
+                <div class="config-title">显示列</div>
+                <el-checkbox-group v-model="visibleColumns" class="column-checkbox-group">
+                  <el-checkbox value="timestamp" disabled>时间</el-checkbox>
+                  <el-checkbox value="level">级别</el-checkbox>
+                  <el-checkbox value="aiDecision">判定结果</el-checkbox>
+                  <el-checkbox value="aiReason">判定理由</el-checkbox>
+                  <el-checkbox value="message">详细内容</el-checkbox>
+                </el-checkbox-group>
+              </div>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+
         <el-button type="danger" plain :disabled="totalLogs === 0" @click="clearLogs">
-          <el-icon class="mr-4"><Delete /></el-icon>清空日志
+          <el-icon class="mr-4"><Delete /></el-icon>清空
         </el-button>
       </div>
 
@@ -70,6 +124,7 @@
           height="100%"
           :row-class-name="tableRowClassName"
           class="boss-table"
+          :class="{ 'compact-mode': displayMode === 'compact' }"
         >
           <template #empty>
             <el-empty description="暂无日志数据" :image-size="80" />
@@ -77,12 +132,23 @@
 
           <el-table-column
             prop="timestamp"
-            label="记录时间"
-            width="160"
+            label="时间"
+            :width="displayMode === 'compact' ? 90 : 160"
             class-name="col-timestamp"
-          />
+          >
+            <template #default="scope">
+              <span v-if="displayMode === 'compact'">{{ formatCompactTime(scope.row.timestamp) }}</span>
+              <span v-else>{{ scope.row.timestamp }}</span>
+            </template>
+          </el-table-column>
 
-          <el-table-column prop="level" label="级别" width="100" class-name="col-level">
+          <el-table-column
+            v-if="visibleColumns.includes('level')"
+            prop="level"
+            label="级别"
+            :width="displayMode === 'compact' ? 60 : 100"
+            class-name="col-level"
+          >
             <template #default="scope">
               <el-tag
                 :type="getLevelTagType(scope.row.level)"
@@ -90,15 +156,16 @@
                 effect="plain"
                 class="level-tag"
               >
-                {{ String(scope.row.level || '').toUpperCase() }}
+                {{ displayMode === 'compact' ? getLevelShort(scope.row.level) : String(scope.row.level || '').toUpperCase() }}
               </el-tag>
             </template>
           </el-table-column>
 
           <el-table-column
+            v-if="visibleColumns.includes('aiDecision')"
             prop="aiDecision"
-            label="AI 判定"
-            width="120"
+            label="判定"
+            :width="displayMode === 'compact' ? 70 : 120"
             class-name="col-ai-decision"
           >
             <template #default="scope">
@@ -113,9 +180,10 @@
           </el-table-column>
 
           <el-table-column
+            v-if="visibleColumns.includes('aiReason') && displayMode === 'detailed'"
             prop="aiReason"
-            label="判定理由 / 提示"
-            width="240"
+            label="判定理由"
+            :width="240"
             show-overflow-tooltip
             class-name="col-ai-reason"
           >
@@ -126,11 +194,17 @@
           </el-table-column>
 
           <el-table-column
+            v-if="visibleColumns.includes('message')"
             prop="message"
-            label="详细内容"
-            min-width="300"
+            :label="displayMode === 'compact' ? '内容' : '详细内容'"
+            min-width="200"
             class-name="col-message"
-          />
+          >
+            <template #default="scope">
+              <span v-if="displayMode === 'compact'">{{ formatCompactMessage(scope.row) }}</span>
+              <span v-else>{{ scope.row.message }}</span>
+            </template>
+          </el-table-column>
         </el-table>
       </div>
 
@@ -152,7 +226,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue';
-import { Delete, Search } from '@element-plus/icons-vue';
+import { Delete, Search, Setting } from '@element-plus/icons-vue';
 import { LogRecorder } from '@/core/engine/push-engine';
 
 interface LogItem {
@@ -170,14 +244,21 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const totalLogs = ref(0);
 
+const displayMode = ref<'compact' | 'detailed'>('compact');
+const visibleColumns = ref<string[]>(['timestamp', 'level', 'aiDecision', 'message']);
+
 const filter = reactive<{
   timeRange: Date[];
   level: string;
   keyword: string;
+  actionType: string;
+  aiDecision: string;
 }>({
   timeRange: [],
   level: '',
   keyword: '',
+  actionType: '',
+  aiDecision: '',
 });
 
 const parseAiJudgeInfo = (message: string) => {
@@ -220,6 +301,17 @@ const parseAiJudgeInfo = (message: string) => {
   return { decision, reason };
 };
 
+const detectActionType = (message: string): string => {
+  const text = `${message || ''}`.toLowerCase();
+  if (text.includes('ai投递') || text.includes('投递判') || text.includes('投递成功') || text.includes('投递失败')) {
+    return 'delivery';
+  }
+  if (text.includes('ai对话') || text.includes('ai回复') || text.includes('聊天')) {
+    return 'chat';
+  }
+  return 'system';
+};
+
 const parseTimestampToMs = (timestamp: string): number | null => {
   const match = `${timestamp || ''}`.trim().match(/^(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/);
   if (!match) {
@@ -237,6 +329,31 @@ const parseTimestampToMs = (timestamp: string): number | null => {
 const minuteStartMs = (date: Date): number =>
   (date.getHours() * 60 + date.getMinutes()) * 60 * 1000;
 const minuteEndMs = (date: Date): number => minuteStartMs(date) + 59 * 1000 + 999;
+
+const formatCompactTime = (timestamp: string): string => {
+  const match = timestamp.match(/^(\d{2}):(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : timestamp;
+};
+
+const getLevelShort = (level: string): string => {
+  const normalized = `${level || ''}`.toLowerCase();
+  if (normalized === 'error') return 'ERR';
+  if (normalized === 'warn') return 'WRN';
+  if (normalized === 'info') return 'INF';
+  if (normalized === 'debug') return 'DBG';
+  return normalized.toUpperCase().slice(0, 3);
+};
+
+const formatCompactMessage = (log: LogItem): string => {
+  if (log.aiDecision && log.aiReason) {
+    return log.aiReason;
+  }
+  const msg = log.message || '';
+  if (msg.length > 100) {
+    return `${msg.slice(0, 100)}...`;
+  }
+  return msg;
+};
 
 const fetchLogs = () => {
   let allLogs: LogItem[] = logRecorder.getLogs(1, logRecorder.getLogCount());
@@ -277,8 +394,19 @@ const fetchLogs = () => {
       ...log,
       aiDecision: aiInfo.decision,
       aiReason: aiInfo.reason,
+      actionType: detectActionType(log.message),
     };
   });
+
+  // Apply action type filter
+  if (filter.actionType) {
+    logs.value = logs.value.filter((log: any) => log.actionType === filter.actionType);
+  }
+
+  // Apply AI decision filter
+  if (filter.aiDecision) {
+    logs.value = logs.value.filter((log) => log.aiDecision === filter.aiDecision);
+  }
 };
 
 const handlePageChange = (page: number) => {
@@ -329,6 +457,10 @@ watch(
   { deep: true }
 );
 
+watch([displayMode, visibleColumns], () => {
+  fetchLogs();
+}, { deep: true });
+
 onMounted(() => {
   fetchLogs();
 });
@@ -370,7 +502,7 @@ onMounted(() => {
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 16px;
   flex-wrap: wrap;
   flex-shrink: 0;
@@ -380,20 +512,62 @@ onMounted(() => {
   margin-bottom: 0;
 }
 
+.action-type-select {
+  width: 110px;
+}
+
+.decision-select {
+  width: 110px;
+}
+
 .time-picker {
-  width: 220px;
+  width: 200px;
 }
 
 .level-select {
-  width: 140px;
+  width: 100px;
 }
 
 .search-input {
-  width: 260px;
+  width: 180px;
 }
 
 .spacer {
   flex: 1;
+}
+
+.config-dropdown {
+  margin-left: 0;
+}
+
+.display-config-panel {
+  padding: 12px 16px;
+  min-width: 200px;
+}
+
+.config-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.mode-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-divider {
+  height: 1px;
+  background-color: #ebeef5;
+  margin: 12px 0;
+}
+
+.column-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .mr-4 {
@@ -417,23 +591,34 @@ onMounted(() => {
 :deep(.boss-table th.el-table__cell) {
   font-weight: 600;
   font-size: 13px;
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 :deep(.boss-table td.el-table__cell) {
-  font-size: 13px;
+  font-size: 12px;
   color: #555;
-  padding: 8px 0;
+  padding: 6px 0;
+}
+
+.boss-table.compact-mode :deep(th.el-table__cell) {
+  padding: 6px 0;
+}
+
+.boss-table.compact-mode :deep(td.el-table__cell) {
+  padding: 4px 0;
+  line-height: 1.4;
 }
 
 .level-tag {
   font-weight: bold;
   border-color: transparent;
+  font-size: 11px;
+  padding: 2px 6px;
 }
 
 .decision-text {
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .decision-text.is-success {
@@ -450,6 +635,7 @@ onMounted(() => {
 
 .reason-text {
   color: #666;
+  font-size: 12px;
 }
 
 .text-muted {
@@ -500,12 +686,12 @@ onMounted(() => {
 
   :deep(.boss-table th.el-table__cell) {
     font-size: 12px;
-    padding: 8px 4px;
+    padding: 6px 4px;
   }
 
   :deep(.boss-table td.el-table__cell) {
-    font-size: 12px;
-    padding: 6px 4px;
+    font-size: 11px;
+    padding: 4px 4px;
   }
 
   :deep(.col-ai-decision),
@@ -514,15 +700,15 @@ onMounted(() => {
   }
 
   :deep(.col-timestamp) {
-    width: 100px !important;
+    width: 80px !important;
   }
 
   :deep(.col-level) {
-    width: 70px !important;
+    width: 60px !important;
   }
 
   :deep(.col-message) {
-    min-width: 150px !important;
+    min-width: 120px !important;
   }
 
   .pagination-footer {
