@@ -163,10 +163,6 @@ export class BossPlatform extends AbsPlatform {
   bossDataCache = new Map<string, { data: any; timestamp: number }>();
   /** BOSS 详情缓存允许保留的最大条目数。 */
   private readonly MAX_BOSS_CACHE = 100;
-  /** 当前运行会话内已自动发送的文本消息数量。 */
-  sessionAutoMessageCount = 0;
-  /** 当前运行会话内已自动发送的图片简历数量。 */
-  sessionAutoResumeCount = 0;
   /** 最近一次自动沟通动作的时间戳，用于节流。 */
   lastAutoContactTs = 0;
   /** 职位列表页上一次记录的岗位卡片数量。 */
@@ -298,8 +294,6 @@ export class BossPlatform extends AbsPlatform {
     this.lastRecommendListSignature = '';
     this.recommendNoProgressRounds = 0;
     this.sessionProcessedJobKeys.clear();
-    this.sessionAutoMessageCount = 0;
-    this.sessionAutoResumeCount = 0;
     this.lastAutoContactTs = 0;
   }
 
@@ -508,11 +502,11 @@ export class BossPlatform extends AbsPlatform {
   }
 
   /**
-   * 执行自动沟通安全校验，限制发送频率和单次会话发送数量。
+   * 执行自动沟通安全校验，限制发送频率。
    *
    * @param _kind 本次自动沟通的类型，区分文本消息和图片简历。
    * @returns 无返回值。
-   * @throws {Error} 当发送过快或超过当前会话的安全上限时抛出。
+   * @throws {Error} 当发送过快时抛出。
    */
   private enforceAutoContactSafety(_kind: 'message' | 'image'): void {
     const safety = this.getAutoContactSafetyConfig();
@@ -524,30 +518,16 @@ export class BossPlatform extends AbsPlatform {
       );
     }
 
-    if (_kind === 'message') {
-      if (this.sessionAutoMessageCount >= safety.maxMessagesPerSession) {
-        throw new Error(`自动消息达到会话上限(${safety.maxMessagesPerSession})`);
-      }
-      this.sessionAutoMessageCount++;
-    } else {
-      if (this.sessionAutoResumeCount >= safety.maxResumesPerSession) {
-        throw new Error(`自动图片简历达到会话上限(${safety.maxResumesPerSession})`);
-      }
-      this.sessionAutoResumeCount++;
-    }
-
     this.lastAutoContactTs = now;
   }
 
   /**
    * 读取自动沟通的安全配置。
    *
-   * @returns 自动消息/图片发送的最小间隔和会话内数量上限。
+   * @returns 自动消息/图片发送的最小间隔。
    */
   private getAutoContactSafetyConfig(): {
     minIntervalSec: number;
-    maxMessagesPerSession: number;
-    maxResumesPerSession: number;
   } {
     const preference = runtimeUserStore?.user?.preference || {};
     const toNumberOr = (value: unknown, fallback: number): number => {
@@ -556,8 +536,6 @@ export class BossPlatform extends AbsPlatform {
     };
     return {
       minIntervalSec: Math.max(5, toNumberOr(preference.autoContactMinIntervalSec, 10)),
-      maxMessagesPerSession: Math.max(1, toNumberOr(preference.maxAutoMessagePerSession, 30)),
-      maxResumesPerSession: Math.max(1, toNumberOr(preference.maxAutoResumePerSession, 18)),
     };
   }
 
