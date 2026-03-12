@@ -34,23 +34,6 @@
           inactive-text="关"
         />
       </div>
-
-      <div class="judge-divider"></div>
-
-      <div class="judge-inline-switches">
-        <div class="switch-content">
-          <span>包含传统规则摘要</span>
-          <div class="sub-desc mt-4">
-            将「传统投递」中的过滤规则（如薪资、活跃度等）提供给 AI 辅助判定。
-          </div>
-        </div>
-        <el-switch
-          v-model="form.includeTraditionalSnapshot"
-          inline-prompt
-          active-text="开"
-          inactive-text="关"
-        />
-      </div>
     </div>
 
     <div class="boss-card mt-16">
@@ -177,7 +160,6 @@ import {
   buildAiDeliveryFilterJobInput,
   buildAiDeliveryJudgePrompt,
   buildAiDeliveryUserProfile,
-  buildTraditionalRuleSnapshot,
 } from '@/core/delivery/ai-delivery-builder';
 import { UserStore } from '@/state/user';
 
@@ -235,7 +217,6 @@ const toText = (value: unknown, fallback = ''): string => {
 const form = reactive({
   enabled: currentConfig.enabled,
   includeUserProfile: currentConfig.includeUserProfile,
-  includeTraditionalSnapshot: currentConfig.includeTraditionalSnapshot,
   onAiError: currentConfig.onAiError,
   onInvalidResult: currentConfig.onInvalidResult,
 });
@@ -248,7 +229,6 @@ const handleSave = () => {
       focusSkills: focusSkills.value,
       excludeKeywords: excludeKeywords.value,
       includeUserProfile: form.includeUserProfile,
-      includeTraditionalSnapshot: form.includeTraditionalSnapshot,
       onAiError: form.onAiError,
       onInvalidResult: form.onInvalidResult,
     });
@@ -257,7 +237,6 @@ const handleSave = () => {
     focusSkills.value = saved.focusSkills;
     excludeKeywords.value = saved.excludeKeywords;
     form.includeUserProfile = saved.includeUserProfile;
-    form.includeTraditionalSnapshot = saved.includeTraditionalSnapshot;
     form.onAiError = saved.onAiError;
     form.onInvalidResult = saved.onInvalidResult;
     showAppMessage({
@@ -273,7 +252,6 @@ const handleSave = () => {
 const resetToDefault = () => {
   form.enabled = true;
   form.includeUserProfile = true;
-  form.includeTraditionalSnapshot = false;
   form.onAiError = 'reject';
   form.onInvalidResult = 'reject';
   focusSkills.value = [];
@@ -308,7 +286,6 @@ const handlePreviewInputOnce = async () => {
     const user = toRecord(userStore.user);
     const preference = toRecord(user.preference);
     const userProfile = buildAiDeliveryUserProfile(user, preference);
-    const traditionalSnapshot = buildTraditionalRuleSnapshot(preference);
     const prompt = buildAiDeliveryJudgePrompt(
       {
         prompt: toText(latestConfig.prompt).trim(),
@@ -316,10 +293,8 @@ const handlePreviewInputOnce = async () => {
         focusSkills: focusSkills.value,
         excludeKeywords: excludeKeywords.value,
         includeUserProfile: form.includeUserProfile,
-        includeTraditionalSnapshot: form.includeTraditionalSnapshot,
       },
-      userProfile,
-      traditionalSnapshot
+      userProfile
     );
     const jobDetailExt = await platform.obtainBossJobDetailExt(jobDetail);
     const baseInfo = platform.unpackBaseInfo(jobDetail);
