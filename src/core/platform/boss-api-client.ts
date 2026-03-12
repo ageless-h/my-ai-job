@@ -259,10 +259,7 @@ export class BossApiClient {
    * @param {string} securityId - 安全 ID，用于请求验证
    * @param {string} jobId - 职位 ID，标识具体的职位
    * @param {string} lid - 列表 ID，标识职位所在的列表
-   * @returns {Promise<JobDetailExtResponse>} 职位详情扩展响应对象，包含：
-   *   - code: 响应码（0 表示成功）
-   *   - message: 响应消息
-   *   - zpData: 响应数据，包含 jobCard 字段
+   * @returns {Promise<Record<string, unknown>>} 职位详情卡片对象，包含 postDescription、address、activeTimeDesc 等字段
    * @throws {FetchJobDetailError} 当获取失败时抛出
    * @throws {Error} 当未找到认证令牌时抛出
    */
@@ -270,7 +267,7 @@ export class BossApiClient {
     securityId: string,
     jobId: string,
     lid: string
-  ): Promise<JobDetailExtResponse> {
+  ): Promise<Record<string, unknown>> {
     const url = `https://www.zhipin.com/wapi/zpgeek/job/card.json?securityId=${securityId}&jobId=${jobId}&lid=${lid}`;
     const token = Tools.getCookieValue('bst');
 
@@ -283,7 +280,8 @@ export class BossApiClient {
         headers: { Zp_token: token },
       });
 
-      return response.data;
+      // 提取 zpData.jobCard，如果不存在则返回空对象
+      return response.data.zpData?.jobCard || {};
     } catch (error: any) {
       logger.error('获取职位详情扩展失败', error);
       throw new FetchJobDetailError(`获取职位详情失败: ${error?.message || '未知错误'}`);
