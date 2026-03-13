@@ -93,19 +93,19 @@
               <div class="display-config-panel">
                 <div class="config-title">显示模式</div>
                 <el-radio-group v-model="displayMode" class="mode-radio-group">
-                  <el-radio value="compact">简洁模式</el-radio>
-                  <el-radio value="detailed">详细模式</el-radio>
+                  <el-radio label="compact">简洁模式</el-radio>
+                  <el-radio label="detailed">详细模式</el-radio>
                 </el-radio-group>
 
                 <div class="config-divider"></div>
 
                 <div class="config-title">显示列</div>
                 <el-checkbox-group v-model="visibleColumns" class="column-checkbox-group">
-                  <el-checkbox value="timestamp" disabled>时间</el-checkbox>
-                  <el-checkbox value="level">级别</el-checkbox>
-                  <el-checkbox value="aiDecision">判定结果</el-checkbox>
-                  <el-checkbox value="aiReason">判定理由</el-checkbox>
-                  <el-checkbox value="message">详细内容</el-checkbox>
+                  <el-checkbox label="timestamp" disabled>时间</el-checkbox>
+                  <el-checkbox label="level">级别</el-checkbox>
+                  <el-checkbox label="aiDecision">判定结果</el-checkbox>
+                  <el-checkbox label="aiReason">判定理由</el-checkbox>
+                  <el-checkbox label="message">详细内容</el-checkbox>
                 </el-checkbox-group>
               </div>
             </el-dropdown-menu>
@@ -358,6 +358,18 @@ const formatCompactMessage = (log: LogItem): string => {
 const fetchLogs = () => {
   let allLogs: LogItem[] = logRecorder.getLogs(1, logRecorder.getLogCount());
 
+  // Parse AI info and action type for all logs first
+  allLogs = allLogs.map((log) => {
+    const aiInfo = parseAiJudgeInfo(log.message);
+    return {
+      ...log,
+      aiDecision: aiInfo.decision,
+      aiReason: aiInfo.reason,
+      actionType: detectActionType(log.message),
+    };
+  });
+
+  // Apply time range filter
   if (filter.timeRange.length === 2) {
     const [startDate, endDate] = filter.timeRange;
     const hasValidRange =
@@ -377,36 +389,31 @@ const fetchLogs = () => {
     }
   }
 
+  // Apply level filter
   if (filter.level) {
     allLogs = allLogs.filter((log) => `${log.level || ''}`.toLowerCase() === filter.level);
   }
 
+  // Apply keyword filter
   if (filter.keyword) {
     const keyword = filter.keyword.toLowerCase();
     allLogs = allLogs.filter((log) => `${log.message || ''}`.toLowerCase().includes(keyword));
   }
 
-  totalLogs.value = allLogs.length;
-  const startIndex = (currentPage.value - 1) * pageSize.value;
-  logs.value = allLogs.slice(startIndex, startIndex + pageSize.value).map((log) => {
-    const aiInfo = parseAiJudgeInfo(log.message);
-    return {
-      ...log,
-      aiDecision: aiInfo.decision,
-      aiReason: aiInfo.reason,
-      actionType: detectActionType(log.message),
-    };
-  });
-
   // Apply action type filter
   if (filter.actionType) {
-    logs.value = logs.value.filter((log: any) => log.actionType === filter.actionType);
+    allLogs = allLogs.filter((log: any) => log.actionType === filter.actionType);
   }
 
   // Apply AI decision filter
   if (filter.aiDecision) {
-    logs.value = logs.value.filter((log) => log.aiDecision === filter.aiDecision);
+    allLogs = allLogs.filter((log) => log.aiDecision === filter.aiDecision);
   }
+
+  // Update total count and paginate
+  totalLogs.value = allLogs.length;
+  const startIndex = (currentPage.value - 1) * pageSize.value;
+  logs.value = allLogs.slice(startIndex, startIndex + pageSize.value);
 };
 
 const handlePageChange = (page: number) => {
