@@ -53,17 +53,6 @@
           <el-option label="不可解析" value="不可解析" />
         </el-select>
 
-        <el-time-picker
-          v-model="filter.timeRange"
-          is-range
-          start-placeholder="开始时间"
-          end-placeholder="结束时间"
-          format="HH:mm"
-          clearable
-          class="filter-item time-picker"
-          :teleported="false"
-        />
-
         <el-select
           v-model="filter.level"
           placeholder="日志级别"
@@ -77,6 +66,17 @@
           <el-option label="Info" value="info" />
           <el-option label="Debug" value="debug" />
         </el-select>
+
+        <el-time-picker
+          v-model="filter.timeRange"
+          is-range
+          start-placeholder="开始时间"
+          end-placeholder="结束时间"
+          format="HH:mm"
+          clearable
+          class="filter-item time-picker"
+          :teleported="false"
+        />
 
         <el-input
           v-model="filter.keyword"
@@ -188,10 +188,10 @@
           </el-table-column>
 
           <el-table-column
-            v-if="visibleColumns.includes('aiReason') && displayMode === 'detailed'"
+            v-if="visibleColumns.includes('aiReason')"
             prop="aiReason"
             label="判定理由"
-            :width="240"
+            :width="displayMode === 'compact' ? 180 : 240"
             show-overflow-tooltip
             class-name="col-ai-reason"
           >
@@ -556,32 +556,44 @@ onMounted(() => {
 }
 
 .display-config-panel {
-  padding: 12px 0;
+  padding: 16px;
 }
 
 .config-title {
   font-size: 13px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .mode-radio-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  padding-left: 4px;
 }
 
 .config-divider {
   height: 1px;
   background-color: #ebeef5;
-  margin: 12px 0;
+  margin: 16px 0;
 }
 
 .column-checkbox-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  padding-left: 4px;
+}
+
+:deep(.mode-radio-group .el-radio) {
+  margin-right: 0;
+  height: auto;
+}
+
+:deep(.column-checkbox-group .el-checkbox) {
+  margin-right: 0;
+  height: auto;
 }
 
 .mr-4 {
