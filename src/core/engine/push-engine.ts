@@ -206,7 +206,6 @@ export abstract class AbsPlatform {
 
   private getSafetyConfig(): {
     minActionIntervalSec: number;
-    maxSessionActions: number;
     maxDailyActions: number;
     maxActionsPerMinute: number;
   } {
@@ -219,7 +218,6 @@ export abstract class AbsPlatform {
     // 硬编码安全上限，防止用户绕过限制导致账号风险
     const HARD_LIMITS = {
       minActionIntervalSec: 8, // 最小间隔不能低于8秒
-      maxSessionActions: 100, // 单次会话最多100次
       maxDailyActions: 200, // 每日最多200次
       maxActionsPerMinute: 12, // 每分钟最多12次
     };
@@ -227,10 +225,6 @@ export abstract class AbsPlatform {
     const minActionIntervalSec = Math.max(
       HARD_LIMITS.minActionIntervalSec,
       toNumberOr(getPreferenceValue(preference, 'pushIntervalSec', 'pi'), 8)
-    );
-    const maxSessionActions = Math.min(
-      HARD_LIMITS.maxSessionActions,
-      Math.max(1, toNumberOr(preference.maxSessionActions, 60))
     );
     const maxDailyActions = Math.min(
       HARD_LIMITS.maxDailyActions,
@@ -243,7 +237,6 @@ export abstract class AbsPlatform {
 
     return {
       minActionIntervalSec,
-      maxSessionActions,
       maxDailyActions,
       maxActionsPerMinute,
     };
@@ -431,12 +424,6 @@ export abstract class AbsPlatform {
           if (dailySuccess >= safety.maxDailyActions) {
             throw new PushLimitError(
               `触发安全阈值：今日最多${safety.maxDailyActions}次成功${actionName}`
-            );
-          }
-
-          if (sessionSuccessCount >= safety.maxSessionActions) {
-            throw new PushLimitError(
-              `触发安全阈值：单次会话最多${safety.maxSessionActions}次成功${actionName}`
             );
           }
 

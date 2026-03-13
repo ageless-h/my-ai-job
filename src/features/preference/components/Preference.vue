@@ -345,11 +345,6 @@ const preferenceDefaultValueHandler = () => {
   if (typeof userStore.user.preference.traditionalDeliveryE !== 'boolean') {
     userStore.user.preference.traditionalDeliveryE = true;
   }
-  userStore.user.preference.maxSessionActions = upgradePrefNumber(
-    userStore.user.preference.maxSessionActions,
-    35,
-    60
-  );
   userStore.user.preference.maxDailyActions = upgradePrefNumber(
     userStore.user.preference.maxDailyActions,
     80,
