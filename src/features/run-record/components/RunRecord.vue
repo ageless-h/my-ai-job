@@ -535,12 +535,12 @@ onMounted(() => {
   width: 110px;
 }
 
-.time-picker {
-  width: 200px;
+.level-select {
+  width: 110px;
 }
 
-.level-select {
-  width: 100px;
+.time-picker {
+  width: 200px;
 }
 
 .search-input {
