@@ -217,14 +217,14 @@ export abstract class AbsPlatform {
 
     // 硬编码安全上限，防止用户绕过限制导致账号风险
     const HARD_LIMITS = {
-      minActionIntervalSec: 8, // 最小间隔不能低于8秒
+      minActionIntervalSec: 3, // 最小间隔不能低于3秒
       maxDailyActions: 200, // 每日最多200次
       maxActionsPerMinute: 12, // 每分钟最多12次
     };
 
     const minActionIntervalSec = Math.max(
       HARD_LIMITS.minActionIntervalSec,
-      toNumberOr(getPreferenceValue(preference, 'pushIntervalSec', 'pi'), 8)
+      toNumberOr(getPreferenceValue(preference, 'pushIntervalSec', 'pi'), 3)
     );
     const maxDailyActions = Math.min(
       HARD_LIMITS.maxDailyActions,
@@ -553,7 +553,7 @@ export abstract class AbsPlatform {
                         const reason = `网络异常重试 ${maxRetries} 次后仍失败，进入安全等待后继续${actionName}`;
                         this.setLastStopReason(reason);
                         this.preferenceLogRecorder.warn(reason);
-                        await Tools.sleep(Math.max(8000, safety.minActionIntervalSec * 2000));
+                        await Tools.sleep(Math.max(3000, safety.minActionIntervalSec * 2000));
                         break;
                       }
                     }
