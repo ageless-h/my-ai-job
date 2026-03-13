@@ -84,33 +84,36 @@
 
         <div class="spacer"></div>
 
-        <el-dropdown trigger="click" class="config-dropdown">
-          <el-button type="primary" plain>
-            <el-icon class="mr-4"><Setting /></el-icon>显示配置
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <div class="display-config-panel">
-                <div class="config-title">显示模式</div>
-                <el-radio-group v-model="displayMode" class="mode-radio-group">
-                  <el-radio label="compact">简洁模式</el-radio>
-                  <el-radio label="detailed">详细模式</el-radio>
-                </el-radio-group>
-
-                <div class="config-divider"></div>
-
-                <div class="config-title">显示列</div>
-                <el-checkbox-group v-model="visibleColumns" class="column-checkbox-group">
-                  <el-checkbox label="timestamp" disabled>时间</el-checkbox>
-                  <el-checkbox label="level">级别</el-checkbox>
-                  <el-checkbox label="aiDecision">判定结果</el-checkbox>
-                  <el-checkbox label="aiReason">判定理由</el-checkbox>
-                  <el-checkbox label="message">详细内容</el-checkbox>
-                </el-checkbox-group>
-              </div>
-            </el-dropdown-menu>
+        <el-popover
+          placement="bottom-end"
+          :width="240"
+          trigger="click"
+          popper-class="config-popover"
+        >
+          <template #reference>
+            <el-button type="primary" plain>
+              <el-icon class="mr-4"><Setting /></el-icon>显示配置
+            </el-button>
           </template>
-        </el-dropdown>
+          <div class="display-config-panel">
+            <div class="config-title">显示模式</div>
+            <el-radio-group v-model="displayMode" class="mode-radio-group">
+              <el-radio label="compact">简洁模式</el-radio>
+              <el-radio label="detailed">详细模式</el-radio>
+            </el-radio-group>
+
+            <div class="config-divider"></div>
+
+            <div class="config-title">显示列</div>
+            <el-checkbox-group v-model="visibleColumns" class="column-checkbox-group">
+              <el-checkbox label="timestamp" disabled>时间</el-checkbox>
+              <el-checkbox label="level">级别</el-checkbox>
+              <el-checkbox label="aiDecision">判定结果</el-checkbox>
+              <el-checkbox label="aiReason">判定理由</el-checkbox>
+              <el-checkbox label="message">详细内容</el-checkbox>
+            </el-checkbox-group>
+          </div>
+        </el-popover>
 
         <el-button type="danger" plain :disabled="totalLogs === 0" @click="clearLogs">
           <el-icon class="mr-4"><Delete /></el-icon>清空
@@ -548,8 +551,7 @@ onMounted(() => {
 }
 
 .display-config-panel {
-  padding: 12px 16px;
-  min-width: 200px;
+  padding: 12px 0;
 }
 
 .config-title {
