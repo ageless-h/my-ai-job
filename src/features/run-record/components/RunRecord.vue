@@ -92,6 +92,7 @@
           placement="bottom-end"
           :width="240"
           trigger="click"
+          :teleported="false"
           popper-class="config-popover"
         >
           <template #reference>
