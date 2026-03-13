@@ -30,6 +30,7 @@
           placeholder="操作类型"
           clearable
           class="filter-item action-type-select"
+          :teleported="false"
         >
           <el-option label="全部类型" value="" />
           <el-option label="投递判定" value="delivery" />
@@ -42,6 +43,7 @@
           placeholder="判定结果"
           clearable
           class="filter-item decision-select"
+          :teleported="false"
         >
           <el-option label="全部结果" value="" />
           <el-option label="通过" value="通过" />
@@ -59,6 +61,7 @@
           format="HH:mm"
           clearable
           class="filter-item time-picker"
+          :teleported="false"
         />
 
         <el-select
@@ -66,6 +69,7 @@
           placeholder="日志级别"
           clearable
           class="filter-item level-select"
+          :teleported="false"
         >
           <el-option label="全部级别" value="" />
           <el-option label="Error" value="error" />
