@@ -2,7 +2,7 @@
 
 **设计日期：** 2026-03-16  
 **设计目标：** 在保持 BOSS 直聘扁平化模块化风格的基础上，提升用户界面的精致度和现代感  
-**设计风格：** BOSS 直聘扁平化模块化风格 + 现代微交互优化
+**设计风格：** BOSS 直聘扁平化模块化风格 + 轻量级微交互优化
 
 ---
 
@@ -10,164 +10,92 @@
 
 ### 1.1 核心原则
 
-- **BOSS 风格延续**：沿用 BOSS 直聘的青绿主色、扁平化设计、模块化布局
+- **BOSS 风格延续**：完全沿用 BOSS 直聘的青绿主色（#00bebd）、扁平化设计、模块化布局
 - **轻量级优化**：在不改变整体风格的前提下，通过细节提升精致度
 - **平台一致性**：确保扩展界面与 BOSS 直聘平台无缝融合
 - **性能优先**：所有动画和效果保持流畅（60fps）
 
-### 1.2 设计参考
+### 1.2 BOSS 风格特征
 
-- **BOSS 直聘平台**：主要参考对象，保持视觉一致性
-- **扁平化设计原则**：极简、无渐变、无立体效果
-- **模块化布局**：卡片式设计、统一间距、清晰层级
+- **扁平化设计**：无渐变、无纹理、无立体效果
+- **轻微阴影**：仅使用极轻的阴影（0 1px 3px rgba(0, 0, 0, 0.05)）
+- **模块化卡片**：白色背景 + 浅色边框（#ebeef5）
+- **青绿主色**：#00bebd 贯穿所有交互元素
+- **三级灰度文字**：#333（标题）、#666（正文）、#999（辅助）
 
 ---
 
 ## 二、设计系统基础
 
-### 2.1 颜色系统（沿用 BOSS 配色）
-
-#### 主题色（BOSS 品牌色）
+### 2.1 颜色系统（完全沿用 BOSS 配色）
 
 ```css
---boss-primary: #00bebd; /* 主品牌色 */
---boss-primary-hover: #00a8a7; /* 悬停状态（原 #00a9a8，微调） */
---boss-primary-light: #e5f8f8; /* 浅色背景 */
---boss-primary-dark: #009897; /* 深色变体（新增） */
+#ai-job {
+  /* 主题色（BOSS 品牌色） */
+  --boss-primary: #00bebd;
+  --boss-primary-hover: #00a8a7;
+  --boss-primary-light: #e5f8f8;
+  
+  /* 文字颜色（BOSS 灰度系统） */
+  --boss-text-primary: #333333;
+  --boss-text-regular: #666666;
+  --boss-text-secondary: #999999;
+  
+  /* 背景颜色 */
+  --boss-bg-color: #f8f8f8;
+  --boss-bg-white: #ffffff;
+  --boss-bg-hover: #f5f5f5;
+  
+  /* 边框颜色 */
+  --boss-border-color: #ebeef5;
+  --boss-border-light: #f0f2f5;
+}
 ```
-
-#### 文字颜色（BOSS 灰度系统）
-
-```css
---boss-text-primary: #333333; /* 主要文字（标题） */
---boss-text-regular: #666666; /* 常规文字（正文） */
---boss-text-secondary: #999999; /* 次要文字（辅助信息） */
-```
-
-#### 背景颜色（BOSS 背景系统）
-
-```css
---boss-bg-color: #f8f8f8; /* 页面背景 */
---boss-bg-white: #ffffff; /* 卡片背景 */
---boss-bg-hover: #f5f5f5; /* 悬停背景（新增） */
-```
-
-#### 边框颜色（BOSS 边框系统）
-
-```css
---boss-border-color: #ebeef5; /* 基础边框 */
---boss-border-light: #f0f2f5; /* 轻边框（新增） */
---boss-border-hover: #00bebd; /* 悬停边框（使用主色） */
-```
-
-**设计说明：**
-
-- 完全沿用 BOSS 直聘的配色方案，确保视觉一致性
-- 保持 BOSS 的三级灰度文字系统（#333、#666、#999）
-- 新增悬停状态颜色，用于交互反馈
-- 边框颜色保持轻量，符合扁平化风格
-
----
 
 ### 2.2 阴影系统（轻量级扁平化阴影）
 
 ```css
-/* 极轻微阴影 - BOSS 风格基础阴影 */
---shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-
-/* 卡片阴影 - 用于模块化卡片 */
---shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
-
-/* 悬停阴影 - 使用主色透明度 */
---shadow-hover: 0 4px 12px rgba(0, 190, 189, 0.08);
-
-/* 面板阴影 - 用于侧边栏面板 */
---shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* BOSS 风格基础阴影 */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
+  
+  /* 悬停阴影 - 使用主色透明度 */
+  --shadow-hover: 0 4px 12px rgba(0, 190, 189, 0.08);
+  
+  /* 面板阴影 */
+  --shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.08);
 ```
 
-**设计说明：**
-
-- 遵循 BOSS 扁平化原则，使用极轻微的阴影
-- 阴影透明度控制在 0.05-0.08 之间，避免过重
-- 悬停阴影使用主色透明度（rgba(0, 190, 189, 0.08)），与 BOSS 风格一致
-- 不使用多层叠加阴影，保持扁平化特征
-
----
-
-### 2.3 圆角系统（BOSS 风格圆角）
+### 2.3 圆角系统
 
 ```css
---radius-base: 8px; /* 基础圆角：子卡片、按钮 */
---radius-card: 10px; /* 卡片圆角：主卡片容器 */
---radius-full: 9999px; /* 圆形：头像、FAB */
+  --radius-base: 8px;
+  --radius-card: 10px;
+  --radius-full: 9999px;
 ```
-
-**设计说明：**
-
-- 沿用 BOSS 的 8-10px 圆角系统
-- 子卡片使用 8px，主卡片使用 10px
-- 保持柔和但不过度的圆角风格
-- FAB 按钮使用完全圆形
-
----
 
 ### 2.4 间距系统（8px 基准）
 
 ```css
---spacing-1: 4px;
---spacing-2: 8px;
---spacing-3: 12px;
---spacing-4: 16px;
---spacing-5: 20px;
---spacing-6: 24px;
---spacing-8: 32px;
---spacing-10: 40px;
---spacing-12: 48px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
 ```
-
-**设计说明：**
-
-- 采用 8px 基准的间距系统，符合设计系统最佳实践
-- 所有间距值都是 4 的倍数，确保像素对齐
-- 统一的间距系统建立视觉节奏感
-
----
 
 ### 2.5 字体系统
 
-#### 字号
-
 ```css
---text-xs: 12px;
---text-sm: 13px;
---text-base: 14px;
---text-lg: 16px;
---text-xl: 18px;
---text-2xl: 20px;
+  /* 字号 */
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  
+  /* 字重 */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
 ```
-
-#### 字重
-
-```css
---font-normal: 400;
---font-medium: 500;
---font-semibold: 600;
---font-bold: 700;
-```
-
-#### 行高
-
-```css
---leading-tight: 1.25;
---leading-normal: 1.5;
---leading-relaxed: 1.75;
-```
-
-**设计说明：**
-
-- 基础字号为 14px，适合工具类应用的信息密度
-- 字重层级清晰，从 400 到 700 逐级递增
-- 行高根据内容类型调整，标题紧凑（1.25），正文舒适（1.5）
 
 ---
 
@@ -175,113 +103,68 @@
 
 ### 3.1 侧边栏面板
 
-#### 整体容器
-
 ```css
 .ai-sidebar {
-  background: var(--bg-primary);
-  border-left: 1px solid var(--border-light);
-  box-shadow: var(--shadow-xl);
-  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  background: var(--boss-bg-white);
+  border-left: 1px solid var(--boss-border-color);
+  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-card) 0 0 var(--radius-card);
 }
-```
 
-**设计说明：**
-
-- 使用超大阴影（shadow-xl）增强面板的浮动感
-- 左侧圆角（12px）柔化边缘
-- 轻边框（border-light）与页面内容区分
-
-#### 固定头部（毛玻璃效果）
-
-```css
 .ai-sidebar-header {
   position: sticky;
   top: 0;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-light);
+  background: var(--boss-bg-white);
+  border-bottom: 1px solid var(--boss-border-color);
   padding: var(--spacing-4);
   z-index: 10;
 }
 
 .ai-sidebar-title {
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  color: var(--text-primary);
-  letter-spacing: -0.02em; /* 紧凑字距，更现代 */
+  color: var(--boss-text-primary);
 }
 ```
 
-**设计说明：**
-
-- 毛玻璃效果（backdrop-filter）让滚动内容若隐若现
-- 半透明背景（0.8 透明度）保持轻盈感
-- 紧凑字距（-0.02em）提升现代感
-
----
-
 ### 3.2 导航标签
-
-#### 标签容器
 
 ```css
 .ai-nav-tabs {
   display: flex;
-  gap: var(--spacing-1);
+  gap: 4px;
   padding: var(--spacing-2);
-  background: var(--bg-secondary);
+  background: var(--boss-bg-color);
   border-radius: var(--radius-base);
 }
-```
 
-#### 单个标签
-
-```css
 .ai-nav-tab {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
   padding: var(--spacing-2) var(--spacing-3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-base);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  color: var(--text-secondary);
+  color: var(--boss-text-regular);
   cursor: pointer;
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 150ms ease;
   user-select: none;
 }
 
 .ai-nav-tab:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  background: var(--boss-bg-hover);
+  color: var(--boss-text-primary);
 }
 
 .ai-nav-tab.is-active {
-  background: var(--bg-primary);
+  background: var(--boss-bg-white);
   color: var(--boss-primary);
-  box-shadow: var(--shadow-sm);
-}
-
-/* 按下效果 */
-.ai-nav-tab:active {
-  transform: scale(0.97);
+  box-shadow: var(--shadow-card);
 }
 ```
 
-**设计说明：**
-
-- 标签容器使用浅色背景（bg-secondary）与页面区分
-- 激活状态使用白色背景 + 轻微阴影，形成"浮起"效果
-- 按下时缩放到 0.97，提供触感反馈
-- 过渡动画使用 cubic-bezier(0.4, 0, 0.2, 1)，更自然
-
----
-
-### 3.3 统计卡片（Bento Grid 布局）
-
-#### 容器
+### 3.3 统计卡片（模块化布局）
 
 ```css
 .stats-grid {
@@ -290,148 +173,95 @@
   gap: var(--spacing-4);
   padding: var(--spacing-4);
 }
-```
 
-#### 单个卡片
-
-```css
 .stat-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-card);
   padding: var(--spacing-4);
-  box-shadow: var(--shadow-base);
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-card);
+  transition: all 200ms ease;
 }
 
 .stat-card:hover {
   border-color: var(--boss-primary);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
 }
 
 .stat-label {
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  color: var(--text-secondary);
+  color: var(--boss-text-regular);
   margin-bottom: var(--spacing-2);
 }
 
 .stat-value {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
-  color: var(--text-primary);
-  line-height: var(--leading-tight);
+  font-size: 20px;
+  font-weight: var(--font-semibold);
+  color: var(--boss-text-primary);
 }
 ```
 
-**设计说明：**
-
-- 采用 Bento Grid 布局（2 列网格），统一间距 16px
-- 悬停时上浮 2px + 边框变色 + 阴影加深，三重反馈
-- 数值使用大字号（20px）+ 粗字重（700），突出重要性
-
----
-
 ### 3.4 按钮系统
 
-#### 主要按钮
-
 ```css
+/* 主按钮 */
 .el-button--primary {
   background: var(--boss-primary);
   border: none;
   border-radius: var(--radius-base);
-  padding: var(--spacing-2) var(--spacing-4);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    var(--shadow-sm);
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  color: #ffffff;
+  transition: all 150ms ease;
 }
 
 .el-button--primary:hover {
   background: var(--boss-primary-hover);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
 }
 
-.el-button--primary:active {
-  transform: scale(0.96);
-}
-```
-
-**设计说明：**
-
-- 内阴影（inset）模拟顶部高光，增加立体感
-- 悬停时上浮 1px + 阴影加深
-- 按下时缩放到 0.96，提供触感反馈
-
-#### 次要按钮（去边框化）
-
-```css
+/* 次要按钮 */
 .el-button--default {
-  background: var(--bg-tertiary);
-  border: none;
-  color: var(--text-primary);
+  background: var(--boss-bg-color);
+  border: 1px solid var(--boss-border-color);
+  color: var(--boss-text-primary);
   border-radius: var(--radius-base);
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 150ms ease;
 }
 
 .el-button--default:hover {
-  background: var(--border-light);
+  background: var(--boss-bg-hover);
+  border-color: var(--boss-primary);
 }
 ```
 
-**设计说明：**
-
-- 去除边框，使用浅色背景（Tonal Button 风格）
-- 悬停时背景加深，视觉反馈更柔和
-
----
-
-### 3.5 输入框（去边框化）
+### 3.5 输入框
 
 ```css
 .el-input__wrapper {
-  background: var(--bg-secondary);
-  border: 1px solid transparent;
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-base);
-  padding: var(--spacing-2) var(--spacing-3);
-  box-shadow: none;
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 150ms ease;
 }
 
 .el-input__wrapper:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--border-light);
+  border-color: var(--boss-primary);
 }
 
 .el-input__wrapper.is-focus {
-  background: var(--bg-primary);
   border-color: var(--boss-primary);
-  box-shadow: 0 0 0 3px rgba(0, 190, 189, 0.1);
+  box-shadow: 0 0 0 1px var(--boss-primary) inset;
 }
 ```
-
-**设计说明：**
-
-- 默认状态使用浅色背景 + 透明边框，减少视觉噪音
-- 悬停时背景加深 + 显示轻边框
-- 聚焦时背景变白 + 主题色边框 + 外发光（3px 光晕）
-
----
 
 ### 3.6 卡片组件
 
 ```css
 .boss-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-card);
   padding: var(--spacing-4);
-  box-shadow: var(--shadow-base);
+  box-shadow: var(--shadow-card);
 }
 
 .card-header {
@@ -440,144 +270,53 @@
   gap: var(--spacing-2);
   margin-bottom: var(--spacing-4);
   padding-bottom: var(--spacing-3);
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--boss-border-color);
 }
 
 .card-title {
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  color: var(--boss-text-primary);
 }
 ```
 
-**设计说明：**
-
-- 卡片使用中等圆角（10px）+ 基础阴影
-- 卡片头部使用底部边框分隔，而非背景色
-- 标题字号 16px + 半粗字重（600）
-
 ---
 
-## 四、微交互与动画
+## 四、微交互优化
 
 ### 4.1 过渡动画
 
 ```css
 /* 全局过渡 */
-* {
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 快速过渡 - 用于按钮、链接 */
-.transition-fast {
-  transition-duration: 150ms;
-}
-
-/* 标准过渡 - 用于卡片、面板 */
 .transition-base {
-  transition-duration: 200ms;
+  transition: all 150ms ease;
 }
 
-/* 慢速过渡 - 用于大型元素 */
-.transition-slow {
-  transition-duration: 300ms;
+.transition-fast {
+  transition: all 100ms ease;
 }
 ```
-
-**设计说明：**
-
-- 统一使用 cubic-bezier(0.4, 0, 0.2, 1) 缓动函数（Material Design 标准）
-- 过渡时长分为三档：150ms（快）、200ms（标准）、300ms（慢）
-- 避免使用 0ms 瞬间突变，所有状态变化都应有动画
-
----
 
 ### 4.2 悬停效果
 
-#### 卡片悬停上浮
-
 ```css
-.hover-lift {
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+/* 卡片悬停 */
+.hover-card:hover {
+  border-color: var(--boss-primary);
+  box-shadow: var(--shadow-hover);
 }
 
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+/* 按钮悬停 */
+.hover-button:hover {
+  transform: translateY(-1px);
 }
 ```
-
-#### 按钮悬停放大
-
-```css
-.hover-scale {
-  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.hover-scale:hover {
-  transform: scale(1.02);
-}
-
-.hover-scale:active {
-  transform: scale(0.98);
-}
-```
-
-**设计说明：**
-
-- 卡片悬停上浮 2px，配合阴影加深，形成"浮起"效果
-- 按钮悬停放大 2%，按下缩小 2%，提供触感反馈
-- 所有变换都使用 transform，避免触发重排（性能优化）
-
----
-
-### 4.3 加载状态（AI 运行时）
-
-#### 流光边框动画
-
-```css
-@keyframes shimmer {
-  0% {
-    background-position: -200% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
-}
-
-.ai-loading-border {
-  position: relative;
-  overflow: hidden;
-}
-
-.ai-loading-border::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: linear-gradient(90deg, transparent, var(--boss-primary), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-}
-```
-
-**设计说明：**
-
-- 使用渐变 + 动画模拟流光扫过效果
-- 通过 mask 技术实现边框效果，避免影响内容
-- 动画时长 2s，无限循环，暗示"AI 正在工作"
 
 ---
 
 ## 五、特殊组件优化
 
-### 5.1 FAB 按钮（浮动操作按钮）
+### 5.1 FAB 按钮
 
 ```css
 .ai-fab {
@@ -586,80 +325,21 @@
   border-radius: var(--radius-full);
   background: var(--boss-primary);
   color: white;
-  box-shadow:
-    0 4px 12px rgba(0, 190, 189, 0.3),
-    0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 190, 189, 0.3);
+  transition: all 200ms ease;
   cursor: pointer;
 }
 
 .ai-fab:hover {
   background: var(--boss-primary-hover);
-  box-shadow:
-    0 6px 16px rgba(0, 190, 189, 0.4),
-    0 3px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 16px rgba(0, 190, 189, 0.4);
   transform: scale(1.05);
 }
-
-.ai-fab:active {
-  transform: scale(0.95);
-}
 ```
 
-**设计说明：**
-
-- 使用品牌色阴影（rgba(0, 190, 189, 0.3)）增强品牌感
-- 悬停时放大 5% + 阴影加深
-- 按下时缩小 5%，提供强烈的触感反馈
-
----
-
-### 5.2 空状态
+### 5.2 滚动条美化
 
 ```css
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-12) var(--spacing-6);
-  text-align: center;
-}
-
-.empty-state-icon {
-  width: 80px;
-  height: 80px;
-  margin-bottom: var(--spacing-4);
-  opacity: 0.4;
-}
-
-.empty-state-title {
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-2);
-}
-
-.empty-state-description {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin-bottom: var(--spacing-4);
-  max-width: 320px;
-}
-```
-
-**设计说明：**
-
-- 图标使用 40% 透明度，避免过于突兀
-- 描述文字限制最大宽度 320px，保持可读性
-- 应配合引导操作按钮，而非仅显示"暂无数据"
-
----
-
-### 5.3 滚动条美化
-
-```css
-/* Webkit 浏览器 */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -670,153 +350,80 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-base);
+  background: var(--boss-border-color);
   border-radius: var(--radius-full);
   transition: background 150ms;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-strong);
+  background: var(--boss-text-secondary);
 }
 ```
 
-**设计说明：**
-
-- 滚动条宽度 8px，与间距系统对齐
-- 滚动条轨道透明，减少视觉噪音
-- 滚动条滑块使用圆角 + 悬停变色
-
 ---
 
-## 六、响应式适配
+## 六、实施策略
 
-### 6.1 移动端优化
-
-```css
-@media (max-width: 768px) {
-  .ai-sidebar {
-    width: 100%;
-    max-width: 100%;
-    border-radius: 0;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-3);
-  }
-
-  .ai-sidebar-title {
-    font-size: var(--text-lg);
-  }
-
-  .stat-value {
-    font-size: var(--text-xl);
-  }
-}
-```
-
-**设计说明：**
-
-- 移动端侧边栏占满全屏，去除圆角
-- 统计卡片改为单列布局
-- 字号适当缩小，保持信息密度
-
----
-
-## 七、实施策略
-
-### 7.1 实施阶段
+### 6.1 实施阶段
 
 #### 阶段 1：设计系统基础（优先级：高）
-
 1. 创建 `src/styles/design-system.css`，定义所有 CSS 变量
 2. 在 `src/app/main.ts` 中引入设计系统
 3. 验证变量在所有组件中生效
 
 #### 阶段 2：核心组件样式（优先级：高）
+1. 更新侧边栏面板样式
+2. 更新导航标签样式
+3. 更新统计卡片样式
+4. 更新按钮和输入框样式
 
-1. 更新侧边栏面板样式（毛玻璃头部、阴影）
-2. 更新导航标签样式（去边框、微交互）
-3. 更新统计卡片样式（Bento Grid 布局）
-4. 更新按钮和输入框样式（去边框化）
-
-#### 阶段 3：微交互与动画（优先级：中）
-
-1. 添加过渡动画类
-2. 添加悬停效果类
-3. 添加 AI 加载状态动画
+#### 阶段 3：微交互优化（优先级：中）
+1. 添加过渡动画
+2. 添加悬停效果
+3. 优化交互反馈
 
 #### 阶段 4：特殊组件优化（优先级：中）
-
 1. 优化 FAB 按钮样式
-2. 添加空状态组件
-3. 美化滚动条
+2. 美化滚动条
 
-#### 阶段 5：响应式适配（优先级：低）
+### 6.2 验证标准
 
-1. 添加移动端媒体查询
-2. 测试不同屏幕尺寸
-
-### 7.2 验证标准
-
-- [ ] 所有组件使用设计系统变量，无硬编码颜色值
-- [ ] 所有交互都有过渡动画（150-300ms）
-- [ ] 所有卡片使用多层阴影
-- [ ] 所有按钮有悬停和按下状态
-- [ ] 输入框聚焦时有外发光效果
+- [ ] 所有组件使用 BOSS 配色变量
+- [ ] 阴影保持轻量级（符合扁平化风格）
+- [ ] 所有交互都有过渡动画（150ms）
+- [ ] 卡片使用 BOSS 风格边框和阴影
+- [ ] 按钮和输入框符合 BOSS 风格
 - [ ] 滚动条已美化
-- [ ] 移动端布局正常
 
 ---
 
-## 八、技术约束
+## 七、设计约束
 
-### 8.1 浏览器兼容性
+### 7.1 必须遵守的 BOSS 风格原则
 
-- **目标浏览器**：Chrome 90+, Edge 90+, Firefox 88+
-- **关键特性**：
-  - `backdrop-filter`：需要 `-webkit-` 前缀
-  - CSS 变量：所有现代浏览器支持
-  - `mask-composite`：需要 `-webkit-` 前缀
+1. **扁平化设计**：不使用渐变、纹理、立体效果
+2. **轻微阴影**：阴影透明度不超过 0.08
+3. **青绿主色**：所有交互元素使用 #00bebd
+4. **模块化卡片**：白色背景 + 浅色边框
+5. **三级灰度文字**：#333、#666、#999
 
-### 8.2 性能要求
+### 7.2 禁止的设计元素
 
-- 所有动画保持 60fps
-- 避免使用 `box-shadow` 动画（使用 `transform` 和 `opacity`）
-- 避免触发重排（使用 `transform` 而非 `top/left`）
-
-### 8.3 可维护性
-
-- 所有样式值通过 CSS 变量定义
-- 避免内联样式
-- 组件样式使用 scoped 或 BEM 命名
+- ❌ 多层叠加阴影
+- ❌ 毛玻璃效果（backdrop-filter）
+- ❌ 过大的圆角（>10px，FAB 除外）
+- ❌ 非 BOSS 配色的颜色
+- ❌ 过度的动画效果
 
 ---
 
-## 九、设计交付物
+## 八、总结
 
-### 9.1 文件清单
+本设计方案完全遵循 BOSS 直聘的扁平化模块化风格，通过以下手段提升界面精致度：
 
-- `src/styles/design-system.css` - 设计系统变量
-- `src/styles/components.css` - 组件样式
-- `src/styles/animations.css` - 动画和过渡
-- `src/styles/utilities.css` - 工具类
+1. **统一的设计系统**：使用 CSS 变量管理 BOSS 配色、阴影、圆角、间距
+2. **轻量级优化**：保持扁平化风格，仅添加必要的微交互
+3. **平台一致性**：确保扩展界面与 BOSS 直聘平台无缝融合
+4. **性能优先**：所有动画使用 transform 和 opacity，保持 60fps
 
-### 9.2 文档清单
-
-- 本设计文档（`docs/superpowers/specs/2026-03-16-ui-modernization-design.md`）
-- 实施计划（待创建）
-
----
-
-## 十、总结
-
-本设计方案通过以下手段将 AI 求职助手提升至商业级 SaaS 应用水准：
-
-1. **完整的设计系统**：颜色、阴影、圆角、间距、字体五大系统
-2. **精致的细节**：多层阴影、毛玻璃效果、内阴影高光
-3. **流畅的微交互**：150-300ms 过渡动画、悬停上浮、按下缩放
-4. **现代的视觉语言**：去边框化、Bento Grid 布局、紧凑字距
-5. **专业的特殊效果**：流光边框、品牌色阴影、美化滚动条
-
-实施后，用户界面将达到 Linear、Vercel 等主流 SaaS 应用的视觉质感。
+实施后，用户界面将在保持 BOSS 风格的基础上，获得更精致的视觉体验和更流畅的交互反馈。
