@@ -150,19 +150,12 @@
                   type="primary"
                   >获取 API Key</el-link
                 >
-                <el-tag
-                  v-if="selectedPresetLink.linkType === 'invite'"
-                  size="small"
-                  type="warning"
-                  effect="plain"
-                  >邀请链接</el-tag
-                >
               </div>
               <div
                 v-if="selectedPresetLink && selectedPresetLink.linkType === 'invite'"
                 class="api-preset-note"
               >
-                该链接为邀请链接，可在 `model-catalog.ts` 中替换为你的专属邀请链接。
+                通过该链接购买可享优惠。
               </div>
             </el-form-item>
 

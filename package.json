@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:preview": "node scripts/dev-preview.cmd",
     "build": "vite build",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit"

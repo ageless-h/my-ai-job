@@ -29,11 +29,13 @@ ai-job-hunting/
 │  ├─ features/                          # 功能模块（面向用户的 UI 模块）
 │  │  ├─ panel/
 │  │  ├─ job-assistant/
-│  │  ├─ preference/
 │  │  ├─ ai-config/
+│  │  ├─ ai-delivery-judge/
+│  │  ├─ delivery-filter/
+│  │  ├─ memory-session/
+│  │  ├─ conversation-cleaner/
 │  │  ├─ run-record/
-│  │  ├─ product/
-│  │  └─ conversation-cleaner/
+│  │  └─ account/
 │  ├─ core/                              # 业务/运行时基础设施
 │  │  ├─ ai/ auth/ http/ platform/
 │  │  ├─ engine/ realtime/ protocol/
@@ -41,8 +43,8 @@ ai-job-hunting/
 │  ├─ state/                             # Pinia 状态管理
 │  └─ shared/                            # 共享工具/错误/类型
 ├─ docs/
-│  ├─ README.md
-│  └─ plans/
+│  ├─ 文档索引.md
+│  └─ archive/
 ├─ package.json
 └─ vite.config.ts
 ```
