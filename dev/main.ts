@@ -10,7 +10,7 @@ import App from '@/app/App.vue';
 import { MockPlatform } from './mock-platform';
 import { request } from '@/core/http/request';
 import { bindPlatformRuntime } from '@/core/engine/push-engine';
-import { useCounterStore } from '@/state/counter';
+import { usePushResultStore } from '@/state/push-result';
 import { useUserStore } from '@/state/user';
 
 console.log('[Dev Mode] 启动开发模式');
@@ -26,25 +26,25 @@ app.provide('$platform', mockPlatform);
 app.provide('$axios', request);
 
 // 绑定运行时依赖
-const counterStore = useCounterStore();
+const pushResultStore = usePushResultStore();
 const userStore = useUserStore();
 
 bindPlatformRuntime(
   {
-    notMatchCount: counterStore.notMatchCount,
-    successCount: counterStore.successCount,
-    onceSuccessCount: counterStore.onceSuccessCount,
-    failCount: counterStore.failCount,
-    collectSuccessCount: counterStore.collectSuccessCount,
-    collectFailCount: counterStore.collectFailCount,
-    onceCollectSuccessCount: counterStore.onceCollectSuccessCount,
-    notMatchIncr: () => counterStore.notMatchIncr(),
-    successIncr: () => counterStore.successIncr(),
-    failIncr: () => counterStore.failIncr(),
-    collectSuccessIncr: () => counterStore.collectSuccessIncr(),
-    collectFailIncr: () => counterStore.collectFailIncr(),
-    clearOnceSuccessCount: () => counterStore.clearOnceSuccessCount(),
-    clearOnceCollectSuccessCount: () => counterStore.clearOnceCollectSuccessCount(),
+    notMatchCount: pushResultStore.notMatchCount,
+    successCount: pushResultStore.successCount,
+    onceSuccessCount: pushResultStore.onceSuccessCount,
+    failCount: pushResultStore.failCount,
+    collectSuccessCount: pushResultStore.collectSuccessCount,
+    collectFailCount: pushResultStore.collectFailCount,
+    onceCollectSuccessCount: pushResultStore.onceCollectSuccessCount,
+    notMatchIncr: () => pushResultStore.notMatchIncr(),
+    successIncr: () => pushResultStore.successIncr(),
+    failIncr: () => pushResultStore.failIncr(),
+    collectSuccessIncr: () => pushResultStore.collectSuccessIncr(),
+    collectFailIncr: () => pushResultStore.collectFailIncr(),
+    clearOnceSuccessCount: () => pushResultStore.clearOnceSuccessCount(),
+    clearOnceCollectSuccessCount: () => pushResultStore.clearOnceCollectSuccessCount(),
   },
   {
     user: userStore.user,
