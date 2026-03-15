@@ -73,6 +73,11 @@ const mountApp = () => {
       app.mount(rootApp);
       window.__AI_JOB_HUNTING_MOUNTED__ = true;
     })
+    .catch((error) => {
+      console.error('[AI Job Hunting] 挂载失败:', error);
+      window.__AI_JOB_HUNTING_MOUNTING__ = false;
+      window.__AI_JOB_HUNTING_MOUNTED__ = false;
+    })
     .finally(() => {
       window.__AI_JOB_HUNTING_MOUNTING__ = false;
     });

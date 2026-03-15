@@ -183,6 +183,8 @@ const fabZIndex = ref(Z_INDEX_FAB_COLLAPSED);
 
 let fabRepositionRaf = 0;
 let fabDebounceTimer = 0;
+let transitionTimeoutId = 0;
+let intersectionObserver: IntersectionObserver | null = null;
 let mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
 let mouseUpHandler: (() => void) | null = null;
 let visibilityChangeHandler: (() => void) | null = null;
@@ -379,6 +381,15 @@ function toggleCollapse(): void {
   nextTick(() => {
     scheduleFabPosition();
   });
+
+  // 超时保险：确保即使 transitionend 未触发，也能在 500ms 后重置
+  if (transitionTimeoutId) {
+    clearTimeout(transitionTimeoutId);
+  }
+  transitionTimeoutId = window.setTimeout(() => {
+    transitionTimeoutId = 0;
+    isTransitioning.value = false;
+  }, 500);
 }
 
 function handleSelect(key: string): void {
@@ -451,7 +462,7 @@ onMounted(() => {
   nextTick(() => {
     applyFabPosition();
     // 使用IntersectionObserver监听动态内容变化
-    const observer = new IntersectionObserver(
+    intersectionObserver = new IntersectionObserver(
       () => {
         scheduleFabPosition();
       },
@@ -460,18 +471,24 @@ onMounted(() => {
 
     FAB_COLLISION_SELECTORS.forEach((selector) => {
       document.querySelectorAll(selector).forEach((el) => {
-        observer.observe(el);
+        intersectionObserver?.observe(el);
       });
     });
   });
 
   window.addEventListener('resize', scheduleFabPosition);
-  window.addEventListener('scroll', scheduleFabPosition, true);
+  window.addEventListener('scroll', scheduleFabPosition);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', scheduleFabPosition);
-  window.removeEventListener('scroll', scheduleFabPosition, true);
+  window.removeEventListener('scroll', scheduleFabPosition);
+
+  // 清理 IntersectionObserver
+  if (intersectionObserver) {
+    intersectionObserver.disconnect();
+    intersectionObserver = null;
+  }
 
   // 清理resize事件监听器
   if (mouseMoveHandler) {
@@ -495,6 +512,10 @@ onBeforeUnmount(() => {
   if (fabRepositionRaf) {
     cancelAnimationFrame(fabRepositionRaf);
     fabRepositionRaf = 0;
+  }
+  if (transitionTimeoutId) {
+    clearTimeout(transitionTimeoutId);
+    transitionTimeoutId = 0;
   }
 });
 
