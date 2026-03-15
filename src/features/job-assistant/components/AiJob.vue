@@ -899,7 +899,7 @@ onUnmounted(() => {
 
 .card-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   color: #333;
   margin-bottom: 16px;
   display: flex;
@@ -931,10 +931,10 @@ onUnmounted(() => {
 .stats-row {
   display: flex;
   align-items: center;
-  background-color: #fcfcfc;
-  border-radius: 6px;
-  padding: 12px 16px;
-  border: 1px solid #f0f2f5;
+  background: var(--boss-bg-white);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid var(--boss-border-color);
 }
 
 .stat-item {
@@ -944,9 +944,9 @@ onUnmounted(() => {
 }
 
 .stat-label {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 4px;
+  font-size: var(--text-sm);
+  color: var(--boss-text-regular);
+  margin-bottom: var(--spacing-2);
 }
 
 .stat-value {
@@ -965,8 +965,8 @@ onUnmounted(() => {
 .stat-divider {
   width: 1px;
   height: 30px;
-  background-color: #ebeef5;
-  margin: 0 20px;
+  background-color: var(--boss-border-color);
+  margin: 0 var(--spacing-5);
 }
 
 .stat-actions {
