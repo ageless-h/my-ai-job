@@ -35,17 +35,17 @@
   --boss-primary: #00bebd;
   --boss-primary-hover: #00a8a7;
   --boss-primary-light: #e5f8f8;
-  
+
   /* 文字颜色（BOSS 灰度系统） */
   --boss-text-primary: #333333;
   --boss-text-regular: #666666;
   --boss-text-secondary: #999999;
-  
+
   /* 背景颜色 */
   --boss-bg-color: #f8f8f8;
   --boss-bg-white: #ffffff;
   --boss-bg-hover: #f5f5f5;
-  
+
   /* 边框颜色 */
   --boss-border-color: #ebeef5;
   --boss-border-light: #f0f2f5;
@@ -55,46 +55,54 @@
 ### 2.2 阴影系统（轻量级扁平化阴影）
 
 ```css
-  /* BOSS 风格基础阴影 */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
-  
-  /* 悬停阴影 - 使用主色透明度 */
-  --shadow-hover: 0 4px 12px rgba(0, 190, 189, 0.08);
-  
-  /* 面板阴影 */
-  --shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.08);
+/* BOSS 风格基础阴影 */
+--shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+/* 悬停阴影 - 使用主色透明度 */
+--shadow-hover: 0 4px 12px rgba(0, 190, 189, 0.08);
+
+/* 面板阴影 */
+--shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.08);
 ```
 
-### 2.3 圆角系统
+### 2.3 圆角系统（小圆角 - 高效专业）
 
 ```css
-  --radius-base: 8px;
-  --radius-card: 10px;
-  --radius-full: 9999px;
+--radius-base: 4px; /* 基础圆角：按钮、输入框 - 专业高效 */
+--radius-card: 6px; /* 卡片圆角：主卡片容器 - 柔和但不过度 */
+--radius-full: 9999px; /* 圆形：头像、FAB - 特殊元素 */
 ```
+
+**设计说明：**
+
+- 使用小圆角（4-6px）确保高效专业的视觉效果
+- 拒绝冷酷的直角（0px）- 缺乏亲和力
+- 拒绝不够严肃的大圆角（>8px）- 过于休闲
+- 4px 用于小元素（按钮、输入框），6px 用于大元素（卡片）
+- 保持 BOSS 直聘的专业工具属性
 
 ### 2.4 间距系统（8px 基准）
 
 ```css
-  --spacing-2: 8px;
-  --spacing-3: 12px;
-  --spacing-4: 16px;
-  --spacing-5: 20px;
-  --spacing-6: 24px;
+--spacing-2: 8px;
+--spacing-3: 12px;
+--spacing-4: 16px;
+--spacing-5: 20px;
+--spacing-6: 24px;
 ```
 
 ### 2.5 字体系统
 
 ```css
-  /* 字号 */
-  --text-sm: 13px;
-  --text-base: 14px;
-  --text-lg: 16px;
-  
-  /* 字重 */
-  --font-normal: 400;
-  --font-medium: 500;
-  --font-semibold: 600;
+/* 字号 */
+--text-sm: 13px;
+--text-base: 14px;
+--text-lg: 16px;
+
+/* 字重 */
+--font-normal: 400;
+--font-medium: 500;
+--font-semibold: 600;
 ```
 
 ---
@@ -367,22 +375,26 @@
 ### 6.1 实施阶段
 
 #### 阶段 1：设计系统基础（优先级：高）
+
 1. 创建 `src/styles/design-system.css`，定义所有 CSS 变量
 2. 在 `src/app/main.ts` 中引入设计系统
 3. 验证变量在所有组件中生效
 
 #### 阶段 2：核心组件样式（优先级：高）
+
 1. 更新侧边栏面板样式
 2. 更新导航标签样式
 3. 更新统计卡片样式
 4. 更新按钮和输入框样式
 
 #### 阶段 3：微交互优化（优先级：中）
+
 1. 添加过渡动画
 2. 添加悬停效果
 3. 优化交互反馈
 
 #### 阶段 4：特殊组件优化（优先级：中）
+
 1. 优化 FAB 按钮样式
 2. 美化滚动条
 
