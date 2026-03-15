@@ -33,9 +33,16 @@ import {
 } from './security-utils';
 import {
   buildModelChannelKey,
+  getModelConfigState,
+  getAllModelConfigs,
+  getActiveModelConfig,
+  getModelConfigHosts,
+  saveModelConfigState,
   getAiConfigExt,
   saveAiConfigExt,
   getCurrentAiModelChannelKey,
+  getEnabledPromptPresetsByChannel,
+  getMergedPromptTextByChannel,
   getStoredUserProfileRaw,
   saveStoredUserProfile,
   getAiDeliveryJudgeConfig,
@@ -43,10 +50,29 @@ import {
   migrateAiDeliveryJudgeConfigFromPreference,
   type AiConfigExt,
   type AiDeliveryJudgeConfig,
+  type ModelApiFormat,
+  type ModelConfigItem,
+  type ModelConfigState,
+  type PromptPresetItem,
+  type PromptPresetStore,
+  type AiDeliveryPromptItem,
+  type AiDeliveryPromptStore,
   DEFAULT_AI_DELIVERY_JUDGE_PROMPT,
 } from './config-manager';
 
-export type { SalaryType, SalaryFilterType, AiConfigExt, AiDeliveryJudgeConfig };
+export type {
+  SalaryType,
+  SalaryFilterType,
+  AiConfigExt,
+  AiDeliveryJudgeConfig,
+  ModelApiFormat,
+  ModelConfigItem,
+  ModelConfigState,
+  PromptPresetItem,
+  PromptPresetStore,
+  AiDeliveryPromptItem,
+  AiDeliveryPromptStore,
+};
 export { DEFAULT_AI_DELIVERY_JUDGE_PROMPT };
 
 declare const unsafeWindow: Window & Record<string, unknown>;
@@ -133,12 +159,26 @@ export class Tools {
   // ==================== 配置管理方法 ====================
   /** @see config-manager.buildModelChannelKey */
   static buildModelChannelKey = buildModelChannelKey;
+  /** @see config-manager.getModelConfigState */
+  static getModelConfigState = getModelConfigState;
+  /** @see config-manager.getAllModelConfigs */
+  static getAllModelConfigs = getAllModelConfigs;
+  /** @see config-manager.getActiveModelConfig */
+  static getActiveModelConfig = getActiveModelConfig;
+  /** @see config-manager.getModelConfigHosts */
+  static getModelConfigHosts = getModelConfigHosts;
+  /** @see config-manager.saveModelConfigState */
+  static saveModelConfigState = saveModelConfigState;
   /** @see config-manager.getAiConfigExt */
   static getAiConfigExt = getAiConfigExt;
   /** @see config-manager.saveAiConfigExt */
   static saveAiConfigExt = saveAiConfigExt;
   /** @see config-manager.getCurrentAiModelChannelKey */
   static getCurrentAiModelChannelKey = getCurrentAiModelChannelKey;
+  /** @see config-manager.getEnabledPromptPresetsByChannel */
+  static getEnabledPromptPresetsByChannel = getEnabledPromptPresetsByChannel;
+  /** @see config-manager.getMergedPromptTextByChannel */
+  static getMergedPromptTextByChannel = getMergedPromptTextByChannel;
   /** @see config-manager.getStoredUserProfileRaw */
   static getStoredUserProfileRaw = getStoredUserProfileRaw;
   /** @see config-manager.saveStoredUserProfile */

@@ -26,13 +26,58 @@ import { computed, onMounted, provide, ref, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import { Plus, Back } from '@element-plus/icons-vue';
 import { request, showAppMessage } from '@/core/http/request';
-import { Tools, DEFAULT_AI_DELIVERY_JUDGE_PROMPT } from '@/shared/utils/tools';
+import {
+  Tools,
+  DEFAULT_AI_DELIVERY_JUDGE_PROMPT,
+  type AiConfigExt,
+  type PromptPresetItem,
+  type AiDeliveryPromptItem,
+  type AiDeliveryPromptStore,
+} from '@/shared/utils/tools';
 import ApiKeyManager from './ApiKeyManager.vue';
 import PromptPresetManager from './PromptPresetManager.vue';
 import DebugConsole from './DebugConsole.vue';
 
-const formRef = ref();
-const debugConsoleRef = ref();
+interface FormConfig {
+  userId: number;
+  provider: number;
+  modelName: string;
+  apiKey: string;
+  baseUrl: string;
+  timeout: number;
+  completionsPath: string;
+  apiFormat: string;
+  testPassed: number;
+  status: number;
+  userPrompt: string;
+}
+
+interface ProviderDetail {
+  code: number;
+  defaultBaseUrl: string;
+  [key: string]: unknown;
+}
+
+type ProviderDetailsMap = Record<number, ProviderDetail>;
+
+type PromptPresetScope = 'global' | 'personal';
+
+type PromptPreset = PromptPresetItem & {
+  scope: PromptPresetScope;
+};
+
+interface PromptPresetOption extends PromptPreset {
+  optionLabel: string;
+}
+
+interface AiDeliveryPromptEditForm {
+  name: string;
+  prompt: string;
+  extraPrompt: string;
+}
+
+const formRef = ref<unknown>(null);
+const debugConsoleRef = ref<{ open?: () => void } | null>(null);
 
 const providerOptions = [
   { label: '自定义', value: 0 },
@@ -43,7 +88,7 @@ const providerOptions = [
   { label: 'Open Router', value: 5 },
 ];
 
-const modelOptions = {
+const modelOptions: Record<number, string[]> = {
   0: [],
   1: ['deepseek-chat', 'deepseek-reasoner'],
   2: ['deepseek-r1-250120', '...'],
@@ -52,18 +97,19 @@ const modelOptions = {
   5: ['deepseek/deepseek-chat-v3-0324:free', '...'],
 };
 
-const availableModels = ref([]);
-const providerDetails = ref({});
-const lastFetchedConfig = ref(null);
+const availableModels = ref<string[]>([]);
+const providerDetails = ref<ProviderDetailsMap>({});
+const lastFetchedConfig = ref<Partial<FormConfig> | null>(null);
 const hasShownConfigFallbackWarning = ref(false);
 const isPreviewMode =
   typeof window !== 'undefined' && window.location.pathname.includes('preview.html');
 
-const getErrorMessage = (error) => {
-  return error?.response?.data?.message || error?.message || '未知错误';
+const getErrorMessage = (error: unknown): string => {
+  const normalized = error as { response?: { data?: { message?: string } }; message?: string };
+  return normalized?.response?.data?.message || normalized?.message || '未知错误';
 };
 
-const form = ref({
+const form = ref<FormConfig>({
   userId: 0,
   provider: 1,
   modelName: '',
@@ -71,18 +117,19 @@ const form = ref({
   baseUrl: '',
   timeout: 60,
   completionsPath: '',
+  apiFormat: 'completions',
   testPassed: 0,
   status: 0,
   userPrompt: '',
 });
 
 const isTestLoading = ref(false);
-const aiConfigExt = ref(Tools.getAiConfigExt());
+const aiConfigExt = ref<AiConfigExt>(Tools.getAiConfigExt());
 const DEFAULT_AI_DELIVERY_EXTRA_PROMPT = '办公地点不进行限制，只要在国内即可';
 const DEFAULT_AI_DELIVERY_PROMPT_NAME = '默认提示词';
 const aiDeliveryPromptView = ref('list');
 const editingAiDeliveryPromptId = ref('');
-const aiDeliveryPromptEditForm = ref({
+const aiDeliveryPromptEditForm = ref<AiDeliveryPromptEditForm>({
   name: '',
   prompt: '',
   extraPrompt: '',
@@ -91,7 +138,7 @@ const aiDeliveryPromptEditForm = ref({
 const buildCurrentModelChannelKey = () =>
   Tools.buildModelChannelKey(form.value.provider, form.value.modelName);
 
-const ensureAiConfigExtSchema = () => {
+const ensureAiConfigExtSchema = (): AiConfigExt => {
   if (!aiConfigExt.value) {
     aiConfigExt.value = Tools.getAiConfigExt();
   }
@@ -175,7 +222,7 @@ const ensureGlobalPresetCatalog = () => {
   persistAiConfigExt();
 };
 
-const getCurrentChannelPresetList = () => {
+const getCurrentChannelPresetList = (): PromptPresetItem[] => {
   const ext = ensureAiConfigExtSchema();
   const key = buildCurrentModelChannelKey();
   const current = ext.promptPresetStore.personal[key];
@@ -183,35 +230,35 @@ const getCurrentChannelPresetList = () => {
     ext.promptPresetStore.personal[key] = [];
     persistAiConfigExt();
   }
-  return ext.promptPresetStore.personal[key];
+  return ext.promptPresetStore.personal[key] || [];
 };
 
-const getMergedPresetList = () => {
+const getMergedPresetList = (): PromptPreset[] => {
   const ext = ensureAiConfigExtSchema();
-  const channelPresetList = getCurrentChannelPresetList().map((preset) => ({
+  const channelPresetList = getCurrentChannelPresetList().map((preset: PromptPresetItem) => ({
     ...preset,
-    scope: 'personal',
+    scope: 'personal' as PromptPresetScope,
   }));
   const channelNameSet = new Set(
     channelPresetList.map((preset) => `${preset.name || ''}`.trim()).filter((name) => !!name)
   );
   const globalPresetList = (ext.promptPresetStore.global || [])
-    .filter((preset) => {
+    .filter((preset: PromptPresetItem) => {
       const name = `${preset.name || ''}`.trim();
       return !name || !channelNameSet.has(name);
     })
-    .map((preset) => ({ ...preset, scope: 'global' }));
+    .map((preset: PromptPresetItem) => ({ ...preset, scope: 'global' as PromptPresetScope }));
   return [...globalPresetList, ...channelPresetList];
 };
 
-const getPresetById = (presetId) => {
+const getPresetById = (presetId: string | null | undefined): PromptPreset | null => {
   if (!presetId) {
     return null;
   }
   return getMergedPresetList().find((preset) => preset.id === presetId) || null;
 };
 
-const presetOptions = computed(() => {
+const presetOptions = computed<PromptPresetOption[]>(() => {
   return getMergedPresetList().map((preset) => ({
     ...preset,
     optionLabel: `${preset.scope === 'personal' ? '[模型]' : '[全局]'} ${preset.name}`,
@@ -243,7 +290,7 @@ const compareWithLastConfig = () => {
     return false;
   }
   const currentConfig = form.value;
-  const normalizeCompletionsPath = (path) => {
+  const normalizeCompletionsPath = (path: string | null | undefined): string => {
     return !path || path.trim() === '' ? '' : path;
   };
   return (
@@ -256,7 +303,7 @@ const compareWithLastConfig = () => {
   );
 };
 
-const handleProviderChange = (value, keepModelName = false) => {
+const handleProviderChange = (value: number, keepModelName = false): void => {
   availableModels.value = modelOptions[value] || [];
   if (!keepModelName) {
     form.value.modelName = '';
@@ -278,9 +325,14 @@ const fetchAllProviderDetails = async () => {
       silentNetworkToast: true,
     });
     if (response.data.code === 200) {
-      const details = response.data.data;
-      providerDetails.value = details.reduce((acc, detail) => {
-        acc[detail.code] = detail;
+      const details = Array.isArray(response.data.data)
+        ? (response.data.data as ProviderDetail[])
+        : [];
+      providerDetails.value = details.reduce<ProviderDetailsMap>((acc, detail) => {
+        const code = Number(detail.code);
+        if (Number.isFinite(code)) {
+          acc[code] = detail;
+        }
         return acc;
       }, {});
     }
@@ -349,15 +401,15 @@ const fetchConfig = async () => {
 };
 
 watch(
-  () => ({
-    provider: form.value.provider,
-    modelName: form.value.modelName,
-    apiKey: form.value.apiKey,
-    baseUrl: form.value.baseUrl,
-    completionsPath: form.value.completionsPath,
-    timeout: form.value.timeout,
-    status: form.value.status,
-  }),
+  () => [
+    form.value.provider,
+    form.value.modelName,
+    form.value.apiKey,
+    form.value.baseUrl,
+    form.value.completionsPath,
+    form.value.timeout,
+    form.value.status,
+  ],
   () => {
     const isDataUnchanged = compareWithLastConfig();
     if (!isDataUnchanged) {
@@ -366,11 +418,10 @@ watch(
     if (lastFetchedConfig.value?.testPassed && isDataUnchanged) {
       form.value.testPassed = 1;
     }
-  },
-  { deep: true }
+  }
 );
 
-const doPersistConfig = async (endpoint) => {
+const doPersistConfig = async (endpoint: string): Promise<boolean> => {
   if (Number(form.value.provider) === 0) {
     syncCurrentChannelToExt();
     return true;
@@ -446,7 +497,7 @@ const handleSavePrompt = async () => {
 const buildAiDeliveryPromptId = () =>
   `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-const getAiDeliveryPromptStore = () => {
+const getAiDeliveryPromptStore = (): AiDeliveryPromptStore => {
   const ext = ensureAiConfigExtSchema();
   if (!ext.aiDeliveryPromptStore || typeof ext.aiDeliveryPromptStore !== 'object') {
     ext.aiDeliveryPromptStore = { items: [], activePromptId: '' };
@@ -460,12 +511,18 @@ const getAiDeliveryPromptStore = () => {
   return ext.aiDeliveryPromptStore;
 };
 
-const aiDeliveryPromptList = computed(() => getAiDeliveryPromptStore().items || []);
-const activeAiDeliveryPromptId = computed(() => getAiDeliveryPromptStore().activePromptId || '');
+const aiDeliveryPromptList = computed<AiDeliveryPromptItem[]>(
+  () => getAiDeliveryPromptStore().items || []
+);
+const activeAiDeliveryPromptId = computed<string>(
+  () => getAiDeliveryPromptStore().activePromptId || ''
+);
 
-const getActiveAiDeliveryPrompt = () => {
+const getActiveAiDeliveryPrompt = (): AiDeliveryPromptItem | null => {
   const store = getAiDeliveryPromptStore();
-  const active = (store.items || []).find((item) => item.id === store.activePromptId);
+  const active = (store.items || []).find(
+    (item: AiDeliveryPromptItem) => item.id === store.activePromptId
+  );
   return active || store.items[0] || null;
 };
 
@@ -530,8 +587,10 @@ const startNewAiDeliveryPrompt = () => {
   aiDeliveryPromptView.value = 'edit';
 };
 
-const startEditAiDeliveryPrompt = (id) => {
-  const item = getAiDeliveryPromptStore().items.find((entry) => entry.id === id);
+const startEditAiDeliveryPrompt = (id: string): void => {
+  const item = getAiDeliveryPromptStore().items.find(
+    (entry: AiDeliveryPromptItem) => entry.id === id
+  );
   if (!item) {
     showAppMessage({ type: 'warning', message: '提示词不存在' });
     return;
@@ -592,9 +651,9 @@ const saveAiDeliveryPromptItem = () => {
   backToAiDeliveryPromptList();
 };
 
-const activateAiDeliveryPrompt = (id) => {
+const activateAiDeliveryPrompt = (id: string): void => {
   const store = getAiDeliveryPromptStore();
-  const item = store.items.find((entry) => entry.id === id);
+  const item = store.items.find((entry: AiDeliveryPromptItem) => entry.id === id);
   if (!item) {
     showAppMessage({ type: 'warning', message: '提示词不存在' });
     return;
@@ -605,9 +664,15 @@ const activateAiDeliveryPrompt = (id) => {
   showAppMessage({ type: 'success', message: `已启用：${item.name}` });
 };
 
-const deleteAiDeliveryPrompt = async (id) => {
+const handleAiDeliveryPromptSwitch = (id: string, value: boolean | string | number): void => {
+  if (Boolean(value)) {
+    activateAiDeliveryPrompt(id);
+  }
+};
+
+const deleteAiDeliveryPrompt = async (id: string): Promise<void> => {
   const store = getAiDeliveryPromptStore();
-  const item = store.items.find((entry) => entry.id === id);
+  const item = store.items.find((entry: AiDeliveryPromptItem) => entry.id === id);
   if (!item) {
     return;
   }
@@ -623,7 +688,7 @@ const deleteAiDeliveryPrompt = async (id) => {
     return;
   }
 
-  const index = store.items.findIndex((entry) => entry.id === id);
+  const index = store.items.findIndex((entry: AiDeliveryPromptItem) => entry.id === id);
   if (index < 0) {
     return;
   }
@@ -656,7 +721,7 @@ const handleSaveAiDeliveryPrompt = () => {
   syncAiDeliveryPromptToJudgeConfig(true);
 };
 
-const handleTest = async () => {
+const handleTest = async (): Promise<void> => {
   isTestLoading.value = true;
   try {
     const response = await request.post('/api/user/ai/config/test', form.value, {
@@ -776,9 +841,7 @@ onMounted(async () => {
                         <el-switch
                           :model-value="activeAiDeliveryPromptId === item.id"
                           size="small"
-                          @update:model-value="
-                            (value) => value && activateAiDeliveryPrompt(item.id)
-                          "
+                          @update:model-value="handleAiDeliveryPromptSwitch(item.id, $event)"
                         />
                         <span
                           class="status-text"
@@ -879,6 +942,7 @@ onMounted(async () => {
 
     <div class="boss-card mt-16 api-card-section">
       <div class="card-title">模型与 API 配置</div>
+      <div class="ai-section-desc">支持多供应商模板、协议切换与直连测试，配置仅保存在本地。</div>
       <ApiKeyManager />
     </div>
 
@@ -908,7 +972,7 @@ onMounted(async () => {
 }
 
 .mt-16 {
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 .mt-24 {
@@ -950,7 +1014,7 @@ onMounted(async () => {
 }
 
 .nested-card {
-  background: #fff;
+  background: #fcfcfd;
   border: 1px solid #f0f2f5;
   border-radius: 8px;
   overflow: hidden;
@@ -968,7 +1032,8 @@ onMounted(async () => {
   font-size: 13px;
   color: #888;
   line-height: 1.6;
-  border-bottom: 1px solid #f8f9fa;
+  border-bottom: none;
+  margin-bottom: 2px;
 }
 
 .nested-body {
@@ -983,7 +1048,15 @@ onMounted(async () => {
   justify-content: space-between;
   padding: 12px 20px;
   border-top: 1px solid #f0f2f5;
-  background: #fafafa;
+  background: transparent;
+}
+
+.api-card-section {
+  border-style: dashed;
+}
+
+.api-card-section .ai-section-desc {
+  margin-bottom: 14px;
 }
 
 .delivery-view-wrapper {
@@ -992,38 +1065,26 @@ onMounted(async () => {
 }
 
 .delivery-view-panels {
-  display: flex;
-  width: 200%;
-  transition: transform 0.28s ease;
-}
-
-.delivery-view-wrapper.is-edit .delivery-view-panels {
-  transform: translateX(-50%);
+  display: block;
+  width: 100%;
 }
 
 .delivery-view-list,
 .delivery-view-edit {
-  width: 50%;
-  flex-shrink: 0;
+  width: 100%;
   padding: 2px;
 }
 
 .delivery-view-edit {
-  visibility: hidden;
-  height: 0;
-  overflow: hidden;
+  display: none;
 }
 
 .delivery-view-wrapper.is-edit .delivery-view-edit {
-  visibility: visible;
-  height: auto;
-  overflow: visible;
+  display: block;
 }
 
 .delivery-view-wrapper.is-edit .delivery-view-list {
-  visibility: hidden;
-  height: 0;
-  overflow: hidden;
+  display: none;
 }
 
 .delivery-list-header {
@@ -1047,7 +1108,7 @@ onMounted(async () => {
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
-  transition: all 0.25s ease;
+  transition: border-color 0.2s ease;
 }
 
 .inner-card:last-child {
@@ -1057,7 +1118,6 @@ onMounted(async () => {
 .inner-card:hover {
   border-color: var(--boss-primary, #00bebd);
   box-shadow: 0 4px 12px rgba(0, 190, 189, 0.08);
-  transform: translateY(-2px);
 }
 
 .inner-title {
@@ -1116,7 +1176,16 @@ onMounted(async () => {
 
 .status-text {
   font-size: 13px;
-  transition: all 0.3s;
+  transition: color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .delivery-view-panels,
+  .inner-card,
+  .status-text {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 .status-text.is-active {

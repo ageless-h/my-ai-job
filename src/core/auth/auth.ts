@@ -267,10 +267,10 @@ export function userRemoteLoad(): void {
       const localResumeId = runtimeUserStore2.user?.resumeId;
       const localParsedResume = runtimeUserStore2.user?.parsedResume;
       const localAttachmentResume = runtimeUserStore2.user?.attachmentResume;
-      
+
       // 合并服务器数据
       runtimeUserStore2.user = resp?.data?.data;
-      
+
       // 恢复本地数据
       if (localImportedResume) {
         runtimeUserStore2.user.importedResume = localImportedResume;
@@ -284,7 +284,7 @@ export function userRemoteLoad(): void {
       if (localAttachmentResume) {
         runtimeUserStore2.user.attachmentResume = localAttachmentResume;
       }
-      
+
       if (!runtimeUserStore2?.user) {
         runtimeUserStore2.user = {};
         throw new Error('用户投递设置为空');
@@ -348,12 +348,21 @@ export function userRemoteLoad(): void {
         10,
         15
       );
-      runtimeUserStore2.user.preference.cleanerMaxScanCount =
-        runtimeUserStore2.user.preference.cleanerMaxScanCount || 120;
-      runtimeUserStore2.user.preference.cleanerMaxDeleteCount =
-        runtimeUserStore2.user.preference.cleanerMaxDeleteCount || 40;
-      runtimeUserStore2.user.preference.cleanerManualConfirmThreshold =
-        runtimeUserStore2.user.preference.cleanerManualConfirmThreshold || 20;
+      runtimeUserStore2.user.preference.cleanerMaxScanCount = upgradePrefNumber(
+        runtimeUserStore2.user.preference.cleanerMaxScanCount,
+        60,
+        300
+      );
+      runtimeUserStore2.user.preference.cleanerMaxDeleteCount = upgradePrefNumber(
+        runtimeUserStore2.user.preference.cleanerMaxDeleteCount,
+        10,
+        80
+      );
+      runtimeUserStore2.user.preference.cleanerManualConfirmThreshold = upgradePrefNumber(
+        runtimeUserStore2.user.preference.cleanerManualConfirmThreshold,
+        8,
+        30
+      );
       runtimeUserStore2.user.preference.autoContactMinIntervalSec = upgradePrefNumber(
         runtimeUserStore2.user.preference.autoContactMinIntervalSec,
         12,

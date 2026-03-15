@@ -615,7 +615,7 @@ onUpdated(() => {
   right: 0;
   height: 100vh;
   background: var(--ai-bg);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(6px);
   box-shadow: var(--ai-shadow);
   display: flex;
   flex-direction: column;
@@ -623,10 +623,9 @@ onUpdated(() => {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   overflow: hidden;
-  transition:
-    transform 0.4s cubic-bezier(0.19, 1, 0.22, 1),
-    width 0.3s ease;
-  will-change: transform, width;
+  transition: transform 0.24s cubic-bezier(0.19, 1, 0.22, 1);
+  will-change: transform;
+  contain: paint;
   transform: translateX(0);
 }
 
@@ -663,7 +662,7 @@ onUpdated(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  box-shadow: 0 0 15px var(--ai-primary);
+  box-shadow: 0 0 8px var(--ai-primary);
 }
 
 /* Header */
@@ -708,7 +707,9 @@ onUpdated(() => {
   cursor: pointer;
   border-radius: 6px;
   color: var(--ai-text-sub);
-  transition: all 0.2s;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
 }
 
 :deep(.ai-sidebar-minimize:hover) {
@@ -747,7 +748,10 @@ onUpdated(() => {
   color: var(--ai-text-sub);
   cursor: pointer;
   position: relative;
-  transition: all 0.3s;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
   user-select: none;
   gap: 6px;
   overflow: hidden;
@@ -814,7 +818,7 @@ onUpdated(() => {
   width: auto;
   overflow: hidden;
   padding: 0;
-  animation: ai-fade-in 0.4s ease-out;
+  animation: none;
 }
 
 @keyframes ai-fade-in {
@@ -857,7 +861,11 @@ onUpdated(() => {
 /* ===== Sub-component Styles (Element Plus) ===== */
 :deep(.el-button) {
   border-radius: var(--ai-radius);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
   font-weight: 500;
 }
 
@@ -866,13 +874,14 @@ onUpdated(() => {
 }
 
 :deep(.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):hover) {
-  box-shadow: 0 6px 16px rgba(0, 190, 189, 0.3);
   transform: translateY(-1px);
 }
 
 :deep(.el-input .el-input__wrapper) {
   border-radius: var(--ai-radius);
-  transition: all 0.3s;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 :deep(.el-input .el-input__wrapper.is-focus) {
@@ -1054,7 +1063,10 @@ onUpdated(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--ai-text-main);
-  transition: all 0.3s;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 :deep(.el-collapse-item__header.is-active) {
   border-bottom-left-radius: 0;
@@ -1143,7 +1155,10 @@ onUpdated(() => {
   justify-content: center;
   cursor: pointer;
   box-shadow: none;
-  transition: all 0.22s ease;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
   user-select: none;
   color: var(--ai-primary);
 }
@@ -1183,8 +1198,28 @@ onUpdated(() => {
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: all 0.3s;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
   transform: translateX(10px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :deep(.ai-sidebar),
+  :deep(.ai-sidebar-minimize),
+  :deep(.ai-nav-tab),
+  :deep(.el-button),
+  :deep(.el-input .el-input__wrapper),
+  :deep(.el-collapse-item__header),
+  :deep(.ai-fab),
+  :deep(.ai-fab::after) {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  :deep(.ai-sidebar) {
+    backdrop-filter: none !important;
+  }
 }
 
 :deep(.ai-fab:hover::after) {

@@ -10,6 +10,7 @@
  * 4. 以最小暴露原则读取页面上下文中的敏感字段。
  */
 
+import { getModelConfigHosts } from './config-manager';
 declare const unsafeWindow: Window & Record<string, unknown>;
 
 const _unsafeWindow = (typeof unsafeWindow !== 'undefined'
@@ -149,27 +150,9 @@ export function getTrustedOutboundHosts(
   aiConfigExt: Record<string, unknown>,
   extraHosts: string[] = []
 ): string[] {
-  const apiConfigHosts = Array.isArray(aiConfigExt.apiConfigs)
-    ? (aiConfigExt.apiConfigs as Array<Record<string, unknown>>)
-        .map((config) => {
-          const baseUrl = `${config?.baseUrl || ''}`.trim();
-          if (!baseUrl) {
-            return '';
-          }
-          try {
-            // 将配置中的基础地址统一解析为 URL，既支持完整协议地址，也兼容只填写主机名的场景。
-            const parsed = /^https?:\/\//i.test(baseUrl)
-              ? new URL(baseUrl)
-              : new URL(`https://${baseUrl}`);
-            return normalizeHostname(parsed.hostname);
-          } catch (_e) {
-            // 非法地址不参与白名单构建，避免异常配置污染最终的可信主机集合。
-            return '';
-          }
-        })
-        // 即使来自配置项，也必须再次过滤本地/私有地址，防止用户误配置将请求导向内网。
-        .filter((host) => !!host && !isPrivateOrLocalHost(host))
-    : [];
+  const apiConfigHosts = getModelConfigHosts(aiConfigExt)
+    // 即使来自配置项，也必须再次过滤本地/私有地址，防止用户误配置将请求导向内网。
+    .filter((host) => !!host && !isPrivateOrLocalHost(host));
   const customHosts = Array.isArray(aiConfigExt.trustedApiHosts)
     ? aiConfigExt.trustedApiHosts.map((host) => normalizeHostname(`${host || ''}`)).filter(Boolean)
     : [];

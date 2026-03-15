@@ -4,6 +4,8 @@
  * 管理用户对敏感数据（简历、API密钥）存储的授权状态
  */
 
+import { getAllModelConfigs } from './config-manager';
+
 declare const GM_getValue: (<T = unknown>(key: string, defaultValue?: T) => T) | undefined;
 declare const GM_setValue: (<T = unknown>(key: string, value: T) => void) | undefined;
 declare const GM_deleteValue: ((key: string) => void) | undefined;
@@ -172,14 +174,13 @@ export function clearAllSensitiveData(): void {
     const aiConfigExt = _GM_getValue?.('ai-job-ai-config-ext', '') as string;
     if (aiConfigExt) {
       const config = JSON.parse(aiConfigExt);
-      if (Array.isArray(config.apiConfigs)) {
-        config.apiConfigs.forEach((item: any) => {
-          const id = item?.id;
-          if (id) {
-            _GM_deleteValue?.(`ai-job-ai-config-key:${id}`);
-          }
-        });
-      }
+      const modelConfigs = getAllModelConfigs(config);
+      modelConfigs.forEach((item) => {
+        const id = `${item?.id || ''}`.trim();
+        if (id) {
+          _GM_deleteValue?.(`ai-job-ai-config-key:${id}`);
+        }
+      });
     }
 
     // 撤销授权

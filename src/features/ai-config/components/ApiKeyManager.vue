@@ -9,26 +9,57 @@
           </div>
           <el-button type="primary" @click="startNewConfig">新增配置</el-button>
         </div>
+
+        <div class="api-overview" v-if="apiConfigList.length">
+          <div class="api-overview__item">
+            <span class="api-overview__label">配置总数</span>
+            <strong class="api-overview__value">{{ apiConfigList.length }}</strong>
+          </div>
+          <div class="api-overview__item">
+            <span class="api-overview__label">当前启用模型</span>
+            <strong class="api-overview__value">{{ activeConfig?.modelName || '--' }}</strong>
+          </div>
+          <div class="api-overview__item">
+            <span class="api-overview__label">当前协议</span>
+            <strong class="api-overview__value">{{
+              getApiFormatLabel(activeConfig?.apiFormat)
+            }}</strong>
+          </div>
+        </div>
+
         <template v-if="apiConfigList.length">
           <div v-for="item in apiConfigList" :key="item.id" class="api-config-card">
-            <div class="api-config-card__meta">
-              <div class="api-config-card__line">
-                <span class="api-config-card__label">Base URL</span>
-                <span class="api-config-card__value">{{ item.baseUrl || '--' }}</span>
+            <div class="api-config-card__header">
+              <div class="api-config-card__title-wrap">
+                <div class="api-config-card__title">{{ item.modelName || '未命名模型' }}</div>
+                <div class="api-config-card__sub">{{ item.baseUrl || '--' }}</div>
               </div>
-              <div class="api-config-card__line">
-                <span class="api-config-card__label">模型</span>
-                <span class="api-config-card__value">{{ item.modelName || '--' }}</span>
-              </div>
-              <div class="api-config-card__line">
-                <span class="api-config-card__label">API Key</span>
-                <span class="api-config-card__value">{{ maskApiKey(item.apiKey) }}</span>
+              <div class="api-config-card__badges">
+                <el-tag size="small" type="info" effect="plain">
+                  {{ getApiFormatLabel(item.apiFormat) }}
+                </el-tag>
+                <el-tag size="small" :type="item.id === activeApiConfigId ? 'success' : 'info'">
+                  {{ item.id === activeApiConfigId ? '已启用' : '未启用' }}
+                </el-tag>
               </div>
             </div>
+
+            <div class="api-config-card__meta">
+              <div class="api-config-card__line">
+                <span class="api-config-card__label">API Key</span>
+                <span class="api-config-card__value api-config-card__value--mono">{{
+                  maskApiKey(item.apiKey)
+                }}</span>
+              </div>
+              <div class="api-config-card__line">
+                <span class="api-config-card__label">配置 ID</span>
+                <span class="api-config-card__value api-config-card__value--mono">{{
+                  item.id
+                }}</span>
+              </div>
+            </div>
+
             <div class="api-config-card__actions">
-              <el-tag size="small" :type="item.id === activeApiConfigId ? 'success' : 'info'">
-                {{ item.id === activeApiConfigId ? '已启用' : '未启用' }}
-              </el-tag>
               <div class="api-config-card__buttons">
                 <el-button size="small" type="primary" plain @click="startEditConfig(item.id)"
                   >编辑</el-button
@@ -56,47 +87,122 @@
           ref="formRef"
           :model="editForm"
           :rules="rules"
-          label-width="120px"
+          label-position="top"
+          label-width="0"
           class="config-form api-config-form"
         >
           <div class="api-edit-header">
             <el-button link type="primary" @click="backToList">← 返回列表</el-button>
             <span class="api-edit-title">{{ editingConfigId ? '编辑配置' : '新增配置' }}</span>
           </div>
+          <div class="api-edit-subtitle">先套用模板，再补充密钥并进行直连测试。</div>
 
-          <el-form-item label="BASE URL" prop="baseUrl">
-            <el-input
-              v-model="editForm.baseUrl"
-              placeholder="请输入 Base URL，如 https://api.openai.com/v1"
-            />
-          </el-form-item>
+          <div class="api-form-section">
+            <div class="api-form-section__title">快速套用模板</div>
+            <div class="api-form-section__desc">一键填充常用供应商配置，可再手动微调。</div>
 
-          <el-form-item label="API KEY" prop="apiKey">
-            <el-input v-model="editForm.apiKey" placeholder="请输入 API Key" show-password />
-          </el-form-item>
+            <el-form-item label="模型供应商模板">
+              <el-select
+                v-model="selectedPresetId"
+                clearable
+                filterable
+                :teleported="false"
+                placeholder="可选：直接套用内置供应商模板"
+                style="width: 100%"
+                @change="handlePresetProviderChange"
+              >
+                <el-option
+                  v-for="preset in presetProviderOptions"
+                  :key="preset.id"
+                  :label="`[${preset.apiFormat}] ${preset.name}`"
+                  :value="preset.id"
+                />
+              </el-select>
+              <div class="api-preset-tip">
+                模板将自动填充 Base URL、API 格式和默认模型（来源：内置模型目录）。
+              </div>
+              <div class="api-template-actions">
+                <el-button type="primary" plain @click="handleApplyPreset">应用模板</el-button>
+              </div>
+            </el-form-item>
+          </div>
 
-          <el-form-item label="模型名称" prop="modelName">
-            <el-input
-              v-model="editForm.modelName"
-              placeholder="请输入模型名称，如 gpt-4o / deepseek-chat"
-            />
-          </el-form-item>
+          <div class="api-form-section">
+            <div class="api-form-section__title">手动配置参数</div>
+            <div class="api-form-section__desc">
+              支持 OpenAI / Claude / Gemini 等协议的直连参数。
+            </div>
 
-          <el-form-item label="API 格式">
-            <el-select v-model="editForm.apiFormat" style="width: 100%" :teleported="false">
-              <el-option label="Chat Completions（标准）" value="completions" />
-              <el-option label="Responses API（GPT-5 系列）" value="responses" />
-            </el-select>
-          </el-form-item>
+            <el-form-item label="BASE URL" prop="baseUrl">
+              <el-input
+                v-model="editForm.baseUrl"
+                placeholder="请输入 Base URL，如 https://api.openai.com/v1"
+              />
+            </el-form-item>
 
-          <el-form-item>
-            <el-button type="info" :loading="isTempSaving" @click="handleTempSave">暂存</el-button>
-            <el-button type="success" :loading="isTestLoading" @click="handleTest"
-              >直连测试</el-button
-            >
-            <el-button type="primary" @click="saveApiConfig">保存配置</el-button>
-          </el-form-item>
-          <div class="api-test-note">网络超时会自动重试 1 次，鉴权/跨域/404 不重试</div>
+            <el-form-item label="API KEY" prop="apiKey">
+              <el-input v-model="editForm.apiKey" placeholder="请输入 API Key" show-password />
+              <div v-if="selectedPresetLink" class="api-preset-link-row">
+                <el-link
+                  :href="selectedPresetLink.apiKeyUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  type="primary"
+                  >获取 API Key</el-link
+                >
+                <el-tag
+                  v-if="selectedPresetLink.linkType === 'invite'"
+                  size="small"
+                  type="warning"
+                  effect="plain"
+                  >邀请链接</el-tag
+                >
+              </div>
+              <div
+                v-if="selectedPresetLink && selectedPresetLink.linkType === 'invite'"
+                class="api-preset-note"
+              >
+                该链接为邀请链接，可在 `model-catalog.ts` 中替换为你的专属邀请链接。
+              </div>
+            </el-form-item>
+
+            <el-form-item label="模型名称" prop="modelName">
+              <el-input
+                v-model="editForm.modelName"
+                placeholder="请输入模型名称，如 gpt-4o / deepseek-chat"
+              />
+            </el-form-item>
+
+            <el-form-item label="API 格式">
+              <el-select v-model="editForm.apiFormat" style="width: 100%" :teleported="false">
+                <el-option label="Chat Completions（标准）" value="completions" />
+                <el-option label="Responses API（GPT-5 系列）" value="responses" />
+                <el-option label="Anthropic Messages（Claude 生态）" value="anthropic-messages" />
+                <el-option
+                  label="Google Generative AI（Gemini 生态）"
+                  value="google-generative-ai"
+                />
+              </el-select>
+            </el-form-item>
+          </div>
+
+          <div class="api-form-actions">
+            <div class="api-action-status">
+              <el-tag v-if="editForm.testPassed === 1" type="success" effect="plain"
+                >最近测试通过</el-tag
+              >
+              <span class="api-test-note">网络超时会自动重试 1 次，鉴权/跨域/404 不重试</span>
+            </div>
+            <div class="api-action-buttons">
+              <el-button type="info" :loading="isTempSaving" @click="handleTempSave"
+                >暂存</el-button
+              >
+              <el-button type="success" :loading="isTestLoading" @click="handleTest"
+                >直连测试</el-button
+              >
+              <el-button type="primary" @click="saveApiConfig">保存配置</el-button>
+            </div>
+          </div>
         </el-form>
       </div>
     </div>
@@ -107,6 +213,13 @@
 // @ts-nocheck
 import { computed, inject, onMounted, ref } from 'vue';
 import { directTest } from '@/core/ai/direct-ai-client';
+import {
+  MODEL_PROVIDER_TEMPLATES,
+  getModelProviderApiKeyLink,
+  getModelProviderTemplateById,
+  isSupportedDirectModelProtocol,
+} from '@/features/ai-config/constants/model-catalog';
+import { Tools } from '@/shared/utils/tools';
 
 const state = inject('aiConfigState');
 if (!state) {
@@ -119,6 +232,7 @@ const editingConfigId = ref(null);
 const formRef = ref();
 const isTestLoading = ref(false);
 const isTempSaving = ref(false);
+const selectedPresetId = ref('');
 const editForm = ref({
   provider: 0,
   modelName: '',
@@ -130,6 +244,66 @@ const editForm = ref({
   status: 0,
   testPassed: 0,
 });
+
+const notify = (payload) => {
+  const normalized = {
+    type: payload?.type || 'info',
+    message: `${payload?.message || ''}`,
+    duration: payload?.duration,
+    showClose: payload?.showClose,
+  };
+  if (typeof state.showAppMessage === 'function') {
+    state.showAppMessage(normalized);
+    return;
+  }
+  console.warn('[ApiKeyManager] 缺少 showAppMessage 注入', normalized);
+};
+
+const normalizeApiFormat = (value) => {
+  if (value === 'responses') {
+    return 'responses';
+  }
+  if (value === 'anthropic-messages') {
+    return 'anthropic-messages';
+  }
+  if (value === 'google-generative-ai') {
+    return 'google-generative-ai';
+  }
+  return 'completions';
+};
+
+const normalizeBaseUrl = (value) => `${value || ''}`.trim().replace(/\/+$/, '').toLowerCase();
+
+const isTemplateBaseUrl = (value) => /\$\{[^}]+\}/.test(`${value || ''}`);
+
+const selectedPreset = computed(() => getModelProviderTemplateById(selectedPresetId.value));
+const selectedPresetLink = computed(() => {
+  const preset = selectedPreset.value;
+  if (!preset) {
+    return null;
+  }
+  return getModelProviderApiKeyLink(preset.id);
+});
+const presetProviderOptions = computed(() => MODEL_PROVIDER_TEMPLATES);
+const activeConfig = computed(() => {
+  const activeId = `${activeApiConfigId.value || ''}`.trim();
+  if (!activeId) {
+    return null;
+  }
+  return apiConfigList.value.find((item) => `${item?.id || ''}`.trim() === activeId) || null;
+});
+
+const apiFormatLabelMap = {
+  completions: 'Completions',
+  responses: 'Responses',
+  'anthropic-messages': 'Anthropic',
+  'google-generative-ai': 'Gemini',
+};
+
+const getApiFormatLabel = (value) => {
+  const key = `${value || ''}`.trim();
+  return apiFormatLabelMap[key] || key || '--';
+};
 
 const rules = {
   modelName: [
@@ -150,7 +324,10 @@ const rules = {
   baseUrl: [{ required: true, message: 'Base URL 不能为空', trigger: 'change' }],
 };
 
-const activeApiConfigId = computed(() => `${state.aiConfigExt.value?.activeApiConfigId || ''}`);
+const activeApiConfigId = computed(() => {
+  const ext = state.aiConfigExt.value || {};
+  return Tools.getModelConfigState(ext).activeConfigId;
+});
 
 const createApiConfigId = () => {
   return `api-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -166,10 +343,129 @@ const normalizeApiConfigItem = (config) => {
     baseUrl: `${current.baseUrl || ''}`,
     timeout: Number(current.timeout || 60),
     completionsPath: `${current.completionsPath || ''}`,
-    apiFormat: current.apiFormat === 'responses' ? 'responses' : 'completions',
+    apiFormat: normalizeApiFormat(current.apiFormat),
     status: Number(current.status || 0),
     testPassed: Number(current.testPassed || 0),
   };
+};
+
+const syncPresetSelectionFromConfig = (config) => {
+  const normalized = normalizeApiConfigItem(config);
+  const normalizedBase = normalizeBaseUrl(normalized.baseUrl);
+  const normalizedFormat = normalizeApiFormat(normalized.apiFormat);
+
+  const matchedPreset = MODEL_PROVIDER_TEMPLATES.find((preset) => {
+    if (!preset.baseUrl) {
+      return false;
+    }
+    if (normalizeBaseUrl(preset.baseUrl) !== normalizedBase) {
+      return false;
+    }
+    if (isSupportedDirectModelProtocol(preset.apiFormat)) {
+      return normalizeApiFormat(preset.apiFormat) === normalizedFormat;
+    }
+    return false;
+  });
+
+  if (!matchedPreset) {
+    selectedPresetId.value = '';
+    return;
+  }
+
+  selectedPresetId.value = matchedPreset.id;
+};
+
+const applyPresetToEditForm = (presetId) => {
+  const preset = getModelProviderTemplateById(presetId);
+  if (!preset) {
+    return;
+  }
+
+  if (preset.baseUrl) {
+    editForm.value.baseUrl = preset.baseUrl;
+    if (isTemplateBaseUrl(preset.baseUrl)) {
+      notify({
+        type: 'warning',
+        message: `预设【${preset.name}】含模板变量，请先替换 URL 中的占位符后再测试`,
+        duration: 3800,
+      });
+    }
+  }
+
+  if (isSupportedDirectModelProtocol(preset.apiFormat)) {
+    editForm.value.apiFormat = normalizeApiFormat(preset.apiFormat);
+  } else {
+    notify({
+      type: 'warning',
+      message: `预设【${preset.name}】使用 ${preset.apiFormat} 协议，当前脚本暂不支持自动直连该协议`,
+      duration: 4200,
+    });
+  }
+
+  const nextModel = `${preset.models[0]?.id || ''}`.trim();
+  if (nextModel) {
+    editForm.value.modelName = nextModel;
+  }
+  editForm.value.testPassed = 0;
+};
+
+const handlePresetProviderChange = (presetId) => {
+  if (!presetId) {
+    return;
+  }
+  applyPresetToEditForm(presetId);
+};
+
+const handleApplyPreset = () => {
+  if (!selectedPresetId.value) {
+    notify({ type: 'warning', message: '请先选择供应商模板' });
+    return;
+  }
+
+  const currentPreset = selectedPreset.value;
+  applyPresetToEditForm(selectedPresetId.value);
+
+  if (currentPreset && !isSupportedDirectModelProtocol(currentPreset.apiFormat)) {
+    notify({
+      type: 'error',
+      message: `预设【${currentPreset.name}】协议暂不支持，已填充信息但禁止测试/保存`,
+      duration: 4200,
+    });
+    return;
+  }
+  if (isTemplateBaseUrl(editForm.value.baseUrl)) {
+    notify({
+      type: 'warning',
+      message: '预设 URL 含模板变量，请先替换占位符后再测试/保存',
+      duration: 4200,
+    });
+    return;
+  }
+  notify({ type: 'success', message: '已应用预设配置，请补充 API Key 后可测试' });
+};
+
+const ensureEditablePresetSupport = (actionLabel) => {
+  const preset = selectedPreset.value;
+  if (preset && !isSupportedDirectModelProtocol(preset.apiFormat)) {
+    notify({
+      type: 'error',
+      message: `${actionLabel}失败：预设【${preset.name}】使用 ${preset.apiFormat}，当前脚本暂不支持该协议`,
+      duration: 4500,
+      showClose: true,
+    });
+    return false;
+  }
+
+  if (isTemplateBaseUrl(editForm.value.baseUrl)) {
+    notify({
+      type: 'error',
+      message: `${actionLabel}失败：Base URL 仍包含模板占位符，请先替换后重试`,
+      duration: 4500,
+      showClose: true,
+    });
+    return false;
+  }
+  return true;
 };
 
 const maskApiKey = (apiKey) => {
@@ -185,6 +481,7 @@ const maskApiKey = (apiKey) => {
 const applyApiConfigToForm = (config) => {
   const normalizedConfig = normalizeApiConfigItem(config);
   editForm.value = { ...normalizedConfig };
+  syncPresetSelectionFromConfig(normalizedConfig);
 };
 
 const syncEditFormToParent = (config) => {
@@ -205,13 +502,9 @@ const syncEditFormToParent = (config) => {
 };
 
 const persistApiConfigList = (nextList, nextActiveId = void 0) => {
-  const ext = state.ensureAiConfigExtSchema();
-  ext.apiConfigs = nextList.map((item) => normalizeApiConfigItem(item));
-  if (nextActiveId !== void 0) {
-    ext.activeApiConfigId = nextActiveId || '';
-  }
-  state.persistAiConfigExt();
-  apiConfigList.value = ext.apiConfigs.map((item) => ({ ...item }));
+  const modelState = Tools.saveModelConfigState(nextList, nextActiveId);
+  state.aiConfigExt.value = Tools.getAiConfigExt();
+  apiConfigList.value = modelState.configs.map((item) => ({ ...item }));
 };
 
 const syncActiveConfigToParent = (list, activeId) => {
@@ -226,25 +519,9 @@ const syncActiveConfigToParent = (list, activeId) => {
 };
 
 const loadApiConfigs = () => {
-  const ext = state.ensureAiConfigExtSchema();
-  const rawList = Array.isArray(ext.apiConfigs) ? ext.apiConfigs : [];
-  let list = rawList.map((item) => normalizeApiConfigItem(item));
-  let activeId = typeof ext.activeApiConfigId === 'string' ? ext.activeApiConfigId : '';
-  let changed = rawList.some((item, index) => {
-    const current = item || {};
-    const normalized = list[index] || {};
-    return (
-      `${current.id || ''}` !== `${normalized.id || ''}` ||
-      `${current.modelName || ''}` !== `${normalized.modelName || ''}` ||
-      `${current.apiKey || ''}` !== `${normalized.apiKey || ''}` ||
-      `${current.baseUrl || ''}` !== `${normalized.baseUrl || ''}` ||
-      Number(current.timeout || 60) !== Number(normalized.timeout || 60) ||
-      `${current.completionsPath || ''}` !== `${normalized.completionsPath || ''}` ||
-      `${current.apiFormat || 'completions'}` !== `${normalized.apiFormat || 'completions'}` ||
-      Number(current.status || 0) !== Number(normalized.status || 0) ||
-      Number(current.testPassed || 0) !== Number(normalized.testPassed || 0)
-    );
-  });
+  const modelState = Tools.getModelConfigState(state.aiConfigExt.value || {});
+  let list = modelState.configs.map((item) => normalizeApiConfigItem(item));
+  let activeId = modelState.activeConfigId;
 
   if (
     !list.length &&
@@ -255,34 +532,6 @@ const loadApiConfigs = () => {
     if (defaultConfig.status === 1) {
       activeId = defaultConfig.id;
     }
-    changed = true;
-  }
-
-  if (activeId && !list.some((item) => item.id === activeId)) {
-    activeId = '';
-    changed = true;
-  }
-
-  if (!activeId) {
-    const enabledItem = list.find((item) => item.status === 1);
-    if (enabledItem) {
-      activeId = enabledItem.id;
-      changed = true;
-    }
-  }
-
-  if (activeId) {
-    const normalizedStatusList = list.map((item) => ({
-      ...item,
-      status: item.id === activeId ? 1 : 0,
-    }));
-    if (normalizedStatusList.some((item, index) => item.status !== list[index].status)) {
-      list = normalizedStatusList;
-      changed = true;
-    }
-  }
-
-  if (changed) {
     persistApiConfigList(list, activeId);
     syncActiveConfigToParent(list, activeId);
     return;
@@ -299,6 +548,7 @@ const backToList = () => {
 
 const startNewConfig = () => {
   editingConfigId.value = null;
+  selectedPresetId.value = '';
   editForm.value = {
     provider: 0,
     modelName: '',
@@ -316,7 +566,7 @@ const startNewConfig = () => {
 const startEditConfig = (id) => {
   const selected = apiConfigList.value.find((item) => item.id === id);
   if (!selected) {
-    state.ElMessage({ type: 'warning', message: '配置不存在' });
+    notify({ type: 'warning', message: '配置不存在' });
     return;
   }
   editingConfigId.value = id;
@@ -333,6 +583,9 @@ const saveApiConfig = async () => {
     if (!valid) {
       return;
     }
+    if (!ensureEditablePresetSupport('保存配置')) {
+      return;
+    }
 
     const id = editingConfigId.value || createApiConfigId();
     const nextItem = normalizeApiConfigItem({ ...editForm.value, id });
@@ -344,8 +597,8 @@ const saveApiConfig = async () => {
       nextList.unshift(nextItem);
     }
 
-    const ext = state.ensureAiConfigExtSchema();
-    let activeId = ext.activeApiConfigId || '';
+    const modelState = Tools.getModelConfigState(state.aiConfigExt.value || {});
+    let activeId = modelState.activeConfigId;
     if (nextItem.status === 1) {
       activeId = id;
     }
@@ -356,9 +609,12 @@ const saveApiConfig = async () => {
     }));
 
     persistApiConfigList(normalizedStatusList, activeId);
+    if (activeId && activeId === id) {
+      syncEditFormToParent({ ...nextItem, status: 1 });
+    }
     editingConfigId.value = id;
     apiView.value = 'list';
-    state.ElMessage({ type: 'success', message: '配置已保存' });
+    notify({ type: 'success', message: '配置已保存' });
   });
 };
 
@@ -387,21 +643,21 @@ const deleteApiConfig = async (id) => {
   const nextList = apiConfigList.value
     .filter((item) => item.id !== id)
     .map((item) => ({ ...item }));
-  const ext = state.ensureAiConfigExtSchema();
-  const activeId = ext.activeApiConfigId === id ? '' : ext.activeApiConfigId || '';
+  const modelState = Tools.getModelConfigState(state.aiConfigExt.value || {});
+  const activeId = modelState.activeConfigId === id ? '' : modelState.activeConfigId || '';
   persistApiConfigList(nextList, activeId);
 
   if (editingConfigId.value === id) {
     backToList();
   }
 
-  state.ElMessage({ type: 'success', message: '配置已删除' });
+  notify({ type: 'success', message: '配置已删除' });
 };
 
 const activateApiConfig = async (id) => {
   const selected = apiConfigList.value.find((item) => item.id === id);
   if (!selected) {
-    state.ElMessage({ type: 'warning', message: '配置不存在' });
+    notify({ type: 'warning', message: '配置不存在' });
     return;
   }
 
@@ -411,7 +667,7 @@ const activateApiConfig = async (id) => {
   }));
   persistApiConfigList(nextList, id);
   syncEditFormToParent({ ...selected, status: 1 });
-  state.ElMessage({ type: 'success', message: '配置已启用' });
+  notify({ type: 'success', message: '配置已启用' });
   backToList();
 };
 
@@ -426,6 +682,9 @@ const handleTempSave = async () => {
       if (!valid) {
         return;
       }
+      if (!ensureEditablePresetSupport('暂存配置')) {
+        return;
+      }
 
       const id = editingConfigId.value || createApiConfigId();
       const nextItem = normalizeApiConfigItem({ ...editForm.value, id });
@@ -437,8 +696,8 @@ const handleTempSave = async () => {
         nextList.unshift(nextItem);
       }
 
-      const ext = state.ensureAiConfigExtSchema();
-      let activeId = ext.activeApiConfigId || '';
+      const modelState = Tools.getModelConfigState(state.aiConfigExt.value || {});
+      let activeId = modelState.activeConfigId;
       if (nextItem.status === 1) {
         activeId = id;
       }
@@ -452,7 +711,7 @@ const handleTempSave = async () => {
       editingConfigId.value = id;
       applyApiConfigToForm(nextItem);
       syncEditFormToParent(nextItem);
-      state.ElMessage({ type: 'success', message: '暂存成功' });
+      notify({ type: 'success', message: '暂存成功' });
     });
   } finally {
     isTempSaving.value = false;
@@ -468,6 +727,9 @@ const handleTest = async () => {
     if (!valid) {
       return;
     }
+    if (!ensureEditablePresetSupport('直连测试')) {
+      return;
+    }
 
     isTestLoading.value = true;
     try {
@@ -476,16 +738,16 @@ const handleTest = async () => {
         baseUrl: editForm.value.baseUrl,
         apiKey: editForm.value.apiKey,
         modelName: editForm.value.modelName,
-        apiFormat: editForm.value.apiFormat || 'completions',
+        apiFormat: normalizeApiFormat(editForm.value.apiFormat),
         timeout: Number(editForm.value.timeout || 60),
       });
-      state.ElMessage({
+      notify({
         type: 'success',
         message: `直连测试通过: ${(answer || '').slice(0, 100)}`,
       });
       editForm.value.testPassed = 1;
     } catch (e) {
-      state.ElMessage({
+      notify({
         type: 'error',
         message: `直连测试失败: ${e?.message || e || ''}`,
         showClose: true,
@@ -508,93 +770,145 @@ onMounted(() => {
   overflow: hidden;
 }
 .api-view-panels {
-  display: flex;
-  width: 200%;
-  transition: transform 0.28s ease;
-}
-.api-view-wrapper.is-edit .api-view-panels {
-  transform: translateX(-50%);
+  display: block;
+  width: 100%;
 }
 .api-view-list,
 .api-view-edit {
-  width: 50%;
-  flex-shrink: 0;
+  width: 100%;
 }
 .api-view-edit {
-  visibility: hidden;
-  max-height: 0;
-  overflow: hidden;
+  display: none;
 }
 .api-view-wrapper.is-edit .api-view-edit {
-  visibility: visible;
-  max-height: none;
-  overflow: visible;
+  display: block;
 }
 .api-view-wrapper.is-edit .api-view-list {
-  visibility: hidden;
-  max-height: 0;
-  overflow: hidden;
+  display: none;
 }
 .api-config-list {
   padding-right: 2px;
 }
 .api-list-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 .api-list-tip-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 .api-list-tip {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+}
+.api-list-note {
+  font-size: 12px;
+  color: #67c23a;
+}
+.api-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.api-overview__item {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fafbfd;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.api-overview__label {
   font-size: 12px;
   color: #909399;
 }
-.api-list-note {
-  font-size: 11px;
-  color: #67c23a;
+.api-overview__value {
+  font-size: 13px;
+  color: #303133;
+  word-break: break-all;
 }
 .api-config-card {
   border: 1px solid var(--ai-border, #f0f2f5);
-  border-radius: var(--ai-radius-sm, 6px);
-  padding: 10px 12px;
+  border-radius: 8px;
+  padding: 12px 14px;
   margin-bottom: 10px;
-  background: var(--ai-bg-subtle, #f5f7fa);
-  box-shadow: var(--ai-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.api-config-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.api-config-card__title-wrap {
+  min-width: 0;
+}
+.api-config-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  line-height: 1.4;
+}
+.api-config-card__sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #909399;
+  word-break: break-all;
+}
+.api-config-card__badges {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .api-config-card__meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .api-config-card__line {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   font-size: 12px;
 }
 .api-config-card__label {
   color: #909399;
+  white-space: nowrap;
 }
 .api-config-card__value {
   color: #303133;
   word-break: break-all;
   text-align: right;
 }
+.api-config-card__value--mono {
+  font-family: Consolas, Monaco, Menlo, monospace;
+  font-size: 11px;
+}
 .api-config-card__actions {
-  margin-top: 10px;
+  margin-top: 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed #ebeef5;
 }
 .api-config-card__buttons {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .api-view-edit {
   padding-left: 4px;
@@ -603,20 +917,150 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 .api-edit-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #303133;
+}
+.api-edit-subtitle {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 12px;
 }
 .api-config-form {
   padding-right: 2px;
 }
-.api-test-note {
-  margin-top: -4px;
-  margin-bottom: 6px;
+
+:deep(.api-config-form .el-form-item) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+:deep(.api-config-form .el-form-item__label) {
+  width: 100% !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  height: auto !important;
+  line-height: 1.5;
+  padding: 0 0 6px !important;
+}
+
+:deep(.api-config-form .el-form-item__content) {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-left: 0 !important;
+  justify-content: flex-start;
+}
+
+.api-form-section {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 12px 12px 2px;
+  margin-bottom: 12px;
+  background: #fcfcfd;
+}
+.api-form-section__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+}
+.api-form-section__desc {
   font-size: 12px;
   color: #909399;
+  margin: 4px 0 10px;
+}
+.api-preset-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #909399;
+}
+.api-preset-link-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.api-preset-note {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #e6a23c;
+}
+.api-template-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-start;
+}
+.api-form-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 6px;
+  flex-wrap: wrap;
+  flex-direction: column;
+}
+.api-action-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  width: 100%;
+}
+.api-action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+:deep(.api-config-form .el-form-item__content) {
+  justify-content: flex-start;
+}
+
+:deep(.api-config-form .el-form-item__content .el-button) {
+  margin-left: 0 !important;
+}
+.api-test-note {
+  font-size: 12px;
+  color: #909399;
+}
+
+@media (max-width: 768px) {
+  .api-overview {
+    grid-template-columns: 1fr;
+  }
+  .api-list-header {
+    flex-direction: column;
+  }
+  .api-config-card__header {
+    flex-direction: column;
+  }
+  .api-config-card__line {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .api-config-card__value {
+    text-align: left;
+  }
+  .api-form-actions {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .api-view-panels,
+  .api-view-list,
+  .api-view-edit {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 </style>

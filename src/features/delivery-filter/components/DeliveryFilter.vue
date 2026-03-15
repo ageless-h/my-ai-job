@@ -5,9 +5,7 @@
     <!-- 硬性约束部分 - 始终执行 -->
     <div class="boss-card">
       <div class="card-title">硬性约束（始终执行）</div>
-      <div class="sub-desc mb-16">
-        以下规则在 AI 模式和传统模式下都会执行，作为投递的基础门槛。
-      </div>
+      <div class="sub-desc mb-16">以下规则在 AI 模式和传统模式下都会执行，作为投递的基础门槛。</div>
 
       <div class="switch-grid">
         <el-checkbox v-model="userStore.user.preference.fhE" border class="boss-grid-check"
@@ -93,7 +91,9 @@
               class="full-width"
               placeholder="输入技能并按回车确认，例如：Vue3"
             />
-            <div class="sub-desc mt-4">如果 JD 中明确不包含或不需要这些核心技能，AI 将给出低分。</div>
+            <div class="sub-desc mt-4">
+              如果 JD 中明确不包含或不需要这些核心技能，AI 将给出低分。
+            </div>
           </el-form-item>
 
           <el-form-item label="绝对排除关键词 (包含则一票否决)" class="mt-16">
@@ -106,7 +106,9 @@
               class="full-width"
               placeholder="输入排除词并按回车确认，例如：外包"
             />
-            <div class="sub-desc mt-4">输入关键词并按回车添加。AI 识别到这些词将直接拒绝该岗位。</div>
+            <div class="sub-desc mt-4">
+              输入关键词并按回车添加。AI 识别到这些词将直接拒绝该岗位。
+            </div>
           </el-form-item>
         </el-form>
 
@@ -158,7 +160,10 @@
         />
       </div>
 
-      <div v-if="userStore.user.preference.traditionalDeliveryE" class="traditional-config-section mt-16">
+      <div
+        v-if="userStore.user.preference.traditionalDeliveryE"
+        class="traditional-config-section mt-16"
+      >
         <div class="judge-divider"></div>
 
         <div class="card-subtitle mt-16">基本要求过滤</div>
@@ -166,18 +171,12 @@
         <div class="responsive-grid mt-16">
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.srE">薪资要求 (月薪k)</el-checkbox>
-            <el-input
-              v-model="userStore.user.preference.sr"
-              placeholder="例如：15-30"
-            />
+            <el-input v-model="userStore.user.preference.sr" placeholder="例如：15-30" />
           </el-form-item>
 
           <el-form-item class="custom-chk-label">
             <el-checkbox v-model="userStore.user.preference.csrE">公司规模范围</el-checkbox>
-            <el-input
-              v-model="userStore.user.preference.csr"
-              placeholder="例如：100-9999"
-            />
+            <el-input v-model="userStore.user.preference.csr" placeholder="例如：100-9999" />
           </el-form-item>
         </div>
 
@@ -460,15 +459,21 @@ const preferenceDefaultValueHandler = () => {
     10,
     15
   );
-  if (!userStore.user.preference.cleanerMaxScanCount) {
-    userStore.user.preference.cleanerMaxScanCount = 120;
-  }
-  if (!userStore.user.preference.cleanerMaxDeleteCount) {
-    userStore.user.preference.cleanerMaxDeleteCount = 40;
-  }
-  if (!userStore.user.preference.cleanerManualConfirmThreshold) {
-    userStore.user.preference.cleanerManualConfirmThreshold = 20;
-  }
+  userStore.user.preference.cleanerMaxScanCount = upgradePrefNumber(
+    userStore.user.preference.cleanerMaxScanCount,
+    60,
+    300
+  );
+  userStore.user.preference.cleanerMaxDeleteCount = upgradePrefNumber(
+    userStore.user.preference.cleanerMaxDeleteCount,
+    10,
+    80
+  );
+  userStore.user.preference.cleanerManualConfirmThreshold = upgradePrefNumber(
+    userStore.user.preference.cleanerManualConfirmThreshold,
+    8,
+    30
+  );
   userStore.user.preference.autoContactMinIntervalSec = upgradePrefNumber(
     userStore.user.preference.autoContactMinIntervalSec,
     12,
@@ -535,7 +540,7 @@ const submitForm = async () => {
 const resetForm = () => {
   userStore.user.preference = {};
   preferenceDefaultValueHandler();
-  
+
   // 重置 AI 配置
   aiForm.enabled = true;
   aiForm.includeUserProfile = true;

@@ -145,7 +145,9 @@
             class-name="col-timestamp"
           >
             <template #default="scope">
-              <span v-if="displayMode === 'compact'">{{ formatCompactTime(scope.row.timestamp) }}</span>
+              <span v-if="displayMode === 'compact'">{{
+                formatCompactTime(scope.row.timestamp)
+              }}</span>
               <span v-else>{{ scope.row.timestamp }}</span>
             </template>
           </el-table-column>
@@ -164,7 +166,11 @@
                 effect="plain"
                 class="level-tag"
               >
-                {{ displayMode === 'compact' ? getLevelShort(scope.row.level) : String(scope.row.level || '').toUpperCase() }}
+                {{
+                  displayMode === 'compact'
+                    ? getLevelShort(scope.row.level)
+                    : String(scope.row.level || '').toUpperCase()
+                }}
               </el-tag>
             </template>
           </el-table-column>
@@ -233,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Delete, Search, Setting } from '@element-plus/icons-vue';
 import { LogRecorder } from '@/core/engine/push-engine';
 
@@ -268,6 +274,18 @@ const filter = reactive<{
   actionType: '',
   aiDecision: '',
 });
+
+let filterFetchTimer: ReturnType<typeof setTimeout> | null = null;
+
+const scheduleFetchLogs = (delay = 120) => {
+  if (filterFetchTimer) {
+    clearTimeout(filterFetchTimer);
+  }
+  filterFetchTimer = setTimeout(() => {
+    fetchLogs();
+    filterFetchTimer = null;
+  }, delay);
+};
 
 const parseAiJudgeInfo = (message: string) => {
   const text = `${message || ''}`;
@@ -311,7 +329,12 @@ const parseAiJudgeInfo = (message: string) => {
 
 const detectActionType = (message: string): string => {
   const text = `${message || ''}`.toLowerCase();
-  if (text.includes('ai投递') || text.includes('投递判') || text.includes('投递成功') || text.includes('投递失败')) {
+  if (
+    text.includes('ai投递') ||
+    text.includes('投递判') ||
+    text.includes('投递成功') ||
+    text.includes('投递失败')
+  ) {
     return 'delivery';
   }
   if (text.includes('ai对话') || text.includes('ai回复') || text.includes('聊天')) {
@@ -467,17 +490,24 @@ watch(
   filter,
   () => {
     currentPage.value = 1;
-    fetchLogs();
+    scheduleFetchLogs(140);
   },
   { deep: true }
 );
 
 watch([displayMode, visibleColumns], () => {
-  fetchLogs();
-}, { deep: true });
+  scheduleFetchLogs(80);
+});
 
 onMounted(() => {
   fetchLogs();
+});
+
+onBeforeUnmount(() => {
+  if (filterFetchTimer) {
+    clearTimeout(filterFetchTimer);
+    filterFetchTimer = null;
+  }
 });
 </script>
 

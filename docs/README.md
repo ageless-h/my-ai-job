@@ -5,6 +5,9 @@ Documentation for this repository lives under `docs/`.
 ## Layout
 
 - `plans/` - design and implementation plans
+- `DOCS-INDEX.md` - full categorized document index
+- `无效会话清理逻辑与参数汇报.md` - cleaner strategy and parameter report
+- `链接.md` - provider invite links source list
 
 ## Architecture Notes
 
@@ -15,4 +18,4 @@ Documentation for this repository lives under `docs/`.
 
 - Keep root `README.md` focused on project overview and quick start.
 - Put detailed design or implementation notes in `docs/plans/`.
-- Prefer file names like `YYYY-MM-DD-topic.md`.
+- Prefer clear, descriptive file names (English or Chinese are both acceptable).

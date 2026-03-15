@@ -19,6 +19,36 @@ declare const GM_notification:
  * 该结构用于持久化 AI 面板的运行配置，包括当前选中的模型通道、记忆档案、
  * 提示词预设仓库、界面布局，以及为后续版本预留的扩展字段。
  */
+export interface PromptPresetItem {
+  id: string;
+  name: string;
+  content: string;
+  tags?: string[];
+  enabled?: boolean;
+  scope?: 'global' | 'personal';
+  [key: string]: unknown;
+}
+
+export interface PromptPresetStore {
+  global: PromptPresetItem[];
+  personal: Record<string, PromptPresetItem[]>;
+  globalPresetInitialized?: boolean;
+}
+
+export interface AiDeliveryPromptItem {
+  id: string;
+  name: string;
+  prompt: string;
+  extraPrompt: string;
+  updatedAt?: number;
+  [key: string]: unknown;
+}
+
+export interface AiDeliveryPromptStore {
+  items: AiDeliveryPromptItem[];
+  activePromptId: string;
+}
+
 export interface AiConfigExt {
   /** 当前激活的 AI 模型配置。 */
   currentConfig: {
@@ -30,12 +60,7 @@ export interface AiConfigExt {
   /** 按标识符索引的记忆档案集合。 */
   memoryProfiles: Record<string, unknown>;
   /** 提示词预设仓库，区分全局预设与个人预设。 */
-  promptPresetStore: {
-    /** 所有用户可共用的全局提示词预设列表。 */
-    global: unknown[];
-    /** 按用户、场景或业务维度保存的个人预设映射。 */
-    personal: Record<string, unknown>;
-  };
+  promptPresetStore: PromptPresetStore;
   /** 面板布局配置。 */
   uiLayout: {
     /** 当前界面布局风格标识。 */
@@ -43,6 +68,18 @@ export interface AiConfigExt {
     /** 允许布局配置携带额外扩展字段。 */
     [key: string]: unknown;
   };
+  /** 模型配置列表（兼容旧字段）。 */
+  apiConfigs?: ModelConfigItem[];
+  /** 当前激活的模型配置 ID（兼容旧字段）。 */
+  activeApiConfigId?: string;
+  /** 出站可信主机白名单（可选）。 */
+  trustedApiHosts?: string[];
+  /** 调试历史（按模型通道）。 */
+  debugHistoryByChannel?: Record<string, unknown[]>;
+  /** AI 投递提示词仓库。 */
+  aiDeliveryPromptStore?: AiDeliveryPromptStore;
+  /** AI 投递判断配置扩展槽位。 */
+  aiDeliveryJudge?: Partial<AiDeliveryJudgeConfig>;
   /** 允许历史版本或扩展功能写入附加字段。 */
   [key: string]: unknown;
 }
@@ -176,6 +213,198 @@ export function buildModelChannelKey(
   modelName: string | null | undefined
 ): string {
   return `${provider || 0}:${modelName || ''}`;
+}
+
+export type ModelApiFormat =
+  | 'completions'
+  | 'responses'
+  | 'anthropic-messages'
+  | 'google-generative-ai';
+
+export interface ModelConfigItem {
+  id: string;
+  provider: number;
+  modelName: string;
+  apiKey: string;
+  baseUrl: string;
+  timeout: number;
+  completionsPath: string;
+  apiFormat: ModelApiFormat;
+  status: 0 | 1;
+  testPassed: number;
+}
+
+export interface ModelConfigState {
+  configs: ModelConfigItem[];
+  activeConfigId: string;
+  activeConfig: ModelConfigItem | null;
+}
+
+function normalizeModelApiFormat(value: unknown): ModelApiFormat {
+  if (value === 'responses') {
+    return 'responses';
+  }
+  if (value === 'anthropic-messages') {
+    return 'anthropic-messages';
+  }
+  if (value === 'google-generative-ai') {
+    return 'google-generative-ai';
+  }
+  return 'completions';
+}
+
+function toModelProviderNumber(value: unknown): number {
+  const num = Number(value);
+  if (Number.isFinite(num)) {
+    return num;
+  }
+  return 0;
+}
+
+function buildFallbackModelConfigId(raw: Record<string, unknown>, index: number): string {
+  const model = `${raw.modelName || 'model'}`
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-');
+  const host = `${raw.baseUrl || 'host'}`
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${model || 'model'}-${host || 'host'}-${index + 1}`;
+}
+
+function normalizeModelConfigItem(raw: unknown, index = 0): ModelConfigItem {
+  const item = isPlainObject(raw) ? raw : {};
+  const id = `${item.id || ''}`.trim() || buildFallbackModelConfigId(item, index);
+  return {
+    id,
+    provider: toModelProviderNumber(item.provider),
+    modelName: `${item.modelName || ''}`,
+    apiKey: `${item.apiKey || ''}`,
+    baseUrl: `${item.baseUrl || ''}`,
+    timeout: Number(item.timeout || 60),
+    completionsPath: `${item.completionsPath || ''}`,
+    apiFormat: normalizeModelApiFormat(item.apiFormat),
+    status: Number(item.status || 0) === 1 ? 1 : 0,
+    testPassed: Number(item.testPassed || 0),
+  };
+}
+
+function normalizeModelConfigState(
+  rawConfigs: unknown,
+  rawActiveConfigId: unknown
+): ModelConfigState {
+  const configs = Array.isArray(rawConfigs)
+    ? rawConfigs.map((item, index) => normalizeModelConfigItem(item, index))
+    : [];
+
+  const uniqueConfigs: ModelConfigItem[] = [];
+  const seenIds = new Set<string>();
+  for (const config of configs) {
+    if (!config.id || seenIds.has(config.id)) {
+      continue;
+    }
+    seenIds.add(config.id);
+    uniqueConfigs.push(config);
+  }
+
+  const requestedActiveId = `${rawActiveConfigId || ''}`.trim();
+  let activeConfigId = '';
+  if (requestedActiveId && uniqueConfigs.some((item) => item.id === requestedActiveId)) {
+    activeConfigId = requestedActiveId;
+  } else {
+    activeConfigId = uniqueConfigs.find((item) => item.status === 1)?.id || '';
+  }
+
+  if (activeConfigId) {
+    for (const config of uniqueConfigs) {
+      config.status = config.id === activeConfigId ? 1 : 0;
+    }
+  }
+
+  const activeConfig = activeConfigId
+    ? uniqueConfigs.find((item) => item.id === activeConfigId) || null
+    : null;
+
+  return {
+    configs: uniqueConfigs,
+    activeConfigId,
+    activeConfig,
+  };
+}
+
+/**
+ * 获取归一化后的模型配置状态。
+ */
+export function getModelConfigState(extInput?: Record<string, unknown>): ModelConfigState {
+  const ext = isPlainObject(extInput) ? extInput : (getAiConfigExt() as Record<string, unknown>);
+  return normalizeModelConfigState(ext.apiConfigs, ext.activeApiConfigId);
+}
+
+/**
+ * 获取全部模型配置（已归一化）。
+ */
+export function getAllModelConfigs(extInput?: Record<string, unknown>): ModelConfigItem[] {
+  return getModelConfigState(extInput).configs;
+}
+
+/**
+ * 获取当前激活的模型配置（已归一化）。
+ */
+export function getActiveModelConfig(extInput?: Record<string, unknown>): ModelConfigItem | null {
+  return getModelConfigState(extInput).activeConfig;
+}
+
+/**
+ * 获取模型配置中声明的出站主机列表。
+ */
+export function getModelConfigHosts(extInput?: Record<string, unknown>): string[] {
+  const state = getModelConfigState(extInput);
+  const hostSet = new Set<string>();
+  for (const config of state.configs) {
+    const baseUrl = `${config.baseUrl || ''}`.trim();
+    if (!baseUrl) {
+      continue;
+    }
+    try {
+      const url = /^https?:\/\//i.test(baseUrl) ? new URL(baseUrl) : new URL(`https://${baseUrl}`);
+      const host = `${url.hostname || ''}`.trim().toLowerCase();
+      if (host) {
+        hostSet.add(host);
+      }
+    } catch (_error) {
+      continue;
+    }
+  }
+  return [...hostSet];
+}
+
+/**
+ * 按 canonical 规则保存模型配置状态，同时回写兼容字段。
+ */
+export function saveModelConfigState(
+  configs: unknown[],
+  activeConfigId?: string
+): ModelConfigState {
+  const ext = getAiConfigExt() as Record<string, unknown>;
+  const nextState = normalizeModelConfigState(
+    configs,
+    activeConfigId !== undefined ? activeConfigId : ext.activeApiConfigId
+  );
+
+  ext.apiConfigs = nextState.configs;
+  ext.activeApiConfigId = nextState.activeConfigId;
+  if (nextState.activeConfig) {
+    ext.currentConfig = {
+      provider: toModelProviderNumber(nextState.activeConfig.provider),
+      modelName: `${nextState.activeConfig.modelName || ''}`,
+    };
+  }
+
+  saveAiConfigExt(ext);
+  return nextState;
 }
 
 /**
@@ -347,16 +576,19 @@ export function getAiConfigExt(): AiConfigExt {
     // 主配置中的 API Key 会被剥离到独立存储槽，读取时需要按配置项 ID 补回敏感字段。
     const parsedApiConfigs = Array.isArray((parsed as Record<string, unknown>).apiConfigs)
       ? ((parsed as Record<string, unknown>).apiConfigs as Array<Record<string, unknown>>).map(
-          (item) => {
+          (item, index) => {
             const id = `${item?.id || ''}`;
             const persistedApiKey = id
               ? `${_GM_getValue?.(`${AI_CONFIG_API_KEY_STORAGE_PREFIX}${id}`, '') || ''}`
               : '';
             const fallbackApiKey = `${item?.apiKey || ''}`;
-            return {
-              ...item,
-              apiKey: persistedApiKey || fallbackApiKey,
-            };
+            return normalizeModelConfigItem(
+              {
+                ...item,
+                apiKey: persistedApiKey || fallbackApiKey,
+              },
+              index
+            );
           }
         )
       : [];
@@ -481,6 +713,42 @@ export function getCurrentAiModelChannelKey(): string {
   const ext = getAiConfigExt();
   const currentConfig = ext.currentConfig || { provider: 1, modelName: '' };
   return buildModelChannelKey(currentConfig.provider, currentConfig.modelName);
+}
+
+/**
+ * 获取指定模型通道下启用的提示词预设（全局 + 个人）。
+ */
+export function getEnabledPromptPresetsByChannel(
+  channelKey: string
+): Array<Record<string, unknown>> {
+  const ext = getAiConfigExt() as Record<string, unknown>;
+  const store = isPlainObject(ext.promptPresetStore)
+    ? (ext.promptPresetStore as Record<string, unknown>)
+    : { global: [], personal: {} };
+
+  const globalPresets = Array.isArray(store.global)
+    ? store.global.filter((item) => isPlainObject(item))
+    : [];
+
+  const personalStore = isPlainObject(store.personal)
+    ? (store.personal as Record<string, unknown>)
+    : {};
+  const personalPresets = Array.isArray(personalStore[channelKey])
+    ? (personalStore[channelKey] as unknown[]).filter((item) => isPlainObject(item))
+    : [];
+
+  const merged = [...globalPresets, ...personalPresets] as Array<Record<string, unknown>>;
+  return merged.filter((preset) => preset.enabled !== false);
+}
+
+/**
+ * 获取指定模型通道的系统提示词拼接结果。
+ */
+export function getMergedPromptTextByChannel(channelKey: string): string {
+  return getEnabledPromptPresetsByChannel(channelKey)
+    .map((preset) => `${preset.content || ''}`.trim())
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 /**
@@ -710,8 +978,6 @@ export function getAiDeliveryJudgeConfig(
         : typeof pref.aiDeliverJudgeIncludeUserProfile === 'boolean'
           ? (pref.aiDeliverJudgeIncludeUserProfile as boolean)
           : DEFAULT_AI_DELIVERY_JUDGE_CONFIG.includeUserProfile;
-  const includeTraditionalSnapshot =
-    typeof extCfg.includeTraditionalSnapshot === 'boolean'
   const onAiError = normalizeFallbackPolicy(
     extCfg.onAiError || pref.aiDeliveryJudgeOnAiError || pref.aiDeliverJudgeOnAiError,
     DEFAULT_AI_DELIVERY_JUDGE_CONFIG.onAiError

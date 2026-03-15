@@ -224,7 +224,7 @@ interface LogEntry {
 const globalAny = globalThis as any;
 const logger = globalAny.logger$1 || console;
 
-const platform = inject<Platform>('$platform');
+const platform = inject<Platform>('$platform')!;
 const userStore = UserStore();
 const loginStore = LoginStore();
 const pushResultCounter = pushResultCount();
@@ -242,7 +242,10 @@ const logRecorder = new LogRecorder();
 const latestPushRecords = ref<LogEntry[]>([]);
 const logsContainer = ref<HTMLElement | null>(null);
 let recordsUpdateTimer: ReturnType<typeof setInterval> | null = null;
+let lastRenderedRecordsSignature = '';
 let recommendLoopCooldownTimer: ReturnType<typeof setTimeout> | null = null;
+
+const RECORDS_UPDATE_INTERVAL_MS = 1200;
 
 type StartPushOptions = {
   silent?: boolean;
@@ -534,7 +537,21 @@ const updateLatestPushRecords = () => {
     const message = String(log.message || '').toLowerCase();
     return operationKeywords.some((keyword) => message.includes(keyword));
   });
-  latestPushRecords.value = pushLogs.slice(-10);
+
+  const latestRecords = pushLogs.slice(-10) as LogEntry[];
+  const nextSignature = latestRecords
+    .map(
+      (log) =>
+        `${String(log.timestamp || '')}|${String(log.level || '')}|${String(log.message || '')}`
+    )
+    .join('||');
+
+  if (nextSignature === lastRenderedRecordsSignature) {
+    return;
+  }
+
+  lastRenderedRecordsSignature = nextSignature;
+  latestPushRecords.value = latestRecords;
   nextTick(() => {
     if (logsContainer.value) {
       logsContainer.value.scrollTop = logsContainer.value.scrollHeight;
@@ -564,8 +581,9 @@ const startRecordsUpdate = () => {
   if (recordsUpdateTimer) {
     clearInterval(recordsUpdateTimer);
   }
+  lastRenderedRecordsSignature = '';
   updateLatestPushRecords();
-  recordsUpdateTimer = setInterval(updateLatestPushRecords, 500);
+  recordsUpdateTimer = setInterval(updateLatestPushRecords, RECORDS_UPDATE_INTERVAL_MS);
 };
 
 const stopRecordsUpdate = () => {

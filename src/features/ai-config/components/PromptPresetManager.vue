@@ -254,32 +254,21 @@ const deletePresetById = async (id) => {
   overflow: hidden;
 }
 .preset-view-panels {
-  display: flex;
-  width: 200%;
-  transition: transform 0.28s ease;
-}
-.preset-view-wrapper.is-edit .preset-view-panels {
-  transform: translateX(-50%);
+  display: block;
+  width: 100%;
 }
 .preset-view-list,
 .preset-view-edit {
-  width: 50%;
-  flex-shrink: 0;
+  width: 100%;
 }
 .preset-view-edit {
-  visibility: hidden;
-  max-height: 0;
-  overflow: hidden;
+  display: none;
 }
 .preset-view-wrapper.is-edit .preset-view-edit {
-  visibility: visible;
-  max-height: none;
-  overflow: visible;
+  display: block;
 }
 .preset-view-wrapper.is-edit .preset-view-list {
-  visibility: hidden;
-  max-height: 0;
-  overflow: hidden;
+  display: none;
 }
 .preset-list-header {
   display: flex;
@@ -376,5 +365,14 @@ const deletePresetById = async (id) => {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preset-view-panels,
+  .preset-view-list,
+  .preset-view-edit {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 </style>

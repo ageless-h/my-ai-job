@@ -60,20 +60,8 @@ export class AiPower {
     const directConfig = getActiveDirectConfig();
     if (directConfig) {
       // 自有 API 激活，直接调用用户的 AI API
-      const ext = Tools.getAiConfigExt() as any;
       const channelKey = Tools.getCurrentAiModelChannelKey();
-      const presetStore = ext.promptPresetStore || { global: [], personal: {} };
-      const globalPresets = Array.isArray(presetStore.global) ? presetStore.global : [];
-      const personalPresets = Array.isArray(presetStore.personal?.[channelKey])
-        ? presetStore.personal[channelKey]
-        : [];
-      const allPresets = [...globalPresets, ...personalPresets].filter(
-        (p: any) => p.enabled !== false
-      );
-      const systemPrompt = allPresets
-        .map((p: any) => p.content || '')
-        .filter(Boolean)
-        .join('\n\n');
+      const systemPrompt = Tools.getMergedPromptTextByChannel(channelKey);
       return directAsk(question, systemPrompt, [], directConfig);
     }
     return request.post(

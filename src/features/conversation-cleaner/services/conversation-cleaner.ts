@@ -7,7 +7,7 @@ import { Tools } from '@/shared/utils/tools';
 import { getLocalUser } from '@/state/user';
 import { directAiCall, getActiveDirectConfig } from '@/core/ai/direct-ai-client';
 import type { DirectAiMessage } from '@/core/ai/direct-ai-client';
-import { bossThrottle } from '@/core/http/request-throttle';
+import { RequestThrottle } from '@/core/http/request-throttle';
 
 // ============ 类型定义 ============
 
@@ -69,18 +69,54 @@ export interface ScanProgress {
 
 const STALE_DAYS = 14;
 const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1000;
+const STALE_DIRECT_SAFE_DAYS = 21;
+const STALE_DIRECT_SAFE_MS = STALE_DIRECT_SAFE_DAYS * 24 * 60 * 60 * 1000;
 const HISTORY_MSG_COUNT = 10;
 const HISTORY_MAX_PAGES = 3;
-const CLEANER_SCAN_MAX_DEFAULT = 120;
-const CLEANER_DELETE_MAX_DEFAULT = 40;
-const CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT = 20;
-const CLEANER_SAFETY_CHECK_INTERVAL_MS = 3500;
+const CLEANER_SCAN_MAX_DEFAULT = 300;
+const CLEANER_DELETE_MAX_DEFAULT = 80;
+const CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT = 30;
+const CLEANER_SAFETY_CHECK_SCAN_INTERVAL_MS = 10000;
+const CLEANER_SAFETY_CHECK_DELETE_INTERVAL_MS = 6000;
+const CLEANER_DETAIL_BATCH_SIZE = 80;
+const CLEANER_HIGH_VOLUME_THRESHOLD = 500;
+const CLEANER_HISTORY_MAX_PAGES_HIGH_VOLUME = 1;
+const CLEANER_SCAN_BATCH_SLEEP_MIN_MS = 20;
+const CLEANER_SCAN_BATCH_SLEEP_MAX_MS = 80;
+const CLEANER_SCAN_ITEM_SLEEP_MIN_MS = 30;
+const CLEANER_SCAN_ITEM_SLEEP_MAX_MS = 120;
+const CLEANER_DELETE_INTERVAL_MIN_MS = 700;
+const CLEANER_DELETE_INTERVAL_MAX_MS = 1400;
+const CLEANER_DELETE_WAVE_SIZE = 10;
+const CLEANER_DELETE_WAVE_COOLDOWN_MIN_MS = 5000;
+const CLEANER_DELETE_WAVE_COOLDOWN_MAX_MS = 9000;
+const CLEANER_DELETE_NETWORK_MAX_RETRIES = 1;
+const CLEANER_DELETE_PHASE_COOLDOWN_MIN_MS = 3000;
+const CLEANER_DELETE_PHASE_COOLDOWN_MAX_MS = 7000;
+const CLEANER_READ_THROTTLE_MIN_MS = 350;
+const CLEANER_READ_THROTTLE_MAX_MS = 700;
+const CLEANER_DELETE_THROTTLE_MIN_MS = 500;
+const CLEANER_DELETE_THROTTLE_MAX_MS = 900;
+const CLEANER_SLA_TIME_BUDGET_MS = 2 * 60 * 60 * 1000;
 
-function createManualVerificationGuard(action: string): (force?: boolean) => void {
+const cleanerReadThrottle = new RequestThrottle({
+  minDelay: CLEANER_READ_THROTTLE_MIN_MS,
+  maxDelay: CLEANER_READ_THROTTLE_MAX_MS,
+});
+
+const cleanerDeleteThrottle = new RequestThrottle({
+  minDelay: CLEANER_DELETE_THROTTLE_MIN_MS,
+  maxDelay: CLEANER_DELETE_THROTTLE_MAX_MS,
+});
+
+function createManualVerificationGuard(
+  action: string,
+  intervalMs: number
+): (force?: boolean) => void {
   let lastCheckAt = 0;
   return (force = false): void => {
     const now = Date.now();
-    if (force || now - lastCheckAt >= CLEANER_SAFETY_CHECK_INTERVAL_MS) {
+    if (force || now - lastCheckAt >= intervalMs) {
       Tools.ensureNoManualVerificationOrThrow(action);
       lastCheckAt = now;
     }
@@ -107,13 +143,13 @@ function getCleanerSafetyConfig(): {
   };
 
   return {
-    maxScanCount: toSafeInt(preference.cleanerMaxScanCount, CLEANER_SCAN_MAX_DEFAULT, 20, 300),
-    maxDeleteCount: toSafeInt(preference.cleanerMaxDeleteCount, CLEANER_DELETE_MAX_DEFAULT, 5, 100),
+    maxScanCount: toSafeInt(preference.cleanerMaxScanCount, CLEANER_SCAN_MAX_DEFAULT, 20, 3000),
+    maxDeleteCount: toSafeInt(preference.cleanerMaxDeleteCount, CLEANER_DELETE_MAX_DEFAULT, 5, 500),
     manualConfirmThreshold: toSafeInt(
       preference.cleanerManualConfirmThreshold,
       CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT,
       5,
-      100
+      300
     ),
   };
 }
@@ -358,7 +394,10 @@ export async function scanConversations(
   onProgress: (progress: ScanProgress) => void
 ): Promise<CleanCandidate[]> {
   Tools.ensureBossDomainOrThrow('会话扫描');
-  const ensureSafeScan = createManualVerificationGuard('会话扫描');
+  const ensureSafeScan = createManualVerificationGuard(
+    '会话扫描',
+    CLEANER_SAFETY_CHECK_SCAN_INTERVAL_MS
+  );
   ensureSafeScan(true);
   const candidates: CleanCandidate[] = [];
   const safety = getCleanerSafetyConfig();
@@ -382,28 +421,40 @@ export async function scanConversations(
 
   // Phase 2: 全量扫描队列（日期只做最后兜底判断）
   const staleCount = friendList.filter((f) => now - f.updateTime > STALE_MS).length;
-  const analysisList = friendList;
-  const scanBatchSize = Math.min(199, Math.max(20, safety.maxScanCount));
+  const maxScanCount = Math.min(friendList.length, safety.maxScanCount);
+  const analysisList = friendList.slice(0, maxScanCount);
+  const highVolumeMode = analysisList.length >= CLEANER_HIGH_VOLUME_THRESHOLD;
+  const historyMaxPages = highVolumeMode
+    ? CLEANER_HISTORY_MAX_PAGES_HIGH_VOLUME
+    : HISTORY_MAX_PAGES;
+  const enableAiAnalyze = !highVolumeMode;
+  let aiSkippedByHighVolume = 0;
+  const scanBatchSize = Math.min(
+    CLEANER_DETAIL_BATCH_SIZE,
+    analysisList.length || CLEANER_DETAIL_BATCH_SIZE
+  );
   let analyzeFailedCount = 0;
 
   onProgress({
     phase: 'fetching',
     current: 0,
     total: analysisList.length,
-    message: `共 ${friendList.length} 个会话（全量扫描，详情分批约 ${scanBatchSize} 个/批），其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始关键词+规则+AI扫描`,
+    message: `共 ${friendList.length} 个会话（本次最多扫描 ${analysisList.length} 个，详情分批约 ${scanBatchSize} 个/批）${highVolumeMode ? '，当前为高吞吐模式（历史仅1页，AI判定跳过）' : ''}，其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始扫描`,
   });
 
   // Phase 3: 批量获取详情
   const analysisIds = analysisList.map((f) => f.friendId);
   let details: FriendDetail[] = [];
-  // 分批获取，单批最多 199 个（由安全配置控制批量大小）
+  // 分批获取详情（高吞吐配置下默认按 80 个/批）
   for (let i = 0; i < analysisIds.length; i += scanBatchSize) {
     ensureSafeScan();
     const batch = analysisIds.slice(i, i + scanBatchSize);
-    const batchDetails = await bossThrottle.enqueue(() => fetchFriendDetails(batch));
+    const batchDetails = await cleanerReadThrottle.enqueue(() => fetchFriendDetails(batch));
     details = details.concat(batchDetails);
     if (i + scanBatchSize < analysisIds.length) {
-      await Tools.sleep(Tools.getRandomNumber(120, 260));
+      await Tools.sleep(
+        Tools.getRandomNumber(CLEANER_SCAN_BATCH_SLEEP_MIN_MS, CLEANER_SCAN_BATCH_SLEEP_MAX_MS)
+      );
     }
   }
 
@@ -432,15 +483,40 @@ export async function scanConversations(
     });
 
     try {
-      await Tools.sleep(Tools.getRandomNumber(120, 300));
-      const messages = await bossThrottle.enqueue(() =>
-        fetchHistoryMessages(detail.encryptBossId, detail.securityId)
+      const staleDurationMs = now - friend.updateTime;
+      const isStaleSession = staleDurationMs > STALE_MS;
+      const canDirectClassifyStale = highVolumeMode && staleDurationMs > STALE_DIRECT_SAFE_MS;
+      if (canDirectClassifyStale) {
+        candidates.push({
+          friendId: friend.friendId,
+          encryptBossId: detail.encryptBossId,
+          securityId: detail.securityId,
+          name: detail.name,
+          brandName: detail.brandName,
+          title: detail.title,
+          updateTime: friend.updateTime,
+          lastText: '',
+          reason: 'stale_no_reply',
+          reasonDetail: `会话超过 ${STALE_DIRECT_SAFE_DAYS} 天未活跃（高吞吐直判）`,
+          selected: true,
+        });
+        continue;
+      }
+
+      await Tools.sleep(
+        Tools.getRandomNumber(CLEANER_SCAN_ITEM_SLEEP_MIN_MS, CLEANER_SCAN_ITEM_SLEEP_MAX_MS)
+      );
+      const messages = await cleanerReadThrottle.enqueue(() =>
+        fetchHistoryMessages(
+          detail.encryptBossId,
+          detail.securityId,
+          HISTORY_MSG_COUNT,
+          historyMaxPages
+        )
       );
 
       // 最后一条文本消息
       const lastTextMsg = [...messages].reverse().find((m) => m.bodyType === 1 && m.text);
-      const lastMsg = messages[messages.length - 1];
-      const isStaleSession = now - friend.updateTime > STALE_MS;
 
       // Step A: 关键词快速检测
       const kwResult = detectByKeywords(messages, myUid);
@@ -461,14 +537,7 @@ export async function scanConversations(
         continue;
       }
 
-      // Step B: 两周+死会话兜底（优先于 AI，减少无效 AI 调用）
       if (isStaleSession) {
-        const staleDetail = !lastMsg
-          ? `会话超过 ${STALE_DAYS} 天未活跃（无历史消息）`
-          : lastMsg.fromUid === myUid
-            ? `已读不回超过 ${STALE_DAYS} 天`
-            : `会话超过 ${STALE_DAYS} 天未活跃`;
-
         candidates.push({
           friendId: friend.friendId,
           encryptBossId: detail.encryptBossId,
@@ -479,13 +548,18 @@ export async function scanConversations(
           updateTime: friend.updateTime,
           lastText: lastTextMsg?.text || '',
           reason: 'stale_no_reply',
-          reasonDetail: staleDetail,
+          reasonDetail: `会话超过 ${STALE_DAYS} 天未活跃（历史快速确认）`,
           selected: true,
         });
         continue;
       }
 
-      // Step C: AI 分析（非 stale 会话）
+      if (!enableAiAnalyze) {
+        aiSkippedByHighVolume += 1;
+        continue;
+      }
+
+      // Step B: AI 分析（高吞吐模式下默认跳过）
       const aiResult = await analyzeWithAi(messages, myUid, detail.name);
       if (aiResult.shouldClean) {
         candidates.push({
@@ -513,7 +587,7 @@ export async function scanConversations(
     phase: 'done',
     current: analysisList.length,
     total: analysisList.length,
-    message: `扫描完成，找到 ${candidates.length} 个待清理会话${analyzeFailedCount > 0 ? `，${analyzeFailedCount} 个会话分析失败` : ''}`,
+    message: `扫描完成，找到 ${candidates.length} 个待清理会话${analyzeFailedCount > 0 ? `，${analyzeFailedCount} 个会话分析失败` : ''}${aiSkippedByHighVolume > 0 ? `，高吞吐模式跳过AI判定 ${aiSkippedByHighVolume} 个` : ''}`,
   });
 
   return candidates;
@@ -523,7 +597,11 @@ export async function scanConversations(
 export async function batchDelete(
   items: CleanCandidate[],
   onProgress: (current: number, total: number, name: string, failReason?: string) => void,
-  options: { manualConfirmed?: boolean } = {}
+  options: {
+    manualConfirmed?: boolean;
+    workflowStartedAt?: number;
+    timeBudgetMs?: number;
+  } = {}
 ): Promise<{
   success: number;
   failed: number;
@@ -532,7 +610,10 @@ export async function batchDelete(
   successSecurityIds: string[];
 }> {
   Tools.ensureBossDomainOrThrow('会话删除');
-  const ensureSafeDelete = createManualVerificationGuard('会话删除');
+  const ensureSafeDelete = createManualVerificationGuard(
+    '会话删除',
+    CLEANER_SAFETY_CHECK_DELETE_INTERVAL_MS
+  );
   ensureSafeDelete(true);
   let success = 0;
   let failed = 0;
@@ -541,55 +622,113 @@ export async function batchDelete(
   const successSecurityIds: string[] = [];
   const safety = getCleanerSafetyConfig();
   const selected = items.filter((i) => i.selected).slice(0, safety.maxDeleteCount);
+  const workflowStartedAt = options.workflowStartedAt || Date.now();
+  const timeBudgetMs = options.timeBudgetMs || CLEANER_SLA_TIME_BUDGET_MS;
+  const workflowDeadlineAt = workflowStartedAt + Math.max(60_000, timeBudgetMs);
   if (selected.length >= safety.manualConfirmThreshold && !options.manualConfirmed) {
     throw new Error(`批量删除达到高风险阈值(${safety.manualConfirmThreshold})，缺少人工二次确认`);
   }
 
+  await Tools.sleep(
+    Tools.getRandomNumber(
+      CLEANER_DELETE_PHASE_COOLDOWN_MIN_MS,
+      CLEANER_DELETE_PHASE_COOLDOWN_MAX_MS
+    )
+  );
+
+  const isRiskControlDeleteError = (msg: string, status?: number): boolean => {
+    if (status === 429) return true;
+    const text = `${msg || ''}`.toLowerCase();
+    if (!text) return false;
+    return (
+      text.includes('频繁') ||
+      text.includes('繁忙') ||
+      text.includes('稍后') ||
+      text.includes('429') ||
+      text.includes('验证码') ||
+      text.includes('风控')
+    );
+  };
+
   const isRetryableDeleteError = (msg: string, status?: number): boolean => {
-    if (status === 429 || (typeof status === 'number' && status >= 500)) return true;
+    if (isRiskControlDeleteError(msg, status)) return false;
+    if (typeof status === 'number' && status >= 500) return true;
     const text = `${msg || ''}`.toLowerCase();
     if (!text) return false;
     if (text.includes('未获取到 zp_token') || text.includes('securityid')) return false;
     return (
       text.includes('network') ||
       text.includes('timeout') ||
-      text.includes('频繁') ||
-      text.includes('繁忙') ||
-      text.includes('稍后') ||
-      text.includes('429') ||
       text.includes('status code 5') ||
       text.includes('服务异常')
     );
   };
 
-  const deleteWithRetry = async (securityId: string): Promise<{ ok: boolean; message: string }> => {
-    const maxRetries = 3;
+  const deleteWithRetry = async (
+    securityId: string
+  ): Promise<{ ok: boolean; message: string; riskControlHit: boolean }> => {
+    const maxAttempts = 1 + CLEANER_DELETE_NETWORK_MAX_RETRIES;
     let latestMsg = '';
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       ensureSafeDelete();
       try {
-        const result = await bossThrottle.enqueue(() => deleteFriend(securityId));
-        if (result.ok) return result;
+        const result = await cleanerDeleteThrottle.enqueue(() => deleteFriend(securityId));
+        if (result.ok) return { ok: true, message: '', riskControlHit: false };
         latestMsg = result.message || '删除失败';
-        if (!isRetryableDeleteError(latestMsg, result.code) || attempt === maxRetries) {
-          return { ok: false, message: latestMsg };
+        if (isRiskControlDeleteError(latestMsg, result.code)) {
+          return { ok: false, message: latestMsg, riskControlHit: true };
+        }
+        if (!isRetryableDeleteError(latestMsg, result.code) || attempt === maxAttempts) {
+          return { ok: false, message: latestMsg, riskControlHit: false };
         }
       } catch (e: any) {
         latestMsg = e?.message || String(e);
         const status = e?.response?.status;
-        if (!isRetryableDeleteError(latestMsg, status) || attempt === maxRetries) {
-          return { ok: false, message: latestMsg };
+        if (isRiskControlDeleteError(latestMsg, status)) {
+          return { ok: false, message: latestMsg, riskControlHit: true };
+        }
+        if (!isRetryableDeleteError(latestMsg, status) || attempt === maxAttempts) {
+          return { ok: false, message: latestMsg, riskControlHit: false };
         }
       }
       await Tools.sleep(3000 * attempt);
     }
-    return { ok: false, message: latestMsg || '删除失败' };
+    return { ok: false, message: latestMsg || '删除失败', riskControlHit: false };
   };
 
+  const deleteStartedAt = Date.now();
+  let stoppedByRiskControl = false;
+  let stoppedByTimeBudget = false;
   for (let i = 0; i < selected.length; i++) {
+    if (Date.now() >= workflowDeadlineAt) {
+      stoppedByTimeBudget = true;
+      break;
+    }
+
+    const processed = success + failed;
+    if (processed >= 8) {
+      const avgCostMs = (Date.now() - deleteStartedAt) / processed;
+      const remainItems = selected.length - processed;
+      const remainBudgetMs = workflowDeadlineAt - Date.now();
+      if (avgCostMs * remainItems > remainBudgetMs) {
+        stoppedByTimeBudget = true;
+        break;
+      }
+    }
+
     ensureSafeDelete();
+    if (i > 0 && i % CLEANER_DELETE_WAVE_SIZE === 0) {
+      await Tools.sleep(
+        Tools.getRandomNumber(
+          CLEANER_DELETE_WAVE_COOLDOWN_MIN_MS,
+          CLEANER_DELETE_WAVE_COOLDOWN_MAX_MS
+        )
+      );
+    }
     const item = selected[i];
-    await Tools.sleep(Tools.getRandomNumber(500, 1200));
+    await Tools.sleep(
+      Tools.getRandomNumber(CLEANER_DELETE_INTERVAL_MIN_MS, CLEANER_DELETE_INTERVAL_MAX_MS)
+    );
     onProgress(i + 1, selected.length, item.name);
     try {
       const result = await deleteWithRetry(item.securityId);
@@ -602,6 +741,10 @@ export async function batchDelete(
         failReasonCounter[result.message || '未知错误'] =
           (failReasonCounter[result.message || '未知错误'] || 0) + 1;
         onProgress(i + 1, selected.length, item.name, result.message);
+        if (result.riskControlHit) {
+          stoppedByRiskControl = true;
+          break;
+        }
       }
     } catch (e: any) {
       failed++;
@@ -609,7 +752,23 @@ export async function batchDelete(
       failReasonCounter[lastError || '未知错误'] =
         (failReasonCounter[lastError || '未知错误'] || 0) + 1;
       onProgress(i + 1, selected.length, item.name, lastError);
+      if (isRiskControlDeleteError(lastError)) {
+        stoppedByRiskControl = true;
+        break;
+      }
     }
+  }
+
+  if (stoppedByRiskControl) {
+    const riskStopMsg = `触发风控保护(${lastError || '删除频率受限'})，已停止后续删除`;
+    failReasonCounter[riskStopMsg] = (failReasonCounter[riskStopMsg] || 0) + 1;
+    lastError = riskStopMsg;
+  }
+
+  if (stoppedByTimeBudget) {
+    const budgetStopMsg = '达到本轮清理时间预算上限（2小时），剩余项已保留';
+    failReasonCounter[budgetStopMsg] = (failReasonCounter[budgetStopMsg] || 0) + 1;
+    lastError = budgetStopMsg;
   }
 
   const topFailReason = Object.entries(failReasonCounter).sort((a, b) => b[1] - a[1])[0]?.[0] || '';

@@ -192,6 +192,25 @@
       </div>
     </div>
 
+    <div class="boss-card mt-16 mb-24">
+      <div class="card-title">投递状态管理</div>
+      <div class="sub-desc mb-16">
+        当误提示“检测到其他标签页正在投递”且确认没有其它运行中的投递标签页时，可手动解锁。
+      </div>
+
+      <div class="data-actions">
+        <el-button
+          type="warning"
+          plain
+          size="small"
+          class="shadow-sm"
+          @click="handleUnlockPushLock"
+        >
+          <el-icon class="mr-4"><Refresh /></el-icon>解锁投递状态
+        </el-button>
+      </div>
+    </div>
+
     <div class="action-footer">
       <div class="buttons">
         <el-button
@@ -232,6 +251,7 @@
 import { computed, ref, inject } from 'vue';
 import { showAppMessage } from '@/core/http/request';
 import { Tools } from '@/shared/utils/tools';
+import { TampermonkeyApi } from '@/shared/utils/tampermonkey';
 import {
   extractResumeTextFromHtml,
   extractResumeTextFromDocument,
@@ -1001,6 +1021,53 @@ const handleClearSensitiveData = async () => {
           duration: 3000,
         });
       }
+    })
+    .catch(() => undefined);
+};
+
+const getPushLockAgeSec = (lockValue: string): number => {
+  const lockTimestamp = Number.parseInt(`${lockValue}`.split('_')[0] || '0', 10);
+  if (!Number.isFinite(lockTimestamp) || lockTimestamp <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.floor((Date.now() - lockTimestamp) / 1000));
+};
+
+// ---- Manual unlock push lock ----
+const handleUnlockPushLock = async () => {
+  ElMessageBox.confirm(
+    '将立即清除当前账号的投递锁，仅在确认无其他标签页正在投递时使用。是否继续？',
+    '解锁投递状态',
+    {
+      confirmButtonText: '确认解锁',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(() => {
+      const currentLock = `${TampermonkeyApi.GmGetValue<string>(TampermonkeyApi.PUSH_LOCK, '')}`.trim();
+      if (!currentLock) {
+        showAppMessage({
+          type: 'warning',
+          message: '当前未检测到投递锁，无需解锁',
+          duration: 2200,
+        });
+        return;
+      }
+
+      const lockAgeSec = getPushLockAgeSec(currentLock);
+      TampermonkeyApi.GmSetValue(TampermonkeyApi.PUSH_LOCK, '');
+      showAppMessage({
+        type: 'success',
+        message: `投递状态已解锁（原锁已存在约 ${lockAgeSec} 秒）`,
+        duration: 2500,
+      });
+      ElNotification({
+        title: '解锁成功',
+        message: '可以重新开始批量投递/收藏。',
+        type: 'success',
+        duration: 2500,
+      });
     })
     .catch(() => undefined);
 };
