@@ -58,20 +58,30 @@ ai-job-hunting/
 
 ## 开发
 
+### 开发模式（推荐）
+
+使用独立开发服务器，支持热更新和完整调试：
+
 ```bash
 npm install
 npm run dev
 ```
 
-## 构建
+浏览器会自动打开 http://localhost:5173，你可以：
+
+- 实时查看 UI 修改效果（热更新）
+- 使用 Vue DevTools 调试组件和状态
+- 在控制台查看 MockPlatform 日志
+
+### 生产模式
+
+构建用户脚本：
 
 ```bash
 npm run build
 ```
 
-构建输出：
-
-- `dist/ai-job-hunting.user.js`
+构建输出：`dist/ai-job-hunting.user.js`
 
 ## 类型检查
 
