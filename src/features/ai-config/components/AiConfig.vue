@@ -962,13 +962,13 @@ onMounted(async () => {
 }
 
 .header-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #222;
-  margin-bottom: 20px;
-  border-left: 4px solid var(--boss-primary, #00bebd);
-  padding-left: 10px;
-  line-height: 1.2;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 16px;
+  border-left: 3px solid var(--boss-primary, #00bebd);
+  padding-left: 8px;
+  line-height: 1;
 }
 
 .mt-16 {
