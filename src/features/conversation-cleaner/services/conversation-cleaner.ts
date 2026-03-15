@@ -73,9 +73,7 @@ const STALE_DIRECT_SAFE_DAYS = 21;
 const STALE_DIRECT_SAFE_MS = STALE_DIRECT_SAFE_DAYS * 24 * 60 * 60 * 1000;
 const HISTORY_MSG_COUNT = 10;
 const HISTORY_MAX_PAGES = 3;
-const CLEANER_SCAN_MAX_DEFAULT = 300;
-const CLEANER_DELETE_MAX_DEFAULT = 80;
-const CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT = 30;
+const CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT = 40;
 const CLEANER_SAFETY_CHECK_SCAN_INTERVAL_MS = 10000;
 const CLEANER_SAFETY_CHECK_DELETE_INTERVAL_MS = 6000;
 const CLEANER_DETAIL_BATCH_SIZE = 80;
@@ -85,19 +83,13 @@ const CLEANER_SCAN_BATCH_SLEEP_MIN_MS = 20;
 const CLEANER_SCAN_BATCH_SLEEP_MAX_MS = 80;
 const CLEANER_SCAN_ITEM_SLEEP_MIN_MS = 30;
 const CLEANER_SCAN_ITEM_SLEEP_MAX_MS = 120;
-const CLEANER_DELETE_INTERVAL_MIN_MS = 700;
-const CLEANER_DELETE_INTERVAL_MAX_MS = 1400;
-const CLEANER_DELETE_WAVE_SIZE = 10;
-const CLEANER_DELETE_WAVE_COOLDOWN_MIN_MS = 5000;
-const CLEANER_DELETE_WAVE_COOLDOWN_MAX_MS = 9000;
+const CLEANER_DELETE_INTERVAL_MIN_MS = 1200;
+const CLEANER_DELETE_INTERVAL_MAX_MS = 2200;
 const CLEANER_DELETE_NETWORK_MAX_RETRIES = 1;
-const CLEANER_DELETE_PHASE_COOLDOWN_MIN_MS = 3000;
-const CLEANER_DELETE_PHASE_COOLDOWN_MAX_MS = 7000;
 const CLEANER_READ_THROTTLE_MIN_MS = 350;
 const CLEANER_READ_THROTTLE_MAX_MS = 700;
 const CLEANER_DELETE_THROTTLE_MIN_MS = 500;
 const CLEANER_DELETE_THROTTLE_MAX_MS = 900;
-const CLEANER_SLA_TIME_BUDGET_MS = 2 * 60 * 60 * 1000;
 
 const cleanerReadThrottle = new RequestThrottle({
   minDelay: CLEANER_READ_THROTTLE_MIN_MS,
@@ -124,8 +116,6 @@ function createManualVerificationGuard(
 }
 
 function getCleanerSafetyConfig(): {
-  maxScanCount: number;
-  maxDeleteCount: number;
   manualConfirmThreshold: number;
 } {
   let preference: Record<string, unknown> = {};
@@ -143,8 +133,6 @@ function getCleanerSafetyConfig(): {
   };
 
   return {
-    maxScanCount: toSafeInt(preference.cleanerMaxScanCount, CLEANER_SCAN_MAX_DEFAULT, 20, 3000),
-    maxDeleteCount: toSafeInt(preference.cleanerMaxDeleteCount, CLEANER_DELETE_MAX_DEFAULT, 5, 500),
     manualConfirmThreshold: toSafeInt(
       preference.cleanerManualConfirmThreshold,
       CLEANER_MANUAL_CONFIRM_THRESHOLD_DEFAULT,
@@ -400,7 +388,6 @@ export async function scanConversations(
   );
   ensureSafeScan(true);
   const candidates: CleanCandidate[] = [];
-  const safety = getCleanerSafetyConfig();
   const now = Date.now();
   const myUid = (Tools.window as any)?._PAGE?.uid || 0;
 
@@ -421,8 +408,7 @@ export async function scanConversations(
 
   // Phase 2: 全量扫描队列（日期只做最后兜底判断）
   const staleCount = friendList.filter((f) => now - f.updateTime > STALE_MS).length;
-  const maxScanCount = Math.min(friendList.length, safety.maxScanCount);
-  const analysisList = friendList.slice(0, maxScanCount);
+  const analysisList = friendList;
   const highVolumeMode = analysisList.length >= CLEANER_HIGH_VOLUME_THRESHOLD;
   const historyMaxPages = highVolumeMode
     ? CLEANER_HISTORY_MAX_PAGES_HIGH_VOLUME
@@ -439,7 +425,7 @@ export async function scanConversations(
     phase: 'fetching',
     current: 0,
     total: analysisList.length,
-    message: `共 ${friendList.length} 个会话（本次最多扫描 ${analysisList.length} 个，详情分批约 ${scanBatchSize} 个/批）${highVolumeMode ? '，当前为高吞吐模式（历史仅1页，AI判定跳过）' : ''}，其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始扫描`,
+    message: `共 ${friendList.length} 个会话（本次执行全量扫描，详情分批约 ${scanBatchSize} 个/批）${highVolumeMode ? '，当前为高吞吐模式（历史仅1页，AI判定跳过）' : ''}，其中 ${staleCount} 个超过 ${STALE_DAYS} 天未活跃；开始扫描`,
   });
 
   // Phase 3: 批量获取详情
@@ -597,11 +583,7 @@ export async function scanConversations(
 export async function batchDelete(
   items: CleanCandidate[],
   onProgress: (current: number, total: number, name: string, failReason?: string) => void,
-  options: {
-    manualConfirmed?: boolean;
-    workflowStartedAt?: number;
-    timeBudgetMs?: number;
-  } = {}
+  options: { manualConfirmed?: boolean } = {}
 ): Promise<{
   success: number;
   failed: number;
@@ -621,20 +603,10 @@ export async function batchDelete(
   const failReasonCounter: Record<string, number> = {};
   const successSecurityIds: string[] = [];
   const safety = getCleanerSafetyConfig();
-  const selected = items.filter((i) => i.selected).slice(0, safety.maxDeleteCount);
-  const workflowStartedAt = options.workflowStartedAt || Date.now();
-  const timeBudgetMs = options.timeBudgetMs || CLEANER_SLA_TIME_BUDGET_MS;
-  const workflowDeadlineAt = workflowStartedAt + Math.max(60_000, timeBudgetMs);
+  const selected = items.filter((i) => i.selected);
   if (selected.length >= safety.manualConfirmThreshold && !options.manualConfirmed) {
     throw new Error(`批量删除达到高风险阈值(${safety.manualConfirmThreshold})，缺少人工二次确认`);
   }
-
-  await Tools.sleep(
-    Tools.getRandomNumber(
-      CLEANER_DELETE_PHASE_COOLDOWN_MIN_MS,
-      CLEANER_DELETE_PHASE_COOLDOWN_MAX_MS
-    )
-  );
 
   const isRiskControlDeleteError = (msg: string, status?: number): boolean => {
     if (status === 429) return true;
@@ -696,35 +668,9 @@ export async function batchDelete(
     return { ok: false, message: latestMsg || '删除失败', riskControlHit: false };
   };
 
-  const deleteStartedAt = Date.now();
   let stoppedByRiskControl = false;
-  let stoppedByTimeBudget = false;
   for (let i = 0; i < selected.length; i++) {
-    if (Date.now() >= workflowDeadlineAt) {
-      stoppedByTimeBudget = true;
-      break;
-    }
-
-    const processed = success + failed;
-    if (processed >= 8) {
-      const avgCostMs = (Date.now() - deleteStartedAt) / processed;
-      const remainItems = selected.length - processed;
-      const remainBudgetMs = workflowDeadlineAt - Date.now();
-      if (avgCostMs * remainItems > remainBudgetMs) {
-        stoppedByTimeBudget = true;
-        break;
-      }
-    }
-
     ensureSafeDelete();
-    if (i > 0 && i % CLEANER_DELETE_WAVE_SIZE === 0) {
-      await Tools.sleep(
-        Tools.getRandomNumber(
-          CLEANER_DELETE_WAVE_COOLDOWN_MIN_MS,
-          CLEANER_DELETE_WAVE_COOLDOWN_MAX_MS
-        )
-      );
-    }
     const item = selected[i];
     await Tools.sleep(
       Tools.getRandomNumber(CLEANER_DELETE_INTERVAL_MIN_MS, CLEANER_DELETE_INTERVAL_MAX_MS)
@@ -763,12 +709,6 @@ export async function batchDelete(
     const riskStopMsg = `触发风控保护(${lastError || '删除频率受限'})，已停止后续删除`;
     failReasonCounter[riskStopMsg] = (failReasonCounter[riskStopMsg] || 0) + 1;
     lastError = riskStopMsg;
-  }
-
-  if (stoppedByTimeBudget) {
-    const budgetStopMsg = '达到本轮清理时间预算上限（2小时），剩余项已保留';
-    failReasonCounter[budgetStopMsg] = (failReasonCounter[budgetStopMsg] || 0) + 1;
-    lastError = budgetStopMsg;
   }
 
   const topFailReason = Object.entries(failReasonCounter).sort((a, b) => b[1] - a[1])[0]?.[0] || '';

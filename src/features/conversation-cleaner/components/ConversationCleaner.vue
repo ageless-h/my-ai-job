@@ -103,8 +103,6 @@ const deleting = ref(false);
 const deleteResult = ref('');
 const progress = ref<ScanProgress>({ phase: 'idle', current: 0, total: 0, message: '' });
 const progressMsg = computed(() => progress.value.message || '扫描中...');
-const workflowStartedAt = ref(0);
-const WORKFLOW_TIME_BUDGET_MS = 2 * 60 * 60 * 1000;
 const userStore = UserStore();
 
 const selectedCount = computed(() => candidates.value.filter((c) => c.selected).length);
@@ -151,11 +149,10 @@ function getManualConfirmThreshold(): number {
   if (Number.isFinite(configured) && configured > 0) {
     return Math.min(100, Math.max(5, Math.floor(configured)));
   }
-  return 30;
+  return 40;
 }
 
 async function startScan() {
-  workflowStartedAt.value = Date.now();
   scanning.value = true;
   scanned.value = false;
   candidates.value = [];
@@ -226,11 +223,7 @@ async function confirmDelete() {
           ? `删除中 ${cur}/${total}: ${name} — 失败: ${failReason}`
           : `删除中 ${cur}/${total}: ${name}`;
       },
-      {
-        manualConfirmed: true,
-        workflowStartedAt: workflowStartedAt.value || Date.now(),
-        timeBudgetMs: WORKFLOW_TIME_BUDGET_MS,
-      }
+      { manualConfirmed: true }
     );
     const successSet = new Set(successSecurityIds);
     const failReasonText = topFailReason || lastError;

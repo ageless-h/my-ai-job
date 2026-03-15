@@ -348,20 +348,10 @@ export function userRemoteLoad(): void {
         10,
         15
       );
-      runtimeUserStore2.user.preference.cleanerMaxScanCount = upgradePrefNumber(
-        runtimeUserStore2.user.preference.cleanerMaxScanCount,
-        60,
-        300
-      );
-      runtimeUserStore2.user.preference.cleanerMaxDeleteCount = upgradePrefNumber(
-        runtimeUserStore2.user.preference.cleanerMaxDeleteCount,
-        10,
-        80
-      );
       runtimeUserStore2.user.preference.cleanerManualConfirmThreshold = upgradePrefNumber(
         runtimeUserStore2.user.preference.cleanerManualConfirmThreshold,
         8,
-        30
+        40
       );
       runtimeUserStore2.user.preference.autoContactMinIntervalSec = upgradePrefNumber(
         runtimeUserStore2.user.preference.autoContactMinIntervalSec,

@@ -459,20 +459,10 @@ const preferenceDefaultValueHandler = () => {
     10,
     15
   );
-  userStore.user.preference.cleanerMaxScanCount = upgradePrefNumber(
-    userStore.user.preference.cleanerMaxScanCount,
-    60,
-    300
-  );
-  userStore.user.preference.cleanerMaxDeleteCount = upgradePrefNumber(
-    userStore.user.preference.cleanerMaxDeleteCount,
-    10,
-    80
-  );
   userStore.user.preference.cleanerManualConfirmThreshold = upgradePrefNumber(
     userStore.user.preference.cleanerManualConfirmThreshold,
     8,
-    30
+    40
   );
   userStore.user.preference.autoContactMinIntervalSec = upgradePrefNumber(
     userStore.user.preference.autoContactMinIntervalSec,
