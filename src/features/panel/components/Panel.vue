@@ -635,12 +635,12 @@ onUpdated(() => {
   top: 0;
   right: 0;
   height: 100vh;
-  background: var(--ai-bg);
+  background: var(--boss-bg-white);
   backdrop-filter: blur(6px);
-  box-shadow: var(--ai-shadow);
+  box-shadow: var(--shadow-panel);
   display: flex;
   flex-direction: column;
-  border-left: 1px solid rgba(255, 255, 255, 0.5);
+  border-left: 1px solid var(--boss-border-color);
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   overflow: hidden;
@@ -692,21 +692,21 @@ onUpdated(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--ai-border);
+  padding: 0 var(--spacing-4);
+  border-bottom: 1px solid var(--boss-border-color);
   flex-shrink: 0;
-  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  background: var(--boss-bg-white);
+  box-shadow: var(--shadow-card);
 }
 
 :deep(.ai-sidebar-title) {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--spacing-2);
   min-width: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--ai-text-main);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--boss-text-primary);
   white-space: nowrap;
 }
 
