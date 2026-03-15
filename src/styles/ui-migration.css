@@ -92,3 +92,146 @@
   --el-button-hover-bg-color: var(--boss-primary-hover);
   --el-button-hover-border-color: var(--boss-primary-hover);
 }
+
+/* ========== Task 6: 按钮样式 ========== */
+#ai-job .el-button {
+  border-radius: var(--radius-base);
+  transition: all 150ms ease;
+}
+
+#ai-job .el-button--default {
+  background: var(--boss-bg-color);
+  border: 1px solid var(--boss-border-color);
+  color: var(--boss-text-primary);
+}
+
+#ai-job .el-button--default:hover {
+  background: var(--boss-bg-hover);
+  border-color: var(--boss-primary);
+  color: var(--boss-primary);
+}
+
+#ai-job .el-button--primary {
+  border-radius: var(--radius-base);
+}
+
+#ai-job .el-button--primary:hover {
+  background: var(--boss-primary-hover);
+}
+
+/* ========== Task 7: 输入框样式 ========== */
+#ai-job .el-input__wrapper {
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-base);
+  transition: all 150ms ease;
+}
+
+#ai-job .el-input__wrapper:hover {
+  border-color: var(--boss-primary);
+}
+
+#ai-job .el-input__wrapper.is-focus,
+#ai-job .el-input__wrapper:focus-within {
+  border-color: var(--boss-primary);
+  box-shadow: 0 0 0 2px rgba(0, 190, 189, 0.1);
+}
+
+#ai-job .el-textarea__inner {
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-base);
+  transition: all 150ms ease;
+}
+
+#ai-job .el-textarea__inner:hover {
+  border-color: var(--boss-primary);
+}
+
+#ai-job .el-textarea__inner:focus {
+  border-color: var(--boss-primary);
+  box-shadow: 0 0 0 2px rgba(0, 190, 189, 0.1);
+}
+
+#ai-job .el-select .el-input__wrapper {
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-base);
+}
+
+#ai-job .el-select .el-input__wrapper:hover {
+  border-color: var(--boss-primary);
+}
+
+/* ========== Task 8: FAB 浮动按钮样式 ========== */
+#ai-job .ai-fab {
+  position: fixed;
+  bottom: 108px;
+  right: 24px;
+  width: 46px;
+  height: 46px;
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: all 200ms ease;
+  user-select: none;
+  color: var(--boss-primary);
+}
+
+#ai-job .ai-fab:hover {
+  transform: translateY(-2px);
+  background: var(--boss-primary-light);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--boss-primary);
+}
+
+#ai-job .ai-fab--close {
+  bottom: 108px;
+  right: 24px;
+  width: 46px;
+  height: 46px;
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: 9999px;
+  box-shadow: var(--shadow-card);
+}
+
+#ai-job .ai-fab--close:hover {
+  background: var(--boss-primary-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--boss-primary);
+}
+
+/* ========== Task 9: 滚动条样式 ========== */
+#ai-job ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+#ai-job ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#ai-job ::-webkit-scrollbar-thumb {
+  background: var(--boss-border-color);
+  border-radius: 3px;
+  transition: background 150ms ease;
+}
+
+#ai-job ::-webkit-scrollbar-thumb:hover {
+  background: var(--boss-primary);
+}
+
+#ai-job .ai-sidebar-body::-webkit-scrollbar-thumb {
+  background: var(--boss-border-color);
+}
+
+#ai-job .ai-sidebar-body:hover::-webkit-scrollbar-thumb {
+  background: var(--boss-primary);
+}
