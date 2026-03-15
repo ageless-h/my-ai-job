@@ -152,51 +152,84 @@ app.mount('#app');
 ### 5.2 Mock 平台 (dev/mock-platform.ts)
 
 ```typescript
-import type { IPlatform, JobItem, GeekInfo, DeliveryResult } from '@/core/platform/types';
+import { AbsPlatform } from '@/core/engine/push-engine';
 import { MOCK_JOB_LIST, MOCK_GEEK_INFO } from './mock-data';
 
-export class MockPlatform implements IPlatform {
+export class MockPlatform extends AbsPlatform {
   private delay(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async getMountEle() {
-    return {
-      el: document.getElementById('app')!,
-      p: 'end' as const,
-    };
-  }
-
-  async getJobList(): Promise<JobItem[]> {
-    await this.delay(500); // 模拟网络延迟
+  // 必须实现的抽象方法（来自 AbsPlatform）
+  getJobList(): any[] {
     return MOCK_JOB_LIST;
   }
 
-  async getGeekInfo(): Promise<GeekInfo> {
-    await this.delay(300);
-    return MOCK_GEEK_INFO;
+  hasNext(): boolean {
+    return false; // 开发模式不需要分页
   }
 
-  async deliverResume(jobId: string): Promise<DeliveryResult> {
+  async acquireDataPre(): Promise<void> {
     await this.delay(300);
-    console.log('[MockPlatform] 投递简历:', jobId);
+    console.log('[MockPlatform] 数据预加载完成');
+  }
+
+  startPreHandler(): void {
+    console.log('[MockPlatform] 开始前置处理');
+  }
+
+  async matchJob(jobDetail: any): Promise<boolean> {
+    await this.delay(200);
+    console.log('[MockPlatform] 匹配职位:', jobDetail.id);
+    return true; // 开发模式默认匹配所有职位
+  }
+
+  async pushAfterHandler(pushResult: any, jobDetail: any): Promise<any> {
+    console.log('[MockPlatform] 投递后处理:', jobDetail.id, pushResult);
+    return pushResult;
+  }
+
+  pushPreHandler(jobDetail: any): any {
+    console.log('[MockPlatform] 投递前处理:', jobDetail.id);
+    return jobDetail;
+  }
+
+  getJobKey(jobDetail: any): string {
+    return jobDetail.id || jobDetail.encryptJobId || '';
+  }
+
+  async doPush(jobDetail: any): Promise<any> {
+    await this.delay(300);
+    console.log('[MockPlatform] 执行投递:', jobDetail.id);
     return { success: true, message: '投递成功' };
   }
 
-  async collectJob(jobId: string): Promise<void> {
+  // 其他平台特定方法（如果需要）
+  async doCollect(jobDetail: any): Promise<any> {
     await this.delay(200);
-    console.log('[MockPlatform] 收藏职位:', jobId);
+    console.log('[MockPlatform] 收藏职位:', jobDetail.id);
+    return { success: true };
   }
-
-  // ... 实现其他 IPlatform 接口方法
 }
 ```
 
 **职责：**
 
-- 实现 IPlatform 接口的所有方法
+- 继承 AbsPlatform 抽象类，实现所有抽象方法
 - 返回模拟数据，模拟网络延迟
 - 提供控制台日志，便于调试
+
+**必须实现的方法（来自 AbsPlatform）：**
+
+1. `getJobList()` - 返回职位列表
+2. `hasNext()` - 是否有下一页
+3. `acquireDataPre()` - 数据预加载
+4. `startPreHandler()` - 开始前置处理
+5. `matchJob()` - 职位匹配逻辑
+6. `pushAfterHandler()` - 投递后处理
+7. `pushPreHandler()` - 投递前处理
+8. `getJobKey()` - 获取职位唯一标识
+9. `doPush()` - 执行投递操作
 
 **实现策略：**
 
@@ -208,40 +241,70 @@ export class MockPlatform implements IPlatform {
 ### 5.3 模拟数据 (dev/mock-data.ts)
 
 ```typescript
-import type { JobItem, GeekInfo } from '@/core/platform/types';
-
-export const MOCK_JOB_LIST: JobItem[] = [
+// 模拟职位列表数据
+export const MOCK_JOB_LIST = [
   {
     id: 'job-001',
-    title: '前端开发工程师',
-    company: '某科技公司',
-    salary: '20-30K',
-    location: '北京·朝阳区',
-    experience: '3-5年',
-    education: '本科',
-    tags: ['Vue', 'React', 'TypeScript'],
-    description: '负责公司核心产品的前端开发...',
+    encryptJobId: 'job-001',
+    jobName: '前端开发工程师',
+    brandName: '某科技公司',
+    salaryDesc: '20-30K',
+    cityName: '北京',
+    areaDistrict: '朝阳区',
+    jobExperience: '3-5年',
+    jobDegree: '本科',
+    skills: ['Vue', 'React', 'TypeScript'],
+    positionDetail: '负责公司核心产品的前端开发...',
     bossName: '张经理',
     bossTitle: '技术总监',
-    activeTime: '刚刚活跃',
+    activeTimeDesc: '刚刚活跃',
   },
-  // ... 更多模拟职位
+  {
+    id: 'job-002',
+    encryptJobId: 'job-002',
+    jobName: 'Vue.js 高级工程师',
+    brandName: '互联网公司',
+    salaryDesc: '25-40K',
+    cityName: '北京',
+    areaDistrict: '海淀区',
+    jobExperience: '5-10年',
+    jobDegree: '本科',
+    skills: ['Vue3', 'Vite', 'Pinia'],
+    positionDetail: '负责前端架构设计和技术选型...',
+    bossName: '李总监',
+    bossTitle: 'CTO',
+    activeTimeDesc: '1小时内活跃',
+  },
+  // 至少提供 5-10 条模拟数据，覆盖不同场景
 ];
 
-export const MOCK_GEEK_INFO: GeekInfo = {
+// 模拟用户信息
+export const MOCK_GEEK_INFO = {
   name: '测试用户',
-  resumeUrl: 'https://example.com/resume.pdf',
   expectSalary: '20-30K',
   expectCity: '北京',
   workYears: 5,
+};
+
+// 错误模拟配置（可选）
+export const MOCK_CONFIG = {
+  simulateError: false, // 是否模拟错误
+  errorRate: 0.1, // 错误率 10%
+  networkDelay: 300, // 网络延迟（毫秒）
 };
 ```
 
 **职责：**
 
 - 集中管理所有模拟数据
-- 提供不同测试场景的数据集
+- 提供不同测试场景的数据集（正常、空列表、错误等）
 - 便于修改和扩展
+
+**数据覆盖场景：**
+
+1. **正常场景** - 5-10 条完整的职位数据
+2. **空列表场景** - 可通过修改 MOCK_JOB_LIST 为 [] 测试
+3. **错误场景** - 通过 MOCK_CONFIG.simulateError 控制
 
 ### 5.4 开发页面 (dev/index.html)
 
@@ -269,6 +332,21 @@ export const MOCK_GEEK_INFO: GeekInfo = {
 ### 5.5 Vite 配置修改 (vite.config.ts)
 
 ```typescript
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import monkey from 'vite-plugin-monkey';
+import path from 'node:path';
+
+// 保留现有的 API 配置逻辑
+const DEFAULT_API_BASE_URL = 'https://43.138.246.37/';
+const normalizeApiBaseUrl = (rawUrl: string | undefined): string => {
+  const candidate = `${rawUrl || ''}`.trim();
+  if (!candidate) return DEFAULT_API_BASE_URL;
+  if (/^https?:\/\//i.test(candidate)) return candidate;
+  return `https://${candidate}`;
+};
+const apiBaseUrl = normalizeApiBaseUrl(process.env.API_BASE_URL || process.env.VITE_API_BASE_URL);
+
 export default defineConfig(async ({ mode }) => {
   const isDev = mode === 'development';
 
@@ -290,7 +368,7 @@ export default defineConfig(async ({ mode }) => {
             monkey({
               entry: 'src/app/main.ts',
               userscript: {
-                /* ... */
+                /* 保留现有配置 */
               },
             }),
           ]),
@@ -314,7 +392,14 @@ export default defineConfig(async ({ mode }) => {
 1. 接收 `mode` 参数，判断是否为开发模式
 2. 开发模式下不加载 `vite-plugin-monkey`
 3. 开发模式下设置 `root: 'dev'`，使用 dev/index.html 作为入口
-4. 保持生产模式配置不变
+4. 保留现有的 apiBaseUrl 配置逻辑
+5. 保持生产模式配置不变
+
+**注意事项：**
+
+- `apiBaseUrl` 变量来自现有的 vite.config.ts 配置
+- 生产模式的 userscript 配置保持不变
+- 开发模式自动打开浏览器（`open: true`）
 
 ---
 
@@ -474,19 +559,18 @@ npm run build
 
 - [ ] `dev/index.html` - 开发页面入口
 - [ ] `dev/main.ts` - 开发模式专用入口
-- [ ] `dev/mock-platform.ts` - MockPlatform 类实现
-- [ ] `dev/mock-data.ts` - 模拟数据
-- [ ] `dev/types.ts` - 类型定义（如果需要）
+- [ ] `dev/mock-platform.ts` - MockPlatform 类实现（继承 AbsPlatform）
+- [ ] `dev/mock-data.ts` - 模拟数据（至少 5-10 条职位数据）
 
 ### 必须修改的文件
 
-- [ ] `vite.config.ts` - 添加开发模式配置
+- [ ] `vite.config.ts` - 添加开发模式配置（mode 判断、root 设置）
 
 ### 可选优化
 
-- [ ] 添加错误模拟开关（测试错误处理）
-- [ ] 添加延迟配置（测试加载状态）
-- [ ] 添加更多测试场景的模拟数据
+- [ ] 添加错误模拟开关（通过 MOCK_CONFIG.simulateError）
+- [ ] 添加延迟配置（通过 MOCK_CONFIG.networkDelay）
+- [ ] 添加更多测试场景的模拟数据（空列表、错误状态等）
 
 ---
 
