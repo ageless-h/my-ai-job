@@ -727,7 +727,7 @@ onUpdated(() => {
   justify-content: center;
   cursor: pointer;
   border-radius: 6px;
-  color: var(--ai-text-sub);
+  color: var(--boss-text-secondary);
   transition:
     background-color 0.16s ease,
     color 0.16s ease;
@@ -735,7 +735,7 @@ onUpdated(() => {
 
 :deep(.ai-sidebar-minimize:hover) {
   background: var(--ai-bg-subtle);
-  color: var(--ai-text-main);
+  color: var(--boss-text-primary);
 }
 
 /* Navigation Tabs */
@@ -748,8 +748,8 @@ onUpdated(() => {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  border-right: 1px solid var(--ai-border);
-  background: var(--boss-bg-color, #f8f8f8);
+  border-right: 1px solid var(--boss-border-color);
+  background: var(--boss-bg-color);
   overflow-y: auto;
   overflow-x: hidden;
   padding-top: 8px;
@@ -797,8 +797,8 @@ onUpdated(() => {
   flex: 0 0 64px;
   max-width: none;
   gap: 6px;
-  background: #ffffff;
-  border-left-color: var(--ai-primary);
+  background: var(--boss-bg-white);
+  border-left-color: var(--boss-primary);
 }
 
 :deep(.ai-nav-tab.is-active span) {
@@ -806,13 +806,13 @@ onUpdated(() => {
 }
 
 :deep(.ai-nav-tab:hover) {
-  background-color: #f0f2f5;
+  background-color: var(--boss-bg-hover);
   color: var(--ai-text-main);
 }
 
 :deep(.ai-nav-tab.is-active) {
   font-weight: 700;
-  color: var(--ai-primary);
+  color: var(--boss-primary);
 }
 
 :deep(.ai-nav-tab::after) {
