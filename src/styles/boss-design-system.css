@@ -1,0 +1,50 @@
+/* AI 求职助手 - BOSS 风格设计系统 */
+
+#ai-job {
+  /* ========== 颜色系统（完全沿用 BOSS 配色） ========== */
+
+  /* 主题色 */
+  --boss-primary: #00bebd;
+  --boss-primary-hover: #00a8a7;
+  --boss-primary-light: #e5f8f8;
+
+  /* 文字颜色 */
+  --boss-text-primary: #333333;
+  --boss-text-regular: #666666;
+  --boss-text-secondary: #999999;
+
+  /* 背景颜色 */
+  --boss-bg-color: #f8f8f8;
+  --boss-bg-white: #ffffff;
+  --boss-bg-hover: #f5f5f5;
+
+  /* 边框颜色 */
+  --boss-border-color: #ebeef5;
+  --boss-border-light: #f0f2f5;
+
+  /* ========== 阴影系统（轻量级扁平化） ========== */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 4px 12px rgba(0, 190, 189, 0.08);
+  --shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  /* ========== 圆角系统（小圆角 - 高效专业） ========== */
+  --radius-base: 4px; /* 基础圆角：按钮、输入框 */
+  --radius-card: 6px; /* 卡片圆角：主卡片容器 */
+  --radius-full: 9999px; /* 圆形：头像、FAB */
+
+  /* ========== 间距系统（8px 基准） ========== */
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+
+  /* ========== 字体系统 ========== */
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+}
