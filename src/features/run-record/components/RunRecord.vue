@@ -682,11 +682,11 @@ onBeforeUnmount(() => {
 }
 
 .decision-text.is-danger {
-  color: #f56c6c;
+  color: var(--ai-danger);
 }
 
 .decision-text.is-warning {
-  color: #e6a23c;
+  color: var(--ai-warning);
 }
 
 .reason-text {
@@ -695,7 +695,7 @@ onBeforeUnmount(() => {
 }
 
 .text-muted {
-  color: #c0c4cc;
+  color: var(--boss-text-tertiary);
 }
 
 :deep(.el-table .row-error) {

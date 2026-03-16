@@ -743,7 +743,7 @@ preferenceDefaultValueHandler();
 }
 
 .text-muted {
-  color: #909399;
+  color: var(--boss-text-tertiary);
 }
 
 .save-btn {
