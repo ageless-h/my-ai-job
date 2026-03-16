@@ -553,13 +553,13 @@ preferenceDefaultValueHandler();
   overflow-y: auto;
   padding: 16px;
   padding-bottom: 80px;
-  background-color: #f8f9fa;
+  background-color: var(--boss-bg-color);
 }
 
 .header-title {
   font-size: 16px;
   font-weight: 500;
-  color: #333;
+  color: var(--boss-text-primary);
   margin-bottom: 16px;
   border-left: 3px solid var(--boss-primary, #00bebd);
   padding-left: 8px;
@@ -567,17 +567,17 @@ preferenceDefaultValueHandler();
 }
 
 .boss-card {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--boss-bg-white);
+  border-radius: var(--radius-card);
   padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eef0f5;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--boss-border-color);
 }
 
 .card-title {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--boss-text-primary);
   display: flex;
   align-items: center;
   margin-bottom: 16px;
@@ -596,7 +596,7 @@ preferenceDefaultValueHandler();
 .card-subtitle {
   font-size: 14px;
   font-weight: 600;
-  color: #555;
+  color: var(--boss-text-regular);
   margin-bottom: 8px;
 }
 
@@ -615,18 +615,18 @@ preferenceDefaultValueHandler();
 .label {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--boss-text-primary);
 }
 
 .sub-desc {
   font-size: 12px;
-  color: #888;
+  color: var(--boss-text-secondary);
   line-height: 1.5;
 }
 
 .judge-divider {
   height: 1px;
-  background-color: #f0f2f5;
+  background-color: var(--boss-border-light);
   margin: 16px 0;
 }
 
@@ -647,10 +647,10 @@ preferenceDefaultValueHandler();
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  background: #fafafa;
+  background: var(--boss-bg-hover);
   padding: 10px 16px;
-  border-radius: 6px;
-  border: 1px solid #ebeef5;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--boss-border-color);
 }
 
 .activity-dims {
@@ -660,12 +660,12 @@ preferenceDefaultValueHandler();
   gap: 12px;
   margin-left: 12px;
   padding-left: 20px;
-  border-left: 1px solid #dcdfe6;
+  border-left: 1px solid var(--boss-border-color);
 }
 
 .dim-label {
   font-size: 13px;
-  color: #666;
+  color: var(--boss-text-regular);
 }
 
 .is-disabled {
@@ -684,7 +684,7 @@ preferenceDefaultValueHandler();
 .switch-content span {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: var(--boss-text-primary);
 }
 
 .judge-form {
@@ -699,10 +699,10 @@ preferenceDefaultValueHandler();
   display: flex;
   flex-wrap: wrap;
   gap: 20px 32px;
-  background: #fdfdfd;
+  background: var(--boss-bg-hover);
   padding: 16px;
-  border-radius: 6px;
-  border: 1px dashed #dcdfe6;
+  border-radius: var(--radius-card);
+  border: 1px dashed var(--boss-border-color);
 }
 
 .interval-item {
@@ -712,13 +712,13 @@ preferenceDefaultValueHandler();
 
 .interval-label {
   font-size: 14px;
-  color: #333;
+  color: var(--boss-text-primary);
   margin-right: 8px;
 }
 
 .interval-unit {
   font-size: 13px;
-  color: #999;
+  color: var(--boss-text-secondary);
   margin-left: 8px;
 }
 
@@ -728,10 +728,10 @@ preferenceDefaultValueHandler();
   justify-content: flex-end;
   align-items: center;
   gap: 16px;
-  background: #fff;
+  background: var(--boss-bg-white);
   padding: 16px 20px;
-  border-radius: 8px;
-  border: 1px solid #ebeef5;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;
 }
 
@@ -809,15 +809,15 @@ preferenceDefaultValueHandler();
   width: 100%;
   min-height: 44px;
   padding: 10px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   display: flex;
   align-items: center;
   transition: all 0.3s ease;
-  background-color: #fff;
+  background-color: var(--boss-bg-white);
 }
 
 :deep(.boss-grid-check.el-checkbox.is-bordered.is-checked) {
-  background-color: #f0fbfb;
+  background-color: var(--boss-primary-light);
   border-color: var(--boss-primary, #00bebd);
 }
 
@@ -836,7 +836,7 @@ preferenceDefaultValueHandler();
 }
 
 :deep(.el-form-item__label) {
-  color: #444;
+  color: var(--boss-text-regular);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.6;

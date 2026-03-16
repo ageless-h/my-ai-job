@@ -261,9 +261,9 @@ defineExpose({
   max-height: 420px;
   overflow-y: auto;
   padding: 8px 4px;
-  background: #fafafa;
-  border: 1px solid #eee;
-  border-radius: 6px;
+  background: var(--boss-bg-color);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-card);
 }
 :deep(.chat-composer) {
   display: flex;
@@ -300,15 +300,15 @@ defineExpose({
 :deep(.bubble) {
   max-width: 80%;
   padding: 8px 10px;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 1px 2px #0000000f;
+  border-radius: var(--radius-card);
+  background: var(--boss-bg-white);
+  box-shadow: var(--shadow-card);
 }
 :deep(.from-user .bubble) {
-  background: #f5f7fa;
+  background: var(--boss-bg-color);
 }
 :deep(.from-ai .bubble) {
-  background: #e8f6f3;
+  background: var(--boss-primary-light);
 }
 :deep(.bubble .content) {
   white-space: pre-wrap;
@@ -317,7 +317,7 @@ defineExpose({
 }
 :deep(.bubble .meta) {
   font-size: 12px;
-  color: #909399;
+  color: var(--boss-text-tertiary);
   margin-bottom: 4px;
 }
 :deep(.bubble .tags) {

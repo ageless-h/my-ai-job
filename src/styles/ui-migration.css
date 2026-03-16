@@ -235,3 +235,193 @@
 #ai-job .ai-sidebar-body:hover::-webkit-scrollbar-thumb {
   background: var(--boss-primary);
 }
+
+/* ========== Task 1: Element Plus 高频组件样式覆盖 ========== */
+
+/* el-form 表单容器 */
+#ai-job .el-form {
+  --el-form-label-font-size: 14px;
+}
+
+/* el-form-item 表单项 */
+#ai-job .el-form-item {
+  margin-bottom: 20px;
+}
+
+#ai-job .el-form-item__label {
+  color: var(--boss-text-primary);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 22px;
+  margin-bottom: 8px;
+}
+
+#ai-job .el-form-item__error {
+  color: var(--ai-danger);
+  font-size: 12px;
+  line-height: 1;
+  padding-top: 4px;
+}
+
+/* el-dialog 对话框 */
+#ai-job .el-dialog {
+  border-radius: var(--radius-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+#ai-job .el-dialog__header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--boss-border-color);
+}
+
+#ai-job .el-dialog__title {
+  color: var(--boss-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+#ai-job .el-dialog__body {
+  padding: 24px;
+  color: var(--boss-text-secondary);
+}
+
+#ai-job .el-dialog__footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--boss-border-color);
+}
+
+#ai-job .el-dialog__close {
+  color: var(--boss-text-tertiary);
+  font-size: 16px;
+}
+
+#ai-job .el-dialog__close:hover {
+  color: var(--boss-primary);
+}
+
+/* el-input-number 数字输入框 */
+#ai-job .el-input-number {
+  width: 100%;
+}
+
+#ai-job .el-input-number .el-input__wrapper {
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-base);
+}
+
+#ai-job .el-input-number .el-input__wrapper:hover {
+  border-color: var(--boss-primary);
+}
+
+#ai-job .el-input-number .el-input__wrapper.is-focus {
+  border-color: var(--boss-primary);
+  box-shadow: 0 0 0 2px rgba(0, 190, 189, 0.1);
+}
+
+#ai-job .el-input-number__decrease,
+#ai-job .el-input-number__increase {
+  background: var(--boss-bg-color);
+  border: none;
+  color: var(--boss-text-secondary);
+  border-radius: var(--radius-base);
+}
+
+#ai-job .el-input-number__decrease:hover,
+#ai-job .el-input-number__increase:hover {
+  color: var(--boss-primary);
+  background: var(--boss-primary-light);
+}
+
+/* el-table 表格 */
+#ai-job .el-table {
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+#ai-job .el-table__header-wrapper {
+  background: var(--boss-bg-color);
+}
+
+#ai-job .el-table th.el-table__cell {
+  background: var(--boss-bg-color);
+  color: var(--boss-text-primary);
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid var(--boss-border-color);
+  padding: 12px 16px;
+}
+
+#ai-job .el-table td.el-table__cell {
+  color: var(--boss-text-secondary);
+  font-size: 14px;
+  border-bottom: 1px solid var(--boss-border-color);
+  padding: 12px 16px;
+}
+
+#ai-job .el-table__row:hover {
+  background: var(--boss-bg-hover);
+}
+
+#ai-job .el-table__empty-block {
+  background: var(--boss-bg-white);
+}
+
+#ai-job .el-table__empty-text {
+  color: var(--boss-text-tertiary);
+}
+
+/* el-pagination 分页器 */
+#ai-job .el-pagination {
+  padding: 16px 0;
+}
+
+#ai-job .el-pagination button,
+#ai-job .el-pager li {
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-base);
+  color: var(--boss-text-secondary);
+  min-width: 32px;
+  height: 32px;
+  line-height: 30px;
+  margin: 0 4px;
+}
+
+#ai-job .el-pagination button:hover,
+#ai-job .el-pager li:hover {
+  color: var(--boss-primary);
+  border-color: var(--boss-primary);
+}
+
+#ai-job .el-pager li.is-active {
+  background: var(--boss-primary);
+  border-color: var(--boss-primary);
+  color: var(--boss-bg-white);
+}
+
+/* el-empty 空状态 */
+#ai-job .el-empty {
+  padding: 40px 0;
+}
+
+#ai-job .el-empty__description {
+  color: var(--boss-text-tertiary);
+  font-size: 14px;
+}
+
+/* el-tooltip 提示框 */
+#ai-job .el-tooltip__popper {
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: var(--radius-base);
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#ai-job .el-tooltip__popper .el-popper__arrow::before {
+  background: rgba(0, 0, 0, 0.85);
+}

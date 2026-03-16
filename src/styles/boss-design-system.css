@@ -11,7 +11,14 @@
   /* 文字颜色 */
   --boss-text-primary: #333333;
   --boss-text-regular: #666666;
-  --boss-text-secondary: #999999;
+  --boss-text-secondary: #666666;
+  --boss-text-tertiary: #999999;
+
+  /* 状态颜色 */
+  --ai-danger: #f56c6c;
+  --ai-warning: #e6a23c;
+  --ai-success: #67c23a;
+  --ai-info: #909399;
 
   /* 背景颜色 */
   --boss-bg-color: #f8f8f8;

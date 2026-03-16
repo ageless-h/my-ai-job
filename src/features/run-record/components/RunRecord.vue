@@ -518,13 +518,13 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  background-color: #f8f9fa;
+  background-color: var(--boss-bg-color);
 }
 
 .header-title {
   font-size: 16px;
   font-weight: 500;
-  color: #333;
+  color: var(--boss-text-primary);
   margin-bottom: 16px;
   border-left: 3px solid var(--boss-primary, #00bebd);
   padding-left: 8px;
@@ -533,11 +533,11 @@ onBeforeUnmount(() => {
 }
 
 .boss-card {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--boss-bg-white);
+  border-radius: var(--radius-card);
   padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eef0f5;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--boss-border-color);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
 .config-title {
   font-size: 13px;
   font-weight: 600;
-  color: #333;
+  color: var(--boss-text-primary);
   margin-bottom: 12px;
 }
 
@@ -605,7 +605,7 @@ onBeforeUnmount(() => {
 
 .config-divider {
   height: 1px;
-  background-color: #ebeef5;
+  background-color: var(--boss-border-color);
   margin: 16px 0;
 }
 
@@ -639,9 +639,9 @@ onBeforeUnmount(() => {
 }
 
 .boss-table {
-  --el-table-border-color: #ebeef5;
-  --el-table-header-bg-color: #f8f9fa;
-  --el-table-header-text-color: #333;
+  --el-table-border-color: var(--boss-border-color);
+  --el-table-header-bg-color: var(--boss-bg-color);
+  --el-table-header-text-color: var(--boss-text-primary);
 }
 
 :deep(.boss-table th.el-table__cell) {
@@ -652,7 +652,7 @@ onBeforeUnmount(() => {
 
 :deep(.boss-table td.el-table__cell) {
   font-size: 12px;
-  color: #555;
+  color: var(--boss-text-regular);
   padding: 6px 0;
 }
 
@@ -678,7 +678,7 @@ onBeforeUnmount(() => {
 }
 
 .decision-text.is-success {
-  color: #00bebd;
+  color: var(--boss-primary);
 }
 
 .decision-text.is-danger {

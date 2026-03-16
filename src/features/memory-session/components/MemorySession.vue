@@ -390,26 +390,26 @@ onMounted(() => {
   padding: 16px;
   height: 100%;
   overflow-y: auto;
-  background-color: #f8f9fa;
+  background-color: var(--boss-bg-color);
   padding-bottom: 80px;
 }
 
 .header-title {
   font-size: 16px;
   font-weight: 500;
-  color: #333;
+  color: var(--boss-text-primary);
   margin-bottom: 16px;
-  border-left: 3px solid var(--boss-primary, #00bebd);
+  border-left: 3px solid var(--boss-primary);
   padding-left: 8px;
   line-height: 1;
 }
 
 .boss-card {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--boss-bg-white);
+  border-radius: var(--radius-card);
   padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eef0f5;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--boss-border-color);
 }
 
 .h-full {
@@ -420,7 +420,7 @@ onMounted(() => {
 .card-title {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--boss-text-primary);
   display: flex;
   align-items: center;
   margin-bottom: 16px;
@@ -431,9 +431,9 @@ onMounted(() => {
   display: inline-block;
   width: 3px;
   height: 14px;
-  background-color: var(--boss-primary, #00bebd);
+  background-color: var(--boss-primary);
   margin-right: 8px;
-  border-radius: 2px;
+  border-radius: var(--radius-base);
 }
 
 .responsive-grid {
@@ -458,12 +458,12 @@ onMounted(() => {
 .label {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--boss-text-primary);
 }
 
 .sub-desc {
   font-size: 12px;
-  color: #888;
+  color: var(--boss-text-tertiary);
   line-height: 1.5;
 }
 
@@ -476,7 +476,7 @@ onMounted(() => {
 
 .judge-divider {
   height: 1px;
-  background-color: #f0f2f5;
+  background-color: var(--boss-border-color);
 }
 
 .delay-input {
@@ -485,20 +485,20 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 4px;
   font-size: 14px;
-  color: #555;
+  color: var(--boss-text-secondary);
   margin-top: 4px;
 }
 
 .condition-box {
-  background: #fafafa;
+  background: var(--boss-bg-color);
   padding: 16px;
-  border-radius: 6px;
-  border: 1px solid #ebeef5;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--boss-border-color);
 }
 
 .condition-title {
   font-size: 13px;
-  color: #666;
+  color: var(--boss-text-secondary);
   font-weight: 500;
 }
 
@@ -522,7 +522,7 @@ onMounted(() => {
 
 .grid-label {
   font-size: 13px;
-  color: #666;
+  color: var(--boss-text-secondary);
   white-space: nowrap;
 }
 
@@ -537,10 +537,10 @@ onMounted(() => {
   justify-content: flex-end;
   align-items: center;
   gap: 16px;
-  background: #fff;
+  background: var(--boss-bg-white);
   padding: 16px 20px;
-  border-radius: 8px;
-  border: 1px solid #ebeef5;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;
 }
 
@@ -611,7 +611,7 @@ onMounted(() => {
 
 :deep(.boss-form .el-form-item__label) {
   padding-bottom: 4px;
-  color: #444;
+  color: var(--boss-text-primary);
   font-size: 14px;
   font-weight: 500;
 }

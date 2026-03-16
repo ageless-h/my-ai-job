@@ -281,7 +281,9 @@ const isSaving = ref(false);
 const hasResume = computed(() => {
   return Boolean(`${userStore.user?.resumeId || ''}`.trim() || getResumeTextForPreview());
 });
-const hasImageResume = computed(() => Boolean(`${userStore.user?.preference?.customImageSet || ''}`.trim()));
+const hasImageResume = computed(() =>
+  Boolean(`${userStore.user?.preference?.customImageSet || ''}`.trim())
+);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -1045,7 +1047,8 @@ const handleUnlockPushLock = async () => {
     }
   )
     .then(() => {
-      const currentLock = `${TampermonkeyApi.GmGetValue<string>(TampermonkeyApi.PUSH_LOCK, '')}`.trim();
+      const currentLock =
+        `${TampermonkeyApi.GmGetValue<string>(TampermonkeyApi.PUSH_LOCK, '')}`.trim();
       if (!currentLock) {
         showAppMessage({
           type: 'warning',
@@ -1110,14 +1113,14 @@ const handleSave = async () => {
   padding: 16px;
   height: 100%;
   overflow-y: auto;
-  background-color: #f8f9fa;
+  background-color: var(--boss-bg-color);
   padding-bottom: 80px;
 }
 
 .header-title {
   font-size: 16px;
   font-weight: 500;
-  color: #333;
+  color: var(--boss-text-primary);
   margin-bottom: 16px;
   border-left: 3px solid var(--boss-primary, #00bebd);
   padding-left: 8px;
@@ -1125,17 +1128,17 @@ const handleSave = async () => {
 }
 
 .boss-card {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--boss-bg-white);
+  border-radius: var(--radius-card);
   padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eef0f5;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--boss-border-color);
 }
 
 .card-title {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--boss-text-primary);
   display: flex;
   align-items: center;
   margin-bottom: 16px;
@@ -1173,7 +1176,7 @@ const handleSave = async () => {
 
 .sub-desc {
   font-size: 13px;
-  color: #666;
+  color: var(--boss-text-regular);
   line-height: 1.5;
 }
 
@@ -1183,19 +1186,19 @@ const handleSave = async () => {
 
 :deep(.boss-form .el-form-item__label) {
   font-weight: 500;
-  color: #555;
+  color: var(--boss-text-regular);
 }
 
 .resume-manage-box {
-  background: #fdfdfd;
-  border: 1px dashed #dcdfe6;
-  border-radius: 6px;
+  background: var(--boss-bg-hover);
+  border: 1px dashed var(--boss-border-color);
+  border-radius: var(--radius-card);
   padding: 16px;
 }
 
 .judge-divider {
   height: 1px;
-  background-color: #ebeef5;
+  background-color: var(--boss-border-color);
   margin: 16px 0;
 }
 
@@ -1206,13 +1209,13 @@ const handleSave = async () => {
 .group-title {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--boss-text-primary);
   margin-bottom: 4px;
 }
 
 .group-desc {
   font-size: 12px;
-  color: #888;
+  color: var(--boss-text-secondary);
 }
 
 .resume-actions {
@@ -1248,7 +1251,7 @@ const handleSave = async () => {
 }
 
 .shadow-sm {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .action-footer {
@@ -1257,10 +1260,10 @@ const handleSave = async () => {
   justify-content: flex-end;
   align-items: center;
   gap: 16px;
-  background: #fff;
+  background: var(--boss-bg-white);
   padding: 16px 20px;
-  border-radius: 8px;
-  border: 1px solid #ebeef5;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;
 }
 
@@ -1282,23 +1285,23 @@ const handleSave = async () => {
 
 :deep(.boss-dialog .el-dialog__header) {
   padding-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--boss-border-color);
   margin-right: 0;
 }
 
 :deep(.boss-dialog .el-dialog__title) {
   font-weight: 600;
-  color: #333;
+  color: var(--boss-text-primary);
 }
 
 :deep(.boss-dialog .el-dialog__footer) {
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--boss-border-color);
   padding-top: 16px;
 }
 
 :deep(.preview-textarea .el-textarea__inner) {
-  background-color: #f8f9fa;
-  border-color: #ebeef5;
+  background-color: var(--boss-bg-color);
+  border-color: var(--boss-border-color);
   font-family: inherit;
   font-size: 13px;
   line-height: 1.6;
