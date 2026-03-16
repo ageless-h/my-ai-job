@@ -90,7 +90,7 @@
             inactive-text="关"
             inline-prompt
             data-testid="collect-mode-switch"
-            style="--el-switch-off-color: #dcdfe6"
+            style="--el-switch-off-color: var(--ai-disabled)"
           />
         </div>
 
@@ -102,7 +102,7 @@
             inactive-text="关"
             inline-prompt
             data-testid="infinite-loop-switch"
-            style="--el-switch-off-color: #dcdfe6"
+            style="--el-switch-off-color: var(--ai-disabled)"
           />
         </div>
       </div>
@@ -113,7 +113,7 @@
       <div class="action-row">
         <el-tooltip
           effect="dark"
-          content="先通过Boss的筛选功能圈选你的意向岗位<br/><span style='color:#00bebd;'>在【传统投递】Tab 中设置</span><br/>您的投递设置，用于精准投递岗位"
+          content="先通过Boss的筛选功能圈选你的意向岗位<br/><span style='color:var(--boss-primary);'>在【传统投递】Tab 中设置</span><br/>您的投递设置，用于精准投递岗位"
           raw-content
           placement="bottom"
         >
@@ -883,25 +883,25 @@ onUnmounted(() => {
 
 <style scoped>
 .ai-job-tab {
-  padding: 16px;
+  padding: var(--spacing-2xl);
   height: 100%;
   overflow-y: auto;
-  background-color: #f8f9fa;
+  background-color: var(--ai-bg-subtle);
 }
 
 .boss-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eef0f5;
+  background: var(--ai-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl) var(--spacing-3xl);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--ai-border);
 }
 
 .card-title {
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  color: #333;
-  margin-bottom: 16px;
+  color: var(--ai-text-main);
+  margin-bottom: var(--spacing-2xl);
   display: flex;
   align-items: center;
 }
@@ -911,21 +911,21 @@ onUnmounted(() => {
   display: inline-block;
   width: 3px;
   height: 14px;
-  background-color: var(--boss-primary, #00bebd);
-  margin-right: 8px;
-  border-radius: 2px;
+  background-color: var(--boss-primary);
+  margin-right: var(--spacing-lg);
+  border-radius: var(--radius-xs);
 }
 
 .mt-16 {
-  margin-top: 16px;
+  margin-top: var(--spacing-2xl);
 }
 
 .mr-6 {
-  margin-right: 6px;
+  margin-right: var(--spacing-md);
 }
 
 .ml-8 {
-  margin-left: 8px;
+  margin-left: var(--spacing-lg);
 }
 
 .stats-row {
@@ -946,27 +946,27 @@ onUnmounted(() => {
 .stat-label {
   font-size: var(--text-sm);
   color: var(--boss-text-regular);
-  margin-bottom: var(--spacing-2);
+  margin-bottom: var(--spacing-sm);
 }
 
 .stat-value {
-  font-size: 20px;
+  font-size: var(--text-2xl);
   font-weight: 600;
 }
 
 .text-primary {
-  color: var(--boss-primary, #00bebd);
+  color: var(--boss-primary);
 }
 
 .text-danger {
-  color: #f56c6c;
+  color: var(--ai-danger);
 }
 
 .stat-divider {
   width: 1px;
   height: 30px;
   background-color: var(--boss-border-color);
-  margin: 0 var(--spacing-5);
+  margin: 0 var(--spacing-3xl);
 }
 
 .stat-actions {
@@ -978,22 +978,22 @@ onUnmounted(() => {
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
-  gap: 16px;
+  gap: var(--spacing-2xl);
 }
 
 .setting-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--spacing-lg);
   background: #fcfcfc;
   padding: 10px 12px;
-  border-radius: 6px;
-  border: 1px solid #f0f2f5;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ai-border-light);
 }
 
 .setting-label {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: #444;
 }
 
@@ -1004,8 +1004,8 @@ onUnmounted(() => {
 .boss-btn-full {
   width: 100%;
   height: 40px;
-  font-size: 15px;
-  border-radius: 6px;
+  font-size: var(--text-lg);
+  border-radius: var(--radius-md);
 }
 
 .push-records-container {
@@ -1015,7 +1015,7 @@ onUnmounted(() => {
 
 .log-title {
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-xl);
 }
 
 .log-title-left {
@@ -1027,22 +1027,22 @@ onUnmounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #dcdfe6;
+  background-color: var(--ai-disabled);
   transition: all 0.3s;
 }
 
 .status-dot.is-active {
-  background-color: #00bebd;
-  box-shadow: 0 0 8px rgba(0, 190, 189, 0.4);
+  background-color: var(--boss-primary);
+  box-shadow: var(--shadow-primary-glow);
 }
 
 .push-records-content {
   background: #fafafa;
-  border-radius: 6px;
-  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl) var(--spacing-2xl);
   height: 250px;
   overflow-y: auto;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--ai-border);
 }
 
 .no-records {
@@ -1055,12 +1055,12 @@ onUnmounted(() => {
 
 .push-record-item {
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.5;
   display: flex;
   align-items: flex-start;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed #ebeef5;
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px dashed var(--ai-border);
 }
 
 .push-record-item:last-child {
@@ -1071,7 +1071,7 @@ onUnmounted(() => {
 
 .record-time {
   color: #999;
-  margin-right: 12px;
+  margin-right: var(--spacing-xl);
   flex-shrink: 0;
   font-family: monospace;
 }
@@ -1087,28 +1087,28 @@ onUnmounted(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  margin-right: 6px;
+  margin-right: var(--spacing-md);
 }
 
 .record-info {
-  color: #606266;
+  color: var(--ai-text-secondary);
 }
 .record-info.record-dot {
-  background-color: #909399;
+  background-color: var(--ai-text-sub);
 }
 
 .record-warn {
-  color: #e6a23c;
+  color: var(--ai-warning);
 }
 .record-warn.record-dot {
-  background-color: #e6a23c;
+  background-color: var(--ai-warning);
 }
 
 .record-error {
-  color: #f56c6c;
+  color: var(--ai-danger);
 }
 .record-error.record-dot {
-  background-color: #f56c6c;
+  background-color: var(--ai-danger);
 }
 
 .record-debug {
@@ -1119,7 +1119,7 @@ onUnmounted(() => {
 }
 
 .record-trace {
-  color: #909399;
+  color: var(--ai-text-sub);
 }
 
 .fixed-stop-button {

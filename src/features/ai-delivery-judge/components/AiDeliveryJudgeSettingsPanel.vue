@@ -11,7 +11,7 @@
           inline-prompt
           :style="{
             '--el-switch-on-color': 'var(--boss-primary, #00bebd)',
-            '--el-switch-off-color': '#dcdfe6',
+            '--el-switch-off-color': 'var(--ai-disabled)',
           }"
         />
       </div>
@@ -102,9 +102,9 @@
           >测试重点分析</el-button
         >
         <el-button
-          color="#00bebd"
+          color="var(--boss-primary)"
           class="save-btn"
-          style="color: #fff"
+          style="color: var(--ai-bg)"
           :loading="isSaving"
           @click="handleSave"
         >
@@ -366,20 +366,20 @@ const copyPayload = async () => {
 }
 
 .boss-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: var(--ai-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl) var(--spacing-3xl);
+  box-shadow: var(--shadow-sm);
   border: 1px solid #eef0f5;
 }
 
 .card-title {
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
-  color: #333;
+  color: var(--ai-text-main);
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-3xl);
 }
 
 .card-title::before {
@@ -388,8 +388,8 @@ const copyPayload = async () => {
   width: 3px;
   height: 14px;
   background-color: var(--boss-primary, #00bebd);
-  margin-right: 8px;
-  border-radius: 2px;
+  margin-right: var(--spacing-lg);
+  border-radius: var(--radius-xs);
 }
 
 .setting-row {
@@ -399,37 +399,37 @@ const copyPayload = async () => {
 }
 
 .label {
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
-  color: #333;
+  color: var(--ai-text-main);
 }
 
 .sub-desc {
-  font-size: 12px;
-  color: #888;
+  font-size: var(--text-sm);
+  color: var(--ai-text-sub);
   line-height: 1.5;
 }
 
 .mt-4 {
-  margin-top: 4px;
+  margin-top: var(--spacing-sm);
 }
 
 .mt-8 {
-  margin-top: 8px;
+  margin-top: var(--spacing-lg);
 }
 
 .mt-16 {
-  margin-top: 16px;
+  margin-top: var(--spacing-2xl);
 }
 
 .mt-24 {
-  margin-top: 24px;
+  margin-top: var(--spacing-6);
 }
 
 .judge-divider {
   height: 1px;
-  background-color: #f0f2f5;
-  margin: 16px 0;
+  background-color: var(--ai-border-light);
+  margin: var(--spacing-2xl) 0;
 }
 
 .judge-form {
@@ -444,8 +444,8 @@ const copyPayload = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 4px 0;
+  gap: var(--spacing-2xl);
+  padding: var(--spacing-sm) 0;
 }
 
 .switch-content {
@@ -454,9 +454,9 @@ const copyPayload = async () => {
 }
 
 .switch-content span {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 500;
-  color: #333;
+  color: var(--ai-text-main);
 }
 
 .action-footer {
@@ -464,38 +464,38 @@ const copyPayload = async () => {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
-  background: #fff;
-  padding: 16px 20px;
-  border-radius: 8px;
-  border: 1px solid #ebeef5;
+  gap: var(--spacing-2xl);
+  background: var(--ai-bg);
+  padding: var(--spacing-2xl) var(--spacing-3xl);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--ai-border);
 }
 
 .footer-right.buttons {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: var(--spacing-xl);
   flex-wrap: wrap;
 }
 
 .judge-sync-hint {
   margin-top: 10px;
-  font-size: 12px;
-  color: #909399;
+  font-size: var(--text-sm);
+  color: var(--ai-text-sub);
   line-height: 1.5;
 }
 
 .judge-policy-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #909399;
+  margin-top: var(--spacing-lg);
+  font-size: var(--text-sm);
+  color: var(--ai-text-sub);
   line-height: 1.5;
 }
 
 .text-muted {
-  color: #909399;
-  font-size: 13px;
+  color: var(--ai-text-sub);
+  font-size: var(--text-base);
 }
 
 .save-btn {
@@ -507,28 +507,28 @@ const copyPayload = async () => {
 }
 
 .preview-job-card {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
-  border: 1px solid #ebeef5;
+  background: var(--ai-bg-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl) var(--spacing-3xl);
+  margin-bottom: var(--spacing-3xl);
+  border: 1px solid var(--ai-border);
 }
 
 .job-card-label {
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 8px;
+  font-size: var(--text-base);
+  color: var(--ai-text-sub);
+  margin-bottom: var(--spacing-lg);
 }
 
 .job-card-title {
-  font-size: 16px;
+  font-size: var(--text-xl);
   font-weight: 600;
-  color: #303133;
+  color: var(--ai-text-main);
 }
 
 .preview-code-container {
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
+  border: 1px solid var(--ai-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -537,10 +537,10 @@ const copyPayload = async () => {
   justify-content: space-between;
   align-items: center;
   background: #f5f7fa;
-  padding: 10px 16px;
-  border-bottom: 1px solid #ebeef5;
-  font-size: 13px;
-  color: #606266;
+  padding: 10px var(--spacing-2xl);
+  border-bottom: 1px solid var(--ai-border);
+  font-size: var(--text-base);
+  color: var(--ai-text-secondary);
   font-weight: 500;
 }
 
@@ -548,9 +548,9 @@ const copyPayload = async () => {
   background-color: #fafafa;
   border: none;
   border-radius: 0;
-  padding: 16px;
+  padding: var(--spacing-2xl);
   font-family: 'JetBrains Mono', Consolas, Monaco, Courier, monospace;
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.5;
   color: #434c5e;
   box-shadow: none !important;
@@ -567,26 +567,26 @@ const copyPayload = async () => {
 }
 
 :deep(.boss-dialog .el-dialog__header) {
-  padding-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
+  padding-bottom: var(--spacing-2xl);
+  border-bottom: 1px solid var(--ai-border);
   margin-right: 0;
 }
 
 :deep(.boss-dialog .el-dialog__title) {
   font-weight: 600;
-  color: #333;
+  color: var(--ai-text-main);
 }
 
 :deep(.boss-dialog .el-dialog__footer) {
-  border-top: 1px solid #ebeef5;
-  padding-top: 16px;
+  border-top: 1px solid var(--ai-border);
+  padding-top: var(--spacing-2xl);
 }
 
 :deep(.el-form-item__label) {
   color: #444;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 500;
   line-height: 1.6;
-  padding-bottom: 4px;
+  padding-bottom: var(--spacing-sm);
 }
 </style>

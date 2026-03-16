@@ -15,6 +15,11 @@
   --boss-text-secondary: #666666;
   --boss-text-tertiary: #999999;
 
+  /* 扩展文字颜色（兼容旧代码） */
+  --ai-text-main: #303133;
+  --ai-text-secondary: #606266;
+  --ai-text-sub: #909399;
+
   /* 状态颜色 */
   --ai-danger: #f56c6c;
   --ai-warning: #e6a23c;
@@ -26,21 +31,46 @@
   --boss-bg-white: #ffffff; /* 卡片背景 - 纯白 */
   --boss-bg-hover: #f5f5f5; /* 悬停背景 */
 
+  /* 扩展背景颜色（兼容旧代码） */
+  --ai-bg: #ffffff;
+  --ai-bg-subtle: #f8f9fa;
+
   /* 边框颜色 */
   --boss-border-color: #ebeef5;
   --boss-border-light: #f0f2f5;
 
+  /* 扩展边框颜色（兼容旧代码） */
+  --ai-border: #ebeef5;
+  --ai-border-light: #f0f2f5;
+  --ai-disabled: #dcdfe6;
+
   /* ========== 阴影系统（轻量级扁平化） ========== */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
   --shadow-hover: 0 4px 12px rgba(0, 190, 189, 0.08);
   --shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-primary: 0 4px 12px rgba(0, 190, 189, 0.2);
+  --shadow-primary-glow: 0 0 8px rgba(0, 190, 189, 0.4);
 
   /* ========== 圆角系统（小圆角 - 高效专业） ========== */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
   --radius-base: 4px; /* 基础圆角：按钮、输入框 */
+  --radius-md: 6px;
   --radius-card: 6px; /* 卡片圆角：主卡片容器 */
+  --radius-lg: 8px;
+  --radius-xl: 10px;
   --radius-full: 9999px; /* 圆形：头像、FAB */
 
   /* ========== 间距系统（8px 基准） ========== */
+  --spacing-xs: 2px;
+  --spacing-sm: 4px;
+  --spacing-md: 6px;
+  --spacing-lg: 8px;
+  --spacing-xl: 12px;
+  --spacing-2xl: 16px;
+  --spacing-3xl: 20px;
   --spacing-2: 8px;
   --spacing-3: 12px;
   --spacing-4: 16px;
@@ -48,9 +78,13 @@
   --spacing-6: 24px;
 
   /* ========== 字体系统 ========== */
-  --text-sm: 13px;
-  --text-base: 14px;
-  --text-lg: 16px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 16px;
+  --text-2xl: 20px;
 
   --font-normal: 400;
   --font-medium: 500;

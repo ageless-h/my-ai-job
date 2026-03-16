@@ -535,7 +535,7 @@ onBeforeUnmount(() => {
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: 16px;
+  padding: 16px 20px;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
   flex: 1;

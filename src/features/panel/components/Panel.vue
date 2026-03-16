@@ -715,7 +715,7 @@ onUpdated(() => {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: url('https://z.zhipin.com/web/v2/favicon.ico') center / cover no-repeat;
 }
 
@@ -726,7 +726,7 @@ onUpdated(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--boss-text-secondary);
   transition:
     background-color 0.16s ease,
@@ -752,7 +752,7 @@ onUpdated(() => {
   background: var(--boss-bg-color);
   overflow-y: auto;
   overflow-x: hidden;
-  padding-top: 8px;
+  padding-top: var(--spacing-lg);
 }
 
 :deep(.ai-nav-tab) {
@@ -764,7 +764,7 @@ onUpdated(() => {
   max-width: none;
   height: 64px;
   flex-direction: column;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 500;
   color: var(--ai-text-sub);
   cursor: pointer;
@@ -774,9 +774,9 @@ onUpdated(() => {
     color 0.2s ease,
     border-color 0.2s ease;
   user-select: none;
-  gap: 6px;
+  gap: var(--spacing-md);
   overflow: hidden;
-  padding: 8px 6px;
+  padding: var(--spacing-lg) var(--spacing-md);
   text-align: center;
   border-left: 3px solid transparent;
 }
@@ -790,13 +790,13 @@ onUpdated(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 :deep(.ai-nav-tab.is-active) {
   flex: 0 0 64px;
   max-width: none;
-  gap: 6px;
+  gap: var(--spacing-md);
   background: var(--boss-bg-white);
   border-left-color: var(--boss-primary);
 }
@@ -858,12 +858,12 @@ onUpdated(() => {
   width: 6px;
 }
 :deep(.ai-sidebar-body::-webkit-scrollbar-thumb) {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 10px;
+  background: var(--shadow-sm);
+  border-radius: var(--radius-xl);
   transition: background 0.3s;
 }
 :deep(.ai-sidebar-body:hover::-webkit-scrollbar-thumb) {
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--shadow-panel);
 }
 :deep(.ai-sidebar-body::-webkit-scrollbar-thumb:hover) {
   background: var(--ai-primary);
@@ -875,7 +875,7 @@ onUpdated(() => {
 /* Button内的p标签 */
 :deep(.ai-sidebar .el-button p) {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   line-height: 1;
 }
 
@@ -891,7 +891,7 @@ onUpdated(() => {
 }
 
 :deep(.el-button--primary:not(.is-plain):not(.is-link):not(.is-text)) {
-  box-shadow: 0 4px 12px rgba(0, 190, 189, 0.2);
+  box-shadow: var(--shadow-primary);
 }
 
 :deep(.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):hover) {
@@ -920,13 +920,13 @@ onUpdated(() => {
 :deep(.form-preference .top-title) {
   display: block !important;
   width: 100%;
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--ai-primary);
-  padding: 10px 0 6px;
-  margin-top: 12px;
+  padding: var(--spacing-xl) 0 var(--spacing-md);
+  margin-top: var(--spacing-xl);
   border-bottom: 2px solid var(--ai-primary-light);
-  margin-bottom: 4px;
+  margin-bottom: var(--spacing-sm);
 }
 :deep(.form-preference .top-title:first-child) {
   margin-top: 0;
@@ -946,7 +946,7 @@ onUpdated(() => {
   width: 100% !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-xl);
 }
 :deep(.form-preference .el-form-item__label-wrap) {
   margin-left: 0 !important;
@@ -956,10 +956,10 @@ onUpdated(() => {
 :deep(.form-preference .el-form-item__label) {
   width: auto !important;
   text-align: left !important;
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--ai-text-main);
-  padding: 0 0 4px 0 !important;
+  padding: 0 0 var(--spacing-sm) 0 !important;
   justify-content: flex-start !important;
   height: auto !important;
   line-height: 1.6;
@@ -986,7 +986,7 @@ onUpdated(() => {
   flex-wrap: wrap !important;
   flex-direction: row !important;
   align-items: center !important;
-  gap: 6px 8px !important;
+  gap: var(--spacing-md) var(--spacing-lg) !important;
 }
 /* Each checkbox: full width = own row */
 :deep(.form-preference > div > div[style*='margin-bottom'] > label.el-checkbox) {
@@ -999,7 +999,7 @@ onUpdated(() => {
   margin-top: -4px !important;
   width: 100%;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--ai-primary);
 }
 
@@ -1013,11 +1013,11 @@ onUpdated(() => {
 }
 /* Checkbox: tighter margin */
 :deep(.form-preference .el-checkbox) {
-  margin-right: 4px;
+  margin-right: var(--spacing-sm);
 }
 /* Tags in select: smaller */
 :deep(.form-preference .el-tag) {
-  max-width: 120px !important;
+  max-width: var(--spacing-2xl) !important;
 }
 /* Time pickers */
 :deep(.form-preference .el-time-picker) {
@@ -1031,13 +1031,13 @@ onUpdated(() => {
   margin-left: 0 !important;
 }
 :deep(.form-preference .el-form-item__content) {
-  gap: 8px;
+  gap: var(--spacing-lg);
 }
 
 /* ===== 传统投递: 投递间隔/翻页间隔排版 ===== */
 /* 间隔组元素保持 inline，与前面的 checkbox 分开 */
 :deep(.form-preference > div > div[style*='margin-bottom'] > p.time-interval) {
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 500;
   color: var(--ai-text-main);
   margin: 0;
@@ -1052,18 +1052,18 @@ onUpdated(() => {
 :deep(.form-preference .form-item-upload .el-upload .el-button) {
   border-radius: var(--ai-radius) !important;
   height: 36px !important;
-  font-size: 14px !important;
+  font-size: var(--text-md) !important;
   font-weight: 500;
-  padding: 0 16px !important;
+  padding: 0 var(--spacing-2xl) !important;
 }
 /* 已上传 tag 统一风格 */
 :deep(.form-preference .form-item-upload .el-tag) {
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   height: 28px;
   line-height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
-  margin-left: 8px !important;
+  padding: 0 var(--spacing-xl);
+  font-size: var(--text-sm);
+  margin-left: var(--spacing-lg) !important;
 }
 
 /* ===== AI 配置 Tab: Collapse ===== */
@@ -1074,14 +1074,14 @@ onUpdated(() => {
   border: none;
 }
 :deep(.el-collapse-item__header) {
-  padding: 0 14px;
+  padding: 0 var(--spacing-2xl);
   height: 44px;
   line-height: 44px;
   background: linear-gradient(135deg, #f8fafc, #f1f5f9);
   border-radius: var(--ai-radius);
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-lg);
   border: 1px solid var(--ai-border);
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--ai-text-main);
   transition:
@@ -1101,21 +1101,21 @@ onUpdated(() => {
   border-top: none;
   border-bottom-left-radius: var(--ai-radius);
   border-bottom-right-radius: var(--ai-radius);
-  padding: 16px;
-  margin-bottom: 12px;
+  padding: var(--spacing-2xl);
+  margin-bottom: var(--spacing-xl);
 }
 /* AI config form: top-aligned labels for narrow sidebar */
 :deep(.ai-config .el-form-item) {
   flex-direction: column;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-2xl);
 }
 :deep(.ai-config .el-form-item__label) {
   width: auto !important;
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--ai-text-main);
-  padding-bottom: 6px;
+  padding-bottom: var(--spacing-md);
   text-align: left;
 }
 :deep(.ai-config .el-form-item__content) {
@@ -1128,7 +1128,7 @@ onUpdated(() => {
 }
 :deep(.ai-config .el-textarea__inner) {
   min-height: 100px !important;
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.6;
 }
 /* Select in AI config */
@@ -1150,12 +1150,12 @@ onUpdated(() => {
 /* Memory strategy row: wrap switch + select + number cleanly */
 :deep(.ai-config .el-form-item__content > div[style*='flex']) {
   flex-wrap: wrap !important;
-  gap: 8px !important;
+  gap: var(--spacing-lg) !important;
   width: 100%;
 }
 :deep(.ai-config .el-form-item__content > div[style*='flex'] > .el-select) {
   flex: 1;
-  min-width: 120px;
+  min-width: var(--spacing-2xl);
 }
 :deep(.ai-config .el-form-item__content > div[style*='flex'] > .el-input-number) {
   flex: 0 0 auto;
@@ -1168,9 +1168,9 @@ onUpdated(() => {
   right: 24px;
   width: 46px;
   height: 46px;
-  background: #ffffff;
+  background: var(--ai-bg);
   border: none;
-  border-radius: 100%;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1186,7 +1186,7 @@ onUpdated(() => {
 
 :deep(.ai-fab:hover) {
   transform: translateY(-1px) scale(1.02);
-  background-color: #f5fffe;
+  background-color: var(--ai-bg-subtle);
   box-shadow: none;
 }
 
@@ -1195,14 +1195,14 @@ onUpdated(() => {
   right: 24px;
   width: 46px;
   height: 46px;
-  background: #ffffff;
+  background: var(--ai-bg);
   border: none;
-  border-radius: 100%;
+  border-radius: var(--radius-full);
   box-shadow: none;
 }
 
 :deep(.ai-fab--close:hover) {
-  background: #f5fffe;
+  background: var(--ai-bg-subtle);
   transform: translateY(-1px) scale(1.02);
 }
 
@@ -1212,10 +1212,10 @@ onUpdated(() => {
   position: absolute;
   right: 64px;
   background: rgba(17, 24, 39, 0.92);
-  color: white;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
+  color: var(--ai-bg);
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
@@ -1272,7 +1272,7 @@ onUpdated(() => {
   :deep(.ai-nav-tab) {
     height: 58px;
     flex-basis: 58px;
-    padding: 6px 4px;
+    padding: var(--spacing-md) var(--spacing-sm);
   }
   :deep(.ai-fab) {
     right: 16px;

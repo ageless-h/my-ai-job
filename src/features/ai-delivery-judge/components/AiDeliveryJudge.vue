@@ -31,19 +31,19 @@ import AiDeliveryJudgeSettingsPanel from '@/features/ai-delivery-judge/component
 .ai-delivery-judge-tab {
   height: 100%;
   width: 100%;
-  padding: 16px;
+  padding: var(--spacing-2xl);
   overflow-y: auto;
   box-sizing: border-box;
-  background: #f8f9fa;
+  background: var(--ai-bg-subtle);
 }
 
 .header-title {
-  font-size: 16px;
+  font-size: var(--text-xl);
   font-weight: 500;
-  color: #333;
-  margin-bottom: 16px;
+  color: var(--ai-text-main);
+  margin-bottom: var(--spacing-2xl);
   border-left: 3px solid var(--boss-primary, #00bebd);
-  padding-left: 8px;
+  padding-left: var(--spacing-lg);
   line-height: 1;
 }
 

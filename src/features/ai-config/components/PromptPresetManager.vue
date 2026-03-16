@@ -274,83 +274,83 @@ const deletePresetById = async (id) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--spacing-lg);
   margin-bottom: 10px;
   flex-wrap: wrap;
 }
 .preset-list-tip {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.6;
-  color: #606266;
+  color: var(--ai-text-secondary);
 }
 .preset-card {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 10px 12px;
+  border: 1px solid var(--ai-border);
+  border-radius: var(--radius-lg);
+  padding: 10px var(--spacing-xl);
   margin-bottom: 10px;
-  background: #fff;
+  background: var(--ai-bg);
 }
 .preset-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: var(--spacing-md);
 }
 .preset-card__name {
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 600;
-  color: #303133;
+  color: var(--ai-text-main);
 }
 .preset-card__content {
-  font-size: 12px;
-  color: #606266;
+  font-size: var(--text-sm);
+  color: var(--ai-text-secondary);
   line-height: 1.5;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-lg);
   word-break: break-all;
 }
 .preset-card__actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--spacing-lg);
   flex-wrap: wrap;
 }
 .preset-card__buttons {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-lg);
 }
 .preset-view-edit {
-  padding-left: 4px;
+  padding-left: var(--spacing-sm);
 }
 .preset-edit-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-lg);
 }
 .preset-edit-title {
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 600;
-  color: #303133;
+  color: var(--ai-text-main);
 }
 .variable-hint {
-  margin-top: 4px;
+  margin-top: var(--spacing-sm);
   padding: 10px;
-  background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  background: var(--ai-bg);
+  border: 1px solid var(--ai-border);
+  border-radius: var(--radius-lg);
 }
 .variable-hint__title {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.6;
-  color: #606266;
-  margin-bottom: 6px;
+  color: var(--ai-text-secondary);
+  margin-bottom: var(--spacing-md);
 }
 .variable-hint__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--spacing-md);
 }
 .variable-tag {
   cursor: pointer;
@@ -363,7 +363,7 @@ const deletePresetById = async (id) => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--spacing-lg);
   flex-wrap: wrap;
 }
 

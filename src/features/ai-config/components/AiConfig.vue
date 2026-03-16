@@ -955,7 +955,8 @@ onMounted(async () => {
   height: 100%;
   min-height: 0;
   width: 100%;
-  padding: 20px 20px 100px;
+  padding: 16px;
+  padding-bottom: 100px;
   box-sizing: border-box;
   background: var(--boss-bg-color);
   overflow-y: auto;
@@ -994,7 +995,7 @@ onMounted(async () => {
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: 20px 24px;
+  padding: 16px 20px;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
 }

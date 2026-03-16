@@ -45,7 +45,7 @@
       v-if="scanning && progress.total > 0"
       :percentage="Math.round((progress.current / progress.total) * 100)"
       :stroke-width="6"
-      style="margin: 8px 0"
+      style="margin: var(--spacing-lg) 0"
     />
 
     <!-- 结果列表 -->
@@ -248,71 +248,71 @@ async function confirmDelete() {
 .cleaner-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--spacing-lg);
   flex-wrap: wrap;
 }
 .cleaner-result {
-  font-size: 12px;
-  color: #67c23a;
+  font-size: var(--text-sm);
+  color: var(--ai-success);
 }
 .cleaner-list {
-  margin-top: 10px;
+  margin-top: var(--spacing-lg);
   max-height: 400px;
   overflow-y: auto;
 }
 .cleaner-list-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 0;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md) 0;
   border-bottom: 1px solid var(--ai-border, #ebeef5);
 }
 .cleaner-list-count {
-  font-size: 12px;
-  color: #909399;
+  font-size: var(--text-sm);
+  color: var(--ai-text-sub);
 }
 .cleaner-card {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 8px 0;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg) 0;
   border-bottom: 1px solid var(--ai-border, #ebeef5);
 }
 .cleaner-card__check {
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: var(--spacing-xs);
 }
 .cleaner-card__info {
   flex: 1;
   min-width: 0;
 }
 .cleaner-card__name {
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 500;
-  color: var(--ai-text, #303133);
+  color: var(--ai-text-main);
 }
 .cleaner-card__detail {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 4px;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-sm);
 }
 .cleaner-card__reason {
-  font-size: 12px;
-  color: #606266;
+  font-size: var(--text-sm);
+  color: var(--ai-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .cleaner-card__meta {
-  font-size: 11px;
-  color: #909399;
-  margin-top: 3px;
+  font-size: var(--text-xs);
+  color: var(--ai-text-sub);
+  margin-top: var(--spacing-sm);
 }
 .cleaner-empty {
   text-align: center;
-  padding: 20px;
-  color: #909399;
-  font-size: 13px;
+  padding: var(--spacing-3xl);
+  color: var(--ai-text-sub);
+  font-size: var(--text-base);
 }
 </style>
