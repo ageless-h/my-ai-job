@@ -1,5 +1,6 @@
 /* UI migration theme (scoped to userscript mount root) */
-#ai-job {
+#ai-job,
+#app {
   /* Element Plus 主题色覆盖 - 使用设计系统变量 */
   --el-color-primary: var(--boss-primary);
   --el-color-primary-light-3: #4dcfce;
@@ -21,72 +22,99 @@
 }
 
 #ai-job,
-#ai-job * {
+#ai-job *,
+#app,
+#app * {
   box-sizing: border-box;
 }
 
-#ai-job .el-checkbox__input.is-checked .el-checkbox__inner,
-#ai-job .el-checkbox__input.is-indeterminate .el-checkbox__inner,
-#ai-job .el-radio__input.is-checked .el-radio__inner,
-#ai-job .el-switch.is-checked .el-switch__core {
+#ai-job .e,
+#app .el-checkbox__input.is-checked .el-checkbox__inner,
+#ai-job .e,
+#app .el-checkbox__input.is-indeterminate .el-checkbox__inner,
+#ai-job .e,
+#app .el-radio__input.is-checked .el-radio__inner,
+#ai-job .e,
+#app .el-switch.is-checked .el-switch__core {
   border-color: var(--boss-primary) !important;
   background-color: var(--boss-primary) !important;
 }
 
-#ai-job .el-input__wrapper.is-focus,
-#ai-job .el-input__wrapper:focus-within,
-#ai-job .el-textarea__inner:focus,
-#ai-job .el-select .el-input__wrapper.is-focus,
-#ai-job .el-select .el-input__wrapper:focus-within {
+#ai-job .e,
+#app .el-input__wrapper.is-focus,
+#ai-job .e,
+#app .el-input__wrapper:focus-within,
+#ai-job .e,
+#app .el-textarea__inner:focus,
+#ai-job .e,
+#app .el-select .el-input__wrapper.is-focus,
+#ai-job .e,
+#app .el-select .el-input__wrapper:focus-within {
   box-shadow: 0 0 0 1px var(--boss-primary) inset !important;
 }
 
-#ai-job .el-checkbox.is-checked .el-checkbox__label,
-#ai-job .el-checkbox__input.is-checked + .el-checkbox__label,
-#ai-job .el-radio.is-checked .el-radio__label,
-#ai-job .el-radio__input.is-checked + .el-radio__label,
-#ai-job .el-select-dropdown__item.is-selected {
+#ai-job .e,
+#app .el-checkbox.is-checked .el-checkbox__label,
+#ai-job .e,
+#app .el-checkbox__input.is-checked + .el-checkbox__label,
+#ai-job .e,
+#app .el-radio.is-checked .el-radio__label,
+#ai-job .e,
+#app .el-radio__input.is-checked + .el-radio__label,
+#ai-job .e,
+#app .el-select-dropdown__item.is-selected {
   color: var(--boss-primary) !important;
 }
 
-#ai-job .el-tag {
+#ai-job .e,
+#app .el-tag {
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
 }
 
-#ai-job .ai-job-tab,
-#ai-job .run-record-tab,
-#ai-job .ai-config-tab,
-#ai-job .account-page {
+#ai-job .a,
+#app .ai-job-tab,
+#ai-job .r,
+#app .run-record-tab,
+#ai-job .a,
+#app .ai-config-tab,
+#ai-job .a,
+#app .account-page {
   min-width: 0;
 }
 
-#ai-job .header-title {
+#ai-job .h,
+#app .header-title {
   letter-spacing: 0.2px;
   flex-shrink: 0;
 }
 
-#ai-job .run-record-root,
-#ai-job .ai-config .ai-section {
+#ai-job .r,
+#app .run-record-root,
+#ai-job .a,
+#app .ai-config .ai-section {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 
-#ai-job .subpage-entry-card {
+#ai-job .s,
+#app .subpage-entry-card {
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-card);
   background: var(--boss-bg-white);
 }
 
-#ai-job .subpage-entry-card:hover {
+#ai-job .s,
+#app .subpage-entry-card:hover {
   border-color: var(--boss-primary);
   box-shadow: var(--shadow-hover);
 }
 
-#ai-job .el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
+#ai-job .e,
+#app .el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
   --el-button-bg-color: var(--boss-primary);
   --el-button-border-color: var(--boss-primary);
   --el-button-hover-bg-color: var(--boss-primary-hover);
@@ -94,77 +122,92 @@
 }
 
 /* ========== Task 6: 按钮样式 ========== */
-#ai-job .el-button {
+#ai-job .e,
+#app .el-button {
   border-radius: var(--radius-base);
   transition: all 150ms ease;
 }
 
-#ai-job .el-button--default {
+#ai-job .e,
+#app .el-button--default {
   background: var(--boss-bg-color);
   border: 1px solid var(--boss-border-color);
   color: var(--boss-text-primary);
 }
 
-#ai-job .el-button--default:hover {
+#ai-job .e,
+#app .el-button--default:hover {
   background: var(--boss-bg-hover);
   border-color: var(--boss-primary);
   color: var(--boss-primary);
 }
 
-#ai-job .el-button--primary {
+#ai-job .e,
+#app .el-button--primary {
   border-radius: var(--radius-base);
 }
 
-#ai-job .el-button--primary:hover {
+#ai-job .e,
+#app .el-button--primary:hover {
   background: var(--boss-primary-hover);
 }
 
 /* ========== Task 7: 输入框样式 ========== */
-#ai-job .el-input__wrapper {
+#ai-job .e,
+#app .el-input__wrapper {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-base);
   transition: all 150ms ease;
 }
 
-#ai-job .el-input__wrapper:hover {
+#ai-job .e,
+#app .el-input__wrapper:hover {
   border-color: var(--boss-primary);
 }
 
-#ai-job .el-input__wrapper.is-focus,
-#ai-job .el-input__wrapper:focus-within {
+#ai-job .e,
+#app .el-input__wrapper.is-focus,
+#ai-job .e,
+#app .el-input__wrapper:focus-within {
   border-color: var(--boss-primary);
   box-shadow: 0 0 0 2px rgba(0, 190, 189, 0.1);
 }
 
-#ai-job .el-textarea__inner {
+#ai-job .e,
+#app .el-textarea__inner {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-base);
   transition: all 150ms ease;
 }
 
-#ai-job .el-textarea__inner:hover {
+#ai-job .e,
+#app .el-textarea__inner:hover {
   border-color: var(--boss-primary);
 }
 
-#ai-job .el-textarea__inner:focus {
+#ai-job .e,
+#app .el-textarea__inner:focus {
   border-color: var(--boss-primary);
   box-shadow: 0 0 0 2px rgba(0, 190, 189, 0.1);
 }
 
-#ai-job .el-select .el-input__wrapper {
+#ai-job .e,
+#app .el-select .el-input__wrapper {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-base);
 }
 
-#ai-job .el-select .el-input__wrapper:hover {
+#ai-job .e,
+#app .el-select .el-input__wrapper:hover {
   border-color: var(--boss-primary);
 }
 
 /* ========== Task 8: FAB 浮动按钮样式 ========== */
-#ai-job .ai-fab {
+#ai-job .a,
+#app .ai-fab {
   position: fixed;
   bottom: 108px;
   right: 24px;
@@ -183,14 +226,16 @@
   color: var(--boss-primary);
 }
 
-#ai-job .ai-fab:hover {
+#ai-job .a,
+#app .ai-fab:hover {
   transform: translateY(-2px);
   background: var(--boss-primary-light);
   box-shadow: var(--shadow-hover);
   border-color: var(--boss-primary);
 }
 
-#ai-job .ai-fab--close {
+#ai-job .a,
+#app .ai-fab--close {
   bottom: 108px;
   right: 24px;
   width: 46px;
@@ -201,7 +246,8 @@
   box-shadow: var(--shadow-card);
 }
 
-#ai-job .ai-fab--close:hover {
+#ai-job .a,
+#app .ai-fab--close:hover {
   background: var(--boss-primary-light);
   transform: translateY(-2px);
   box-shadow: var(--shadow-hover);
@@ -228,27 +274,32 @@
   background: var(--boss-primary);
 }
 
-#ai-job .ai-sidebar-body::-webkit-scrollbar-thumb {
+#ai-job .a,
+#app .ai-sidebar-body::-webkit-scrollbar-thumb {
   background: var(--boss-border-color);
 }
 
-#ai-job .ai-sidebar-body:hover::-webkit-scrollbar-thumb {
+#ai-job .a,
+#app .ai-sidebar-body:hover::-webkit-scrollbar-thumb {
   background: var(--boss-primary);
 }
 
 /* ========== Task 1: Element Plus 高频组件样式覆盖 ========== */
 
 /* el-form 表单容器 */
-#ai-job .el-form {
+#ai-job .e,
+#app .el-form {
   --el-form-label-font-size: 14px;
 }
 
 /* el-form-item 表单项 */
-#ai-job .el-form-item {
+#ai-job .e,
+#app .el-form-item {
   margin-bottom: 20px;
 }
 
-#ai-job .el-form-item__label {
+#ai-job .e,
+#app .el-form-item__label {
   color: var(--boss-text-primary);
   font-weight: 500;
   font-size: 14px;
@@ -256,7 +307,8 @@
   margin-bottom: 8px;
 }
 
-#ai-job .el-form-item__error {
+#ai-job .e,
+#app .el-form-item__error {
   color: var(--ai-danger);
   font-size: 12px;
   line-height: 1;
@@ -264,89 +316,107 @@
 }
 
 /* el-dialog 对话框 */
-#ai-job .el-dialog {
+#ai-job .e,
+#app .el-dialog {
   border-radius: var(--radius-card);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-#ai-job .el-dialog__header {
+#ai-job .e,
+#app .el-dialog__header {
   padding: 20px 24px;
   border-bottom: 1px solid var(--boss-border-color);
 }
 
-#ai-job .el-dialog__title {
+#ai-job .e,
+#app .el-dialog__title {
   color: var(--boss-text-primary);
   font-size: 16px;
   font-weight: 600;
   line-height: 24px;
 }
 
-#ai-job .el-dialog__body {
+#ai-job .e,
+#app .el-dialog__body {
   padding: 24px;
   color: var(--boss-text-secondary);
 }
 
-#ai-job .el-dialog__footer {
+#ai-job .e,
+#app .el-dialog__footer {
   padding: 16px 24px;
   border-top: 1px solid var(--boss-border-color);
 }
 
-#ai-job .el-dialog__close {
+#ai-job .e,
+#app .el-dialog__close {
   color: var(--boss-text-tertiary);
   font-size: 16px;
 }
 
-#ai-job .el-dialog__close:hover {
+#ai-job .e,
+#app .el-dialog__close:hover {
   color: var(--boss-primary);
 }
 
 /* el-input-number 数字输入框 */
-#ai-job .el-input-number {
+#ai-job .e,
+#app .el-input-number {
   width: 100%;
 }
 
-#ai-job .el-input-number .el-input__wrapper {
+#ai-job .e,
+#app .el-input-number .el-input__wrapper {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-base);
 }
 
-#ai-job .el-input-number .el-input__wrapper:hover {
+#ai-job .e,
+#app .el-input-number .el-input__wrapper:hover {
   border-color: var(--boss-primary);
 }
 
-#ai-job .el-input-number .el-input__wrapper.is-focus {
+#ai-job .e,
+#app .el-input-number .el-input__wrapper.is-focus {
   border-color: var(--boss-primary);
   box-shadow: 0 0 0 2px rgba(0, 190, 189, 0.1);
 }
 
-#ai-job .el-input-number__decrease,
-#ai-job .el-input-number__increase {
+#ai-job .e,
+#app .el-input-number__decrease,
+#ai-job .e,
+#app .el-input-number__increase {
   background: var(--boss-bg-color);
   border: none;
   color: var(--boss-text-secondary);
   border-radius: var(--radius-base);
 }
 
-#ai-job .el-input-number__decrease:hover,
-#ai-job .el-input-number__increase:hover {
+#ai-job .e,
+#app .el-input-number__decrease:hover,
+#ai-job .e,
+#app .el-input-number__increase:hover {
   color: var(--boss-primary);
   background: var(--boss-primary-light);
 }
 
 /* el-table 表格 */
-#ai-job .el-table {
+#ai-job .e,
+#app .el-table {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-card);
   overflow: hidden;
 }
 
-#ai-job .el-table__header-wrapper {
+#ai-job .e,
+#app .el-table__header-wrapper {
   background: var(--boss-bg-color);
 }
 
-#ai-job .el-table th.el-table__cell {
+#ai-job .e,
+#app .el-table th.el-table__cell {
   background: var(--boss-bg-color);
   color: var(--boss-text-primary);
   font-weight: 600;
@@ -355,32 +425,39 @@
   padding: 12px 16px;
 }
 
-#ai-job .el-table td.el-table__cell {
+#ai-job .e,
+#app .el-table td.el-table__cell {
   color: var(--boss-text-secondary);
   font-size: 14px;
   border-bottom: 1px solid var(--boss-border-color);
   padding: 12px 16px;
 }
 
-#ai-job .el-table__row:hover {
+#ai-job .e,
+#app .el-table__row:hover {
   background: var(--boss-bg-hover);
 }
 
-#ai-job .el-table__empty-block {
+#ai-job .e,
+#app .el-table__empty-block {
   background: var(--boss-bg-white);
 }
 
-#ai-job .el-table__empty-text {
+#ai-job .e,
+#app .el-table__empty-text {
   color: var(--boss-text-tertiary);
 }
 
 /* el-pagination 分页器 */
-#ai-job .el-pagination {
+#ai-job .e,
+#app .el-pagination {
   padding: 16px 0;
 }
 
-#ai-job .el-pagination button,
-#ai-job .el-pager li {
+#ai-job .e,
+#app .el-pagination button,
+#ai-job .e,
+#app .el-pager li {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-base);
@@ -391,30 +468,36 @@
   margin: 0 4px;
 }
 
-#ai-job .el-pagination button:hover,
-#ai-job .el-pager li:hover {
+#ai-job .e,
+#app .el-pagination button:hover,
+#ai-job .e,
+#app .el-pager li:hover {
   color: var(--boss-primary);
   border-color: var(--boss-primary);
 }
 
-#ai-job .el-pager li.is-active {
+#ai-job .e,
+#app .el-pager li.is-active {
   background: var(--boss-primary);
   border-color: var(--boss-primary);
   color: var(--boss-bg-white);
 }
 
 /* el-empty 空状态 */
-#ai-job .el-empty {
+#ai-job .e,
+#app .el-empty {
   padding: 40px 0;
 }
 
-#ai-job .el-empty__description {
+#ai-job .e,
+#app .el-empty__description {
   color: var(--boss-text-tertiary);
   font-size: 14px;
 }
 
 /* el-tooltip 提示框 */
-#ai-job .el-tooltip__popper {
+#ai-job .e,
+#app .el-tooltip__popper {
   background: rgba(0, 0, 0, 0.85);
   border-radius: var(--radius-base);
   padding: 8px 12px;
@@ -422,6 +505,7 @@
   line-height: 1.5;
 }
 
-#ai-job .el-tooltip__popper .el-popper__arrow::before {
+#ai-job .e,
+#app .el-tooltip__popper .el-popper__arrow::before {
   background: rgba(0, 0, 0, 0.85);
 }

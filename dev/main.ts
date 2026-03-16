@@ -4,6 +4,7 @@ import { createPinia } from 'pinia';
 import ElementPlus from 'element-plus';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import 'element-plus/dist/index.css';
+import '@/styles/boss-design-system.css';
 import '@/styles/ui-migration.css';
 
 import App from '@/app/App.vue';
@@ -54,7 +55,7 @@ bindPlatformRuntime(
   }
 );
 
-console.log('[Dev Mode] 挂载应用到 #app');
+console.log('[Dev Mode] 挂载应用到 #ai-job');
 
-// 直接挂载到 #app
-app.mount('#app');
+// 直接挂载到 #ai-job
+app.mount('#ai-job');
