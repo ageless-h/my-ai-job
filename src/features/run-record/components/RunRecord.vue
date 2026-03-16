@@ -633,8 +633,8 @@ onBeforeUnmount(() => {
 .table-container {
   flex: 1;
   min-height: 0;
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-card);
   overflow: hidden;
 }
 
@@ -690,7 +690,7 @@ onBeforeUnmount(() => {
 }
 
 .reason-text {
-  color: #666;
+  color: var(--boss-text-regular);
   font-size: 12px;
 }
 
