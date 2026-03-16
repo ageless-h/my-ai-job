@@ -812,8 +812,8 @@ onMounted(() => {
 .api-overview__item {
   border: 1px solid var(--ai-border);
   border-radius: var(--radius-lg);
-  background: #fafbfd;
-  padding: 10px var(--spacing-xl);
+  background: var(--ai-bg-lighter);
+  padding: var(--spacing-2-5) var(--spacing-xl);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
@@ -954,7 +954,7 @@ onMounted(() => {
   border-radius: var(--radius-lg);
   padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-xs);
   margin-bottom: var(--spacing-xl);
-  background: #fcfcfd;
+  background: var(--ai-bg-lighter);
 }
 .api-form-section__title {
   font-size: var(--text-base);

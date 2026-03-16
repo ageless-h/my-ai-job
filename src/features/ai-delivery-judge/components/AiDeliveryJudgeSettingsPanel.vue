@@ -370,7 +370,7 @@ const copyPayload = async () => {
   border-radius: var(--radius-lg);
   padding: var(--spacing-2xl) var(--spacing-3xl);
   box-shadow: var(--shadow-sm);
-  border: 1px solid #eef0f5;
+  border: 1px solid var(--ai-border-lighter);
 }
 
 .card-title {
@@ -536,8 +536,8 @@ const copyPayload = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f5f7fa;
-  padding: 10px var(--spacing-2xl);
+  background: var(--ai-bg-subtle);
+  padding: var(--spacing-2-5) var(--spacing-2xl);
   border-bottom: 1px solid var(--ai-border);
   font-size: var(--text-base);
   color: var(--ai-text-secondary);
@@ -545,14 +545,14 @@ const copyPayload = async () => {
 }
 
 :deep(.code-preview-input .el-textarea__inner) {
-  background-color: #fafafa;
+  background-color: var(--ai-bg-subtle);
   border: none;
   border-radius: 0;
   padding: var(--spacing-2xl);
   font-family: 'JetBrains Mono', Consolas, Monaco, Courier, monospace;
   font-size: var(--text-base);
   line-height: 1.5;
-  color: #434c5e;
+  color: var(--ai-text-code);
   box-shadow: none !important;
   resize: none;
 }

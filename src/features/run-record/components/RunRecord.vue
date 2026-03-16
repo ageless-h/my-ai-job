@@ -513,7 +513,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .run-record-tab {
-  padding: 16px;
+  padding: var(--spacing-2xl);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -535,7 +535,7 @@ onBeforeUnmount(() => {
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: 16px 20px;
+  padding: var(--spacing-2xl) var(--spacing-3xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
   flex: 1;
@@ -586,7 +586,7 @@ onBeforeUnmount(() => {
 }
 
 .display-config-panel {
-  padding: 16px;
+  padding: var(--spacing-2xl);
 }
 
 .config-title {
@@ -606,7 +606,7 @@ onBeforeUnmount(() => {
 .config-divider {
   height: 1px;
   background-color: var(--boss-border-color);
-  margin: 16px 0;
+  margin: var(--spacing-2xl) 0;
 }
 
 .column-checkbox-group {
@@ -647,21 +647,21 @@ onBeforeUnmount(() => {
 :deep(.boss-table th.el-table__cell) {
   font-weight: 600;
   font-size: 13px;
-  padding: 8px 0;
+  padding: var(--spacing-lg) 0;
 }
 
 :deep(.boss-table td.el-table__cell) {
   font-size: 12px;
   color: var(--boss-text-regular);
-  padding: 6px 0;
+  padding: var(--spacing-md) 0;
 }
 
 .boss-table.compact-mode :deep(th.el-table__cell) {
-  padding: 6px 0;
+  padding: var(--spacing-md) 0;
 }
 
 .boss-table.compact-mode :deep(td.el-table__cell) {
-  padding: 4px 0;
+  padding: var(--spacing-sm) 0;
   line-height: 1.4;
 }
 
@@ -669,7 +669,7 @@ onBeforeUnmount(() => {
   font-weight: bold;
   border-color: transparent;
   font-size: 11px;
-  padding: 2px 6px;
+  padding: var(--spacing-xs) var(--spacing-md);
 }
 
 .decision-text {
@@ -699,11 +699,11 @@ onBeforeUnmount(() => {
 }
 
 :deep(.el-table .row-error) {
-  background-color: #fef0f0 !important;
+  background-color: var(--ai-danger-light) !important;
 }
 
 :deep(.el-table .row-warn) {
-  background-color: #fdf6ec !important;
+  background-color: var(--ai-warning-light) !important;
 }
 
 .pagination-footer {
@@ -742,12 +742,12 @@ onBeforeUnmount(() => {
 
   :deep(.boss-table th.el-table__cell) {
     font-size: 12px;
-    padding: 6px 4px;
+    padding: var(--spacing-md) var(--spacing-sm);
   }
 
   :deep(.boss-table td.el-table__cell) {
     font-size: 11px;
-    padding: 4px 4px;
+    padding: var(--spacing-sm) var(--spacing-sm);
   }
 
   :deep(.col-ai-decision),

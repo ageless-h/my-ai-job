@@ -58,7 +58,7 @@
           inline-prompt
           :style="{
             '--el-switch-on-color': 'var(--boss-primary, #00bebd)',
-            '--el-switch-off-color': '#dcdfe6',
+            '--el-switch-off-color': 'var(--ai-disabled)',
           }"
           @change="handleAiToggle"
         />
@@ -154,7 +154,7 @@
           inline-prompt
           :style="{
             '--el-switch-on-color': 'var(--boss-primary, #00bebd)',
-            '--el-switch-off-color': '#dcdfe6',
+            '--el-switch-off-color': 'var(--ai-disabled)',
           }"
           @change="handleTraditionalToggle"
         />
@@ -551,7 +551,7 @@ preferenceDefaultValueHandler();
   flex-direction: column;
   box-sizing: border-box;
   overflow-y: auto;
-  padding: 16px;
+  padding: var(--spacing-2xl);
   padding-bottom: 80px;
   background-color: var(--boss-bg-color);
 }
@@ -569,7 +569,7 @@ preferenceDefaultValueHandler();
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: 16px 20px;
+  padding: var(--spacing-2xl) var(--spacing-3xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
 }
@@ -590,7 +590,7 @@ preferenceDefaultValueHandler();
   height: 14px;
   background-color: var(--boss-primary, #00bebd);
   margin-right: 8px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .card-subtitle {
@@ -627,7 +627,7 @@ preferenceDefaultValueHandler();
 .judge-divider {
   height: 1px;
   background-color: var(--boss-border-light);
-  margin: 16px 0;
+  margin: var(--spacing-2xl) 0;
 }
 
 .responsive-grid {
@@ -648,7 +648,7 @@ preferenceDefaultValueHandler();
   flex-wrap: wrap;
   gap: 12px;
   background: var(--boss-bg-hover);
-  padding: 10px 16px;
+  padding: var(--spacing-2-5) var(--spacing-2xl);
   border-radius: var(--radius-card);
   border: 1px solid var(--boss-border-color);
 }
@@ -678,7 +678,7 @@ preferenceDefaultValueHandler();
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 4px 0;
+  padding: var(--spacing-sm) 0;
 }
 
 .switch-content span {
@@ -700,7 +700,7 @@ preferenceDefaultValueHandler();
   flex-wrap: wrap;
   gap: 20px 32px;
   background: var(--boss-bg-hover);
-  padding: 16px;
+  padding: var(--spacing-2xl);
   border-radius: var(--radius-card);
   border: 1px dashed var(--boss-border-color);
 }
@@ -729,7 +729,7 @@ preferenceDefaultValueHandler();
   align-items: center;
   gap: 16px;
   background: var(--boss-bg-white);
-  padding: 16px 20px;
+  padding: var(--spacing-2xl) var(--spacing-3xl);
   border-radius: var(--radius-card);
   border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;

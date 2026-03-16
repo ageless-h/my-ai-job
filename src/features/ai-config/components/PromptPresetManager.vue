@@ -286,7 +286,7 @@ const deletePresetById = async (id) => {
 .preset-card {
   border: 1px solid var(--ai-border);
   border-radius: var(--radius-lg);
-  padding: 10px var(--spacing-xl);
+  padding: var(--spacing-2-5) var(--spacing-xl);
   margin-bottom: 10px;
   background: var(--ai-bg);
 }
@@ -336,7 +336,7 @@ const deletePresetById = async (id) => {
 }
 .variable-hint {
   margin-top: var(--spacing-sm);
-  padding: 10px;
+  padding: var(--spacing-2-5);
   background: var(--ai-bg);
   border: 1px solid var(--ai-border);
   border-radius: var(--radius-lg);

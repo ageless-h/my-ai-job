@@ -955,8 +955,7 @@ onMounted(async () => {
   height: 100%;
   min-height: 0;
   width: 100%;
-  padding: 16px;
-  padding-bottom: 100px;
+  padding: var(--spacing-3xl) var(--spacing-3xl) 100px;
   box-sizing: border-box;
   background: var(--boss-bg-color);
   overflow-y: auto;
@@ -995,7 +994,7 @@ onMounted(async () => {
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: 16px 20px;
+  padding: var(--spacing-2xl) var(--spacing-3xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
 }
@@ -1022,14 +1021,14 @@ onMounted(async () => {
 }
 
 .nested-title {
-  padding: 14px 16px 0;
+  padding: var(--spacing-3-5) var(--spacing-2xl) 0;
   font-size: 15px;
   font-weight: 600;
   color: var(--boss-text-primary);
 }
 
 .nested-desc {
-  padding: 6px 16px 14px;
+  padding: var(--spacing-md) var(--spacing-2xl) var(--spacing-3-5);
   font-size: 13px;
   color: var(--boss-text-tertiary);
   line-height: 1.6;
@@ -1038,7 +1037,7 @@ onMounted(async () => {
 }
 
 .nested-body {
-  padding: 20px;
+  padding: var(--spacing-3xl);
 }
 
 .nested-actions {
@@ -1047,7 +1046,7 @@ onMounted(async () => {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: var(--spacing-xl) var(--spacing-3xl);
   border-top: 1px solid var(--boss-border-color);
   background: transparent;
 }
@@ -1073,7 +1072,7 @@ onMounted(async () => {
 .delivery-view-list,
 .delivery-view-edit {
   width: 100%;
-  padding: 2px;
+  padding: var(--spacing-xs);
 }
 
 .delivery-view-edit {
@@ -1107,7 +1106,7 @@ onMounted(async () => {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-card);
-  padding: 16px;
+  padding: var(--spacing-2xl);
   margin-bottom: 16px;
   transition: border-color 0.2s ease;
 }
@@ -1134,7 +1133,7 @@ onMounted(async () => {
   line-height: 1.6;
   margin-bottom: 12px;
   background: var(--boss-bg-color);
-  padding: 12px 16px;
+  padding: var(--spacing-xl) var(--spacing-2xl);
   border-radius: var(--radius-card);
 }
 

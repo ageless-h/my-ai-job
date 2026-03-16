@@ -260,7 +260,7 @@ defineExpose({
 :deep(.chat-history) {
   max-height: 420px;
   overflow-y: auto;
-  padding: 8px 4px;
+  padding: var(--spacing-lg) var(--spacing-sm);
   background: var(--boss-bg-color);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-card);
@@ -289,7 +289,7 @@ defineExpose({
 }
 :deep(.chat-row) {
   display: flex;
-  margin: 8px 0;
+  margin: var(--spacing-lg) 0;
 }
 :deep(.chat-row.from-user) {
   justify-content: flex-start;
@@ -299,7 +299,7 @@ defineExpose({
 }
 :deep(.bubble) {
   max-width: 80%;
-  padding: 8px 10px;
+  padding: var(--spacing-lg) var(--spacing-2-5);
   border-radius: var(--radius-card);
   background: var(--boss-bg-white);
   box-shadow: var(--shadow-card);

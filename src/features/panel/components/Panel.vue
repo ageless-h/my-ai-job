@@ -611,22 +611,6 @@ onUpdated(() => {
   --ai-primary-hover: var(--boss-primary-hover, #00a8a7);
   --ai-header-height: 54px;
   --ai-nav-width: 96px;
-  --ai-text-main: #303133;
-  --ai-text-sub: #909399;
-  --ai-text-muted: #c0c4cc;
-  --ai-bg: rgba(255, 255, 255, 0.96);
-  --ai-bg-subtle: #f5f7fa;
-  --ai-border: #f0f2f5;
-  --ai-border-light: #f5f7fa;
-  --ai-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
-  --ai-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --ai-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --ai-radius: 12px;
-  --ai-radius-sm: 6px;
-  --ai-radius-lg: 24px;
-  --ai-success: #67c23a;
-  --ai-warning: #e6a23c;
-  --ai-danger: #f56c6c;
 }
 
 /* Drawer Sidebar */
@@ -1077,7 +1061,7 @@ onUpdated(() => {
   padding: 0 var(--spacing-2xl);
   height: 44px;
   line-height: 44px;
-  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  background: var(--gradient-subtle);
   border-radius: var(--ai-radius);
   margin-bottom: var(--spacing-lg);
   border: 1px solid var(--ai-border);
@@ -1093,7 +1077,7 @@ onUpdated(() => {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   margin-bottom: 0;
-  background: linear-gradient(135deg, #eef2ff, #e8f0fe);
+  background: var(--gradient-primary);
   color: var(--ai-primary);
 }
 :deep(.el-collapse-item__wrap) {

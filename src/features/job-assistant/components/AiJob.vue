@@ -986,7 +986,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-lg);
-  background: #fcfcfc;
+  background: var(--ai-bg-code);
   padding: 10px 12px;
   border-radius: var(--radius-md);
   border: 1px solid var(--ai-border-light);
@@ -994,7 +994,7 @@ onUnmounted(() => {
 
 .setting-label {
   font-size: var(--text-base);
-  color: #444;
+  color: var(--ai-text-dark);
 }
 
 .action-row {
@@ -1037,7 +1037,7 @@ onUnmounted(() => {
 }
 
 .push-records-content {
-  background: #fafafa;
+  background: var(--ai-bg-subtle);
   border-radius: var(--radius-md);
   padding: var(--spacing-xl) var(--spacing-2xl);
   height: 250px;
@@ -1046,7 +1046,7 @@ onUnmounted(() => {
 }
 
 .no-records {
-  color: #888;
+  color: var(--ai-text-muted);
   height: 100%;
   display: flex;
   align-items: center;
@@ -1070,7 +1070,7 @@ onUnmounted(() => {
 }
 
 .record-time {
-  color: #999;
+  color: var(--ai-text-light);
   margin-right: var(--spacing-xl);
   flex-shrink: 0;
   font-family: monospace;
@@ -1112,10 +1112,10 @@ onUnmounted(() => {
 }
 
 .record-debug {
-  color: #6ec6c5;
+  color: var(--ai-debug);
 }
 .record-debug.record-dot {
-  background-color: #6ec6c5;
+  background-color: var(--ai-debug);
 }
 
 .record-trace {

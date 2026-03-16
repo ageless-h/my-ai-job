@@ -1110,7 +1110,7 @@ const handleSave = async () => {
 
 <style scoped>
 .account-tab {
-  padding: 16px;
+  padding: var(--spacing-2xl);
   height: 100%;
   overflow-y: auto;
   background-color: var(--boss-bg-color);
@@ -1130,7 +1130,7 @@ const handleSave = async () => {
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: 16px 20px;
+  padding: var(--spacing-2xl) var(--spacing-3xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
 }
@@ -1151,7 +1151,7 @@ const handleSave = async () => {
   height: 14px;
   background-color: var(--boss-primary, #00bebd);
   margin-right: 8px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .mt-16 {
@@ -1193,13 +1193,13 @@ const handleSave = async () => {
   background: var(--boss-bg-hover);
   border: 1px dashed var(--boss-border-color);
   border-radius: var(--radius-card);
-  padding: 16px;
+  padding: var(--spacing-2xl);
 }
 
 .judge-divider {
   height: 1px;
   background-color: var(--boss-border-color);
-  margin: 16px 0;
+  margin: var(--spacing-2xl) 0;
 }
 
 .group-header {
@@ -1242,7 +1242,7 @@ const handleSave = async () => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
-  padding: 4px 0;
+  padding: var(--spacing-sm) 0;
 }
 
 .data-actions .el-button {
@@ -1261,7 +1261,7 @@ const handleSave = async () => {
   align-items: center;
   gap: 16px;
   background: var(--boss-bg-white);
-  padding: 16px 20px;
+  padding: var(--spacing-2xl) var(--spacing-3xl);
   border-radius: var(--radius-card);
   border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;
@@ -1344,7 +1344,7 @@ const handleSave = async () => {
   }
 
   :deep(.boss-dialog .el-dialog__body) {
-    padding: 12px;
+    padding: var(--spacing-xl);
   }
 
   :deep(.preview-textarea .el-textarea__inner) {
@@ -1361,11 +1361,11 @@ const handleSave = async () => {
   }
 
   :deep(.boss-dialog .el-dialog__header) {
-    padding: 12px;
+    padding: var(--spacing-xl);
   }
 
   :deep(.boss-dialog .el-dialog__footer) {
-    padding: 12px;
+    padding: var(--spacing-xl);
   }
 }
 </style>

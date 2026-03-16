@@ -36,7 +36,7 @@
           inline-prompt
           :style="{
             '--el-switch-on-color': 'var(--boss-primary, #00bebd)',
-            '--el-switch-off-color': '#dcdfe6',
+            '--el-switch-off-color': 'var(--ai-disabled)',
           }"
           @change="handleAISeatStatusChange"
         />
@@ -148,7 +148,7 @@
           <el-checkbox
             v-model="userStore.user.preference.crE"
             border
-            style="--el-checkbox-checked-text-color: #f56c6c"
+            style="--el-checkbox-checked-text-color: var(--ai-danger)"
           >
             仅在触发高意向时通知 (推荐)
           </el-checkbox>
@@ -387,7 +387,7 @@ onMounted(() => {
 
 <style scoped>
 .memory-session-tab {
-  padding: 16px;
+  padding: var(--spacing-2xl);
   height: 100%;
   overflow-y: auto;
   background-color: var(--boss-bg-color);
@@ -407,7 +407,7 @@ onMounted(() => {
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: 16px 20px;
+  padding: var(--spacing-2xl) var(--spacing-3xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
 }
@@ -491,7 +491,7 @@ onMounted(() => {
 
 .condition-box {
   background: var(--boss-bg-color);
-  padding: 16px;
+  padding: var(--spacing-2xl);
   border-radius: var(--radius-card);
   border: 1px solid var(--boss-border-color);
 }
@@ -538,7 +538,7 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   background: var(--boss-bg-white);
-  padding: 16px 20px;
+  padding: var(--spacing-2xl) var(--spacing-3xl);
   border-radius: var(--radius-card);
   border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;

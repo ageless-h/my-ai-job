@@ -19,12 +19,19 @@
   --ai-text-main: #303133;
   --ai-text-secondary: #606266;
   --ai-text-sub: #909399;
+  --ai-text-muted: #888888; /* 更浅的文字颜色 */
+  --ai-text-light: #999999; /* 极浅的文字颜色 */
+  --ai-text-dark: #444444; /* 深色文字 */
+  --ai-text-code: #434c5e; /* 代码文字颜色 */
 
   /* 状态颜色 */
   --ai-danger: #f56c6c;
+  --ai-danger-light: #fef0f0; /* 错误行背景 */
   --ai-warning: #e6a23c;
+  --ai-warning-light: #fdf6ec; /* 警告行背景 */
   --ai-success: #67c23a;
   --ai-info: #909399;
+  --ai-debug: #6ec6c5; /* 调试日志颜色 */
 
   /* 背景颜色 */
   --boss-bg-color: #f8f9fa; /* 页面背景 - 浅蓝灰（BOSS 原色） */
@@ -34,6 +41,8 @@
   /* 扩展背景颜色（兼容旧代码） */
   --ai-bg: #ffffff;
   --ai-bg-subtle: #f8f9fa;
+  --ai-bg-lighter: #fafbfd; /* 极浅背景 */
+  --ai-bg-code: #fcfcfc; /* 代码块背景 */
 
   /* 边框颜色 */
   --boss-border-color: #ebeef5;
@@ -42,6 +51,7 @@
   /* 扩展边框颜色（兼容旧代码） */
   --ai-border: #ebeef5;
   --ai-border-light: #f0f2f5;
+  --ai-border-lighter: #eef0f5; /* 更浅的边框 */
   --ai-disabled: #dcdfe6;
 
   /* ========== 阴影系统（轻量级扁平化） ========== */
@@ -72,7 +82,9 @@
   --spacing-2xl: 16px;
   --spacing-3xl: 20px;
   --spacing-2: 8px;
+  --spacing-2-5: 10px; /* 10px 间距 */
   --spacing-3: 12px;
+  --spacing-3-5: 14px; /* 14px 间距 */
   --spacing-4: 16px;
   --spacing-5: 20px;
   --spacing-6: 24px;
@@ -89,4 +101,8 @@
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
+
+  /* ========== 渐变系统 ========== */
+  --gradient-subtle: linear-gradient(135deg, #f8fafc, #f1f5f9); /* 浅灰渐变 */
+  --gradient-primary: linear-gradient(135deg, #eef2ff, #e8f0fe); /* 主题色渐变 */
 }
