@@ -22,31 +22,23 @@
 -->
 <template>
   <div class="account-tab">
-    <div class="header-title">账户与数据</div>
-
     <div class="boss-card">
       <div class="card-title">基本信息</div>
       <el-form class="boss-form mt-16" label-width="80px" label-position="left">
-        <el-row :gutter="40">
-          <el-col :span="12">
-            <el-form-item label="手机号码" prop="phone">
-              <el-input
-                v-model="userStore.user.phone"
-                placeholder="用于异常通知短信提醒"
-                data-testid="phone-input"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="通知邮箱" prop="email">
-              <el-input
-                v-model="userStore.user.email"
-                placeholder="用于接收每日总结及高意向提醒"
-                data-testid="email-input"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item label="手机号码" prop="phone">
+          <el-input
+            v-model="userStore.user.phone"
+            placeholder="用于异常通知短信提醒"
+            data-testid="phone-input"
+          />
+        </el-form-item>
+        <el-form-item label="通知邮箱" prop="email">
+          <el-input
+            v-model="userStore.user.email"
+            placeholder="用于接收每日总结及高意向提醒"
+            data-testid="email-input"
+          />
+        </el-form-item>
       </el-form>
     </div>
 
@@ -68,24 +60,34 @@
           </div>
 
           <div class="resume-actions">
-            <el-tooltip
-              content="将前往 BOSS 个人主页后台抓取最新的简历数据"
-              placement="top"
-              :show-after="300"
-            >
-              <el-button
-                type="primary"
-                :loading="importResumeLoading"
-                data-testid="import-resume-button"
-                @click="handlerImportResume"
+            <div class="resume-btn-pair">
+              <el-tooltip
+                content="将前往 BOSS 个人主页后台抓取最新的简历数据"
+                placement="top"
+                :show-after="300"
               >
-                <el-icon class="mr-4"><Refresh /></el-icon>直接从 BOSS 导入
-              </el-button>
-            </el-tooltip>
+                <el-button
+                  type="primary"
+                  size="small"
+                  class="resume-action-btn import-action-btn"
+                  :loading="importResumeLoading"
+                  data-testid="import-resume-button"
+                  @click="handlerImportResume"
+                >
+                  <el-icon class="mr-4"><Refresh /></el-icon>直接从 BOSS 导入
+                </el-button>
+              </el-tooltip>
 
-            <el-button plain @click="handleViewResumeContent" :disabled="!hasResume">
-              <el-icon class="mr-4"><View /></el-icon>查看内容文本
-            </el-button>
+              <el-button
+                plain
+                size="small"
+                class="resume-action-btn preview-action-btn"
+                @click="handleViewResumeContent"
+                :disabled="!hasResume"
+              >
+                <el-icon class="mr-4"><View /></el-icon>查看内容文本
+              </el-button>
+            </div>
           </div>
         </div>
 
@@ -98,44 +100,50 @@
           </div>
 
           <div class="resume-actions-col">
-            <el-checkbox v-model="userStore.user.preference.customImageEnabled" border
+            <el-checkbox
+              v-model="userStore.user.preference.customImageEnabled"
+              border
+              class="resume-image-toggle"
               >启用图片简历发送</el-checkbox
             >
 
             <div class="resume-btn-row">
-              <el-upload
-                action="https://www.zhipin.com/wapi/zpupload/image/uploadSingle"
-                :before-upload="beforeUpload"
-                :on-success="handleUploadSuccess"
-                :show-file-list="false"
-                :data="uploadData"
-                :headers="{ Zp_token: Tools.getCookieValue('bst') }"
-              >
+              <div class="resume-btn-pair">
+                <el-upload
+                  action="https://www.zhipin.com/wapi/zpupload/image/uploadSingle"
+                  :before-upload="beforeUpload"
+                  :on-success="handleUploadSuccess"
+                  :show-file-list="false"
+                  :data="uploadData"
+                  :headers="{ Zp_token: Tools.getCookieValue('bst') }"
+                >
+                  <el-button
+                    type="primary"
+                    size="small"
+                    class="resume-action-btn import-action-btn"
+                    :disabled="!userStore.user.preference.customImageEnabled"
+                  >
+                    <el-icon class="mr-4"><Upload /></el-icon>上传简历图片
+                  </el-button>
+                </el-upload>
+
                 <el-button
-                  type="primary"
                   plain
                   size="small"
-                  :disabled="!userStore.user.preference.customImageEnabled"
+                  class="resume-action-btn preview-action-btn"
+                  @click="handleViewResumeImage"
+                  :disabled="!hasImageResume"
                 >
-                  <el-icon class="mr-4"><Upload /></el-icon>上传简历图片
+                  <el-icon class="mr-4"><Picture /></el-icon>预览当前图片
                 </el-button>
-              </el-upload>
-
-              <el-button
-                plain
-                size="small"
-                @click="handleViewResumeImage"
-                :disabled="!hasImageResume"
-              >
-                <el-icon class="mr-4"><Picture /></el-icon>预览当前图片
-              </el-button>
+              </div>
 
               <el-tag
                 v-if="hasImageResume"
                 type="success"
                 effect="light"
                 size="small"
-                class="border-none"
+                class="resume-status-tag border-none"
                 >已有图片记录</el-tag
               >
             </div>
@@ -155,21 +163,23 @@
           type="warning"
           plain
           size="small"
-          class="shadow-sm"
+          class="shadow-sm data-action-btn"
           data-testid="export-config-button"
           @click="exportSetting"
         >
-          <el-icon class="mr-4"><Download /></el-icon>导出所有配置文件
+          <el-icon class="mr-4"><Download /></el-icon
+          ><span class="action-btn-label">导出所有配置文件</span>
         </el-button>
         <el-button
           type="info"
           plain
           size="small"
-          class="shadow-sm"
+          class="shadow-sm data-action-btn"
           data-testid="import-config-button"
           @click="importSetting"
         >
-          <el-icon class="mr-4"><UploadFilled /></el-icon>导入外部设置
+          <el-icon class="mr-4"><UploadFilled /></el-icon
+          ><span class="action-btn-label">导入外部设置</span>
         </el-button>
       </div>
     </div>
@@ -183,11 +193,12 @@
           type="danger"
           plain
           size="small"
-          class="shadow-sm"
+          class="shadow-sm data-action-btn"
           :loading="isClearingData"
           @click="handleClearSensitiveData"
         >
-          <el-icon class="mr-4"><Delete /></el-icon>清除所有敏感数据
+          <el-icon class="mr-4"><Delete /></el-icon
+          ><span class="action-btn-label">清除所有敏感数据</span>
         </el-button>
       </div>
     </div>
@@ -203,10 +214,11 @@
           type="warning"
           plain
           size="small"
-          class="shadow-sm"
+          class="shadow-sm data-action-btn"
           @click="handleUnlockPushLock"
         >
-          <el-icon class="mr-4"><Refresh /></el-icon>解锁投递状态
+          <el-icon class="mr-4"><Refresh /></el-icon
+          ><span class="action-btn-label">解锁投递状态</span>
         </el-button>
       </div>
     </div>
@@ -1117,41 +1129,25 @@ const handleSave = async () => {
   padding-bottom: 80px;
 }
 
-.header-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--boss-text-primary);
-  margin-bottom: 16px;
-  border-left: 3px solid var(--boss-primary, #00bebd);
-  padding-left: 8px;
-  line-height: 1;
-}
-
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: var(--spacing-2xl) var(--spacing-3xl);
+  padding: var(--spacing-2xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
 }
 
 .card-title {
-  font-size: 15px;
+  font-size: var(--text-xl);
   font-weight: 600;
   color: var(--boss-text-primary);
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .card-title::before {
-  content: '';
-  display: inline-block;
-  width: 3px;
-  height: 14px;
-  background-color: var(--boss-primary, #00bebd);
-  margin-right: 8px;
-  border-radius: var(--radius-xs);
+  display: none;
 }
 
 .mt-16 {
@@ -1175,8 +1171,8 @@ const handleSave = async () => {
 }
 
 .sub-desc {
-  font-size: 13px;
-  color: var(--boss-text-regular);
+  font-size: var(--text-base);
+  color: var(--boss-text-secondary);
   line-height: 1.5;
 }
 
@@ -1190,8 +1186,8 @@ const handleSave = async () => {
 }
 
 .resume-manage-box {
-  background: var(--boss-bg-hover);
-  border: 1px dashed var(--boss-border-color);
+  background: transparent;
+  border: 1px solid var(--boss-border-light);
   border-radius: var(--radius-card);
   padding: var(--spacing-2xl);
 }
@@ -1207,47 +1203,228 @@ const handleSave = async () => {
 }
 
 .group-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--text-md);
+  font-weight: 500;
   color: var(--boss-text-primary);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .group-desc {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--boss-text-secondary);
+  line-height: var(--line-height-normal);
 }
 
 .resume-actions {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: flex-start;
+  width: 100%;
 }
 
 .resume-actions-col {
+  --resume-control-width: 154px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+:deep(.resume-image-toggle.el-checkbox.is-bordered) {
+  width: var(--resume-control-width, 154px);
+  max-width: 100%;
+  min-height: 36px;
+  margin-right: 0;
+  padding: 0 10px;
+  border-radius: var(--radius-button, 6px);
+  border-color: var(--boss-border-color);
+  background-color: var(--boss-bg-white);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+}
+
+:deep(.resume-image-toggle.el-checkbox.is-bordered .el-checkbox__label) {
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  color: var(--boss-text-primary);
+  white-space: nowrap;
+}
+
 .resume-btn-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+
+.resume-btn-pair {
+  --resume-import-btn-width: 154px;
+  --resume-preview-btn-width: 124px;
+  display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 8px;
+  max-width: 100%;
+}
+
+.resume-status-tag {
+  margin-top: 2px;
+}
+
+:deep(.resume-btn-pair .el-upload) {
+  flex: 0 1 var(--resume-import-btn-width);
+  width: var(--resume-import-btn-width);
+  max-width: 100%;
+}
+
+:deep(.resume-action-btn.el-button) {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--text-base);
+}
+
+:deep(.resume-btn-pair .el-button) {
+  margin-left: 0 !important;
+}
+
+:deep(.import-action-btn.el-button) {
+  width: 100%;
+  min-width: 0;
+  max-width: var(--resume-import-btn-width, 154px);
+  justify-content: center;
+}
+
+:deep(.preview-action-btn.el-button) {
+  flex: 0 1 var(--resume-preview-btn-width);
+  width: 100%;
+  min-width: 0;
+  max-width: var(--resume-preview-btn-width, 124px);
+  justify-content: center;
+}
+
+:deep(.resume-action-btn.el-button .el-icon) {
+  margin-right: 4px;
+}
+
+:deep(.preview-action-btn.el-button.is-plain),
+:deep(.preview-action-btn.el-button:not(.el-button--primary)) {
+  background-color: var(--boss-bg-white);
+  color: var(--boss-text-primary);
+  border-color: var(--boss-border-color);
+}
+
+:deep(.import-action-btn.el-button),
+:deep(.import-action-btn.el-button:not(.is-plain)) {
+  --el-button-bg-color: var(--boss-primary, #00bebd);
+  --el-button-border-color: var(--boss-primary, #00bebd);
+  --el-button-hover-bg-color: var(--boss-primary-hover, #00a8a7);
+  --el-button-hover-border-color: var(--boss-primary-hover, #00a8a7);
+}
+
+:deep(.import-action-btn.el-button.is-disabled),
+:deep(.import-action-btn.el-button.is-disabled:hover) {
+  opacity: 1;
+  color: var(--ai-bg);
+  background-color: var(--boss-primary, #00bebd);
+  border-color: var(--boss-primary, #00bebd);
+}
+
+:deep(.preview-action-btn.el-button.is-disabled),
+:deep(.preview-action-btn.el-button.is-disabled:hover) {
+  opacity: 1;
+  color: var(--boss-text-primary);
+  background-color: var(--boss-bg-white);
+  border-color: var(--boss-border-color);
 }
 
 .data-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  --data-action-btn-width: 176px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
   padding: var(--spacing-sm) 0;
+  width: 100%;
 }
 
 .data-actions .el-button {
-  width: 100% !important;
+  width: var(--data-action-btn-width) !important;
   margin-left: 0 !important;
+}
+
+:deep(.data-actions .data-action-btn.el-button) {
+  min-height: 36px;
+  height: auto;
+  width: var(--data-action-btn-width) !important;
+  max-width: 100%;
+  padding: 7px 12px;
+  border-radius: var(--radius-button, 6px);
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+:deep(.data-actions .data-action-btn.el-button--warning.is-plain),
+:deep(.data-actions .data-action-btn.el-button--info.is-plain) {
+  color: var(--boss-primary-hover);
+  background-color: var(--boss-primary-light);
+  border-color: rgba(0, 190, 189, 0.36);
+}
+
+:deep(.data-actions .data-action-btn.el-button--warning.is-plain:not(.is-disabled):hover),
+:deep(.data-actions .data-action-btn.el-button--info.is-plain:not(.is-disabled):hover) {
+  color: var(--boss-primary-hover);
+  background-color: #d8f1f1;
+  border-color: rgba(0, 190, 189, 0.52);
+  box-shadow: var(--shadow-hover);
+}
+
+:deep(.data-actions .data-action-btn.el-button--danger.is-plain) {
+  color: var(--ai-danger);
+  background-color: var(--ai-danger-light);
+  border-color: rgba(245, 108, 108, 0.38);
+}
+
+:deep(.data-actions .data-action-btn.el-button--danger.is-plain:not(.is-disabled):hover) {
+  color: var(--ai-danger);
+  background-color: #fde4e4;
+  border-color: rgba(245, 108, 108, 0.52);
+  box-shadow: 0 2px 10px rgba(245, 108, 108, 0.18);
+}
+
+:deep(.data-actions .data-action-btn.el-button > span) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  max-width: 100%;
+}
+
+:deep(.data-actions .data-action-btn.el-button .el-icon) {
+  margin-right: 0 !important;
+  flex-shrink: 0;
+}
+
+:deep(.data-actions .action-btn-label) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: center;
 }
 
 .shadow-sm {
@@ -1259,9 +1436,9 @@ const handleSave = async () => {
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   background: var(--boss-bg-white);
-  padding: var(--spacing-2xl) var(--spacing-3xl);
+  padding: var(--spacing-2xl);
   border-radius: var(--radius-card);
   border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;
@@ -1316,7 +1493,7 @@ const handleSave = async () => {
 
 @media (max-width: 860px) {
   .data-actions {
-    grid-template-columns: 1fr;
+    --data-action-btn-width: 100%;
   }
 
   .action-footer {
@@ -1326,6 +1503,32 @@ const handleSave = async () => {
 
   .save-btn {
     width: 100%;
+  }
+
+  :deep(.import-action-btn.el-button),
+  :deep(.preview-action-btn.el-button) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  :deep(.data-actions .data-action-btn.el-button) {
+    width: 100% !important;
+    max-width: none;
+  }
+
+  .resume-actions,
+  .resume-btn-row {
+    width: 100%;
+  }
+
+  .resume-btn-pair {
+    width: 100%;
+  }
+
+  :deep(.resume-btn-pair .el-upload),
+  :deep(.resume-btn-pair .preview-action-btn.el-button) {
+    flex-basis: 100%;
+    max-width: none;
   }
 
   :deep(.el-row) {
