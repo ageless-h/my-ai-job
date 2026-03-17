@@ -21,8 +21,6 @@
 -->
 <template>
   <div class="run-record-tab">
-    <div class="header-title">运行日志与投递记录</div>
-
     <div class="boss-card">
       <div class="filter-bar">
         <el-select
@@ -129,7 +127,6 @@
         <el-table
           :data="logs"
           style="width: 100%"
-          height="100%"
           :row-class-name="tableRowClassName"
           class="boss-table"
           :class="{ 'compact-mode': displayMode === 'compact' }"
@@ -519,26 +516,17 @@ onBeforeUnmount(() => {
   flex-direction: column;
   box-sizing: border-box;
   background-color: var(--boss-bg-color);
-}
-
-.header-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--boss-text-primary);
-  margin-bottom: 16px;
-  border-left: 3px solid var(--boss-primary, #00bebd);
-  padding-left: 8px;
-  line-height: 1;
-  flex-shrink: 0;
+  overflow-y: auto;
+  padding-bottom: 80px;
 }
 
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: var(--spacing-2xl) var(--spacing-3xl);
+  padding: var(--spacing-2xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -546,39 +534,48 @@ onBeforeUnmount(() => {
 
 .filter-bar {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
-  flex-wrap: wrap;
-  flex-shrink: 0;
+  align-items: center;
 }
 
 .filter-item {
   margin-bottom: 0;
+  flex-shrink: 0;
 }
 
-.action-type-select {
+:deep(.action-type-select) {
   width: 110px;
+  flex: 0 0 110px;
 }
 
-.decision-select {
+:deep(.decision-select) {
   width: 110px;
+  flex: 0 0 110px;
 }
 
-.level-select {
+:deep(.level-select) {
   width: 110px;
+  flex: 0 0 110px;
 }
 
-.time-picker {
+:deep(.time-picker) {
+  --el-date-editor-width: 220px;
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
+  flex: 0 0 220px !important;
+}
+
+:deep(.search-input) {
   width: 200px;
-}
-
-.search-input {
-  width: 180px;
+  flex: 0 0 200px;
 }
 
 .spacer {
   flex: 1;
+  min-width: 8px;
 }
 
 .config-dropdown {
@@ -590,7 +587,7 @@ onBeforeUnmount(() => {
 }
 
 .config-title {
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--boss-text-primary);
   margin-bottom: 12px;
@@ -631,11 +628,12 @@ onBeforeUnmount(() => {
 }
 
 .table-container {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
+  max-height: none;
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-card);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .boss-table {
@@ -646,13 +644,13 @@ onBeforeUnmount(() => {
 
 :deep(.boss-table th.el-table__cell) {
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--text-base);
   padding: var(--spacing-lg) 0;
 }
 
 :deep(.boss-table td.el-table__cell) {
-  font-size: 12px;
-  color: var(--boss-text-regular);
+  font-size: var(--text-base);
+  color: var(--boss-text-secondary);
   padding: var(--spacing-md) 0;
 }
 
@@ -662,36 +660,43 @@ onBeforeUnmount(() => {
 
 .boss-table.compact-mode :deep(td.el-table__cell) {
   padding: var(--spacing-sm) 0;
-  line-height: 1.4;
+  line-height: var(--line-height-tight);
 }
 
 .level-tag {
   font-weight: bold;
   border-color: transparent;
-  font-size: 11px;
+  font-size: var(--text-xs);
   padding: var(--spacing-xs) var(--spacing-md);
 }
 
 .decision-text {
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 500;
+  font-size: var(--text-sm);
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
 }
 
 .decision-text.is-success {
-  color: var(--boss-primary);
+  color: #0f766e;
+  background: #ecfdf5;
 }
 
 .decision-text.is-danger {
-  color: var(--ai-danger);
+  color: #b42318;
+  background: #fef3f2;
 }
 
 .decision-text.is-warning {
-  color: var(--ai-warning);
+  color: #b54708;
+  background: #fff7ed;
 }
 
 .reason-text {
   color: var(--boss-text-regular);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .text-muted {
@@ -699,19 +704,31 @@ onBeforeUnmount(() => {
 }
 
 :deep(.el-table .row-error) {
-  background-color: var(--ai-danger-light) !important;
+  background-color: #fff8f8 !important;
 }
 
 :deep(.el-table .row-warn) {
-  background-color: var(--ai-warning-light) !important;
+  background-color: #fffbf5 !important;
 }
 
 .pagination-footer {
-  margin-top: 16px;
+  margin-top: 12px;
   display: flex;
   flex-shrink: 0;
   padding-top: 4px;
   overflow-x: auto;
+}
+
+.btn-clear-soft {
+  color: var(--boss-text-secondary);
+  border-color: var(--boss-border-color);
+  background: var(--boss-bg-white);
+}
+
+.btn-clear-soft:hover:not(:disabled) {
+  color: var(--ai-danger);
+  border-color: rgba(245, 108, 108, 0.5);
+  background: var(--ai-danger-light);
 }
 
 :deep(.pagination-footer .el-pagination) {
@@ -737,16 +754,16 @@ onBeforeUnmount(() => {
   }
 
   .table-container {
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 
   :deep(.boss-table th.el-table__cell) {
-    font-size: 12px;
+    font-size: var(--text-sm);
     padding: var(--spacing-md) var(--spacing-sm);
   }
 
   :deep(.boss-table td.el-table__cell) {
-    font-size: 11px;
+    font-size: var(--text-xs);
     padding: var(--spacing-sm) var(--spacing-sm);
   }
 
@@ -772,7 +789,7 @@ onBeforeUnmount(() => {
   }
 
   :deep(.pagination-footer .el-pagination) {
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 
   :deep(.el-pagination .el-pagination__sizes) {

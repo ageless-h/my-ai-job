@@ -891,29 +891,23 @@ onUnmounted(() => {
 
 .boss-card {
   background: var(--ai-bg);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-2xl) var(--spacing-3xl);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-2xl);
+  box-shadow: var(--shadow-card);
   border: 1px solid var(--ai-border);
 }
 
 .card-title {
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
   font-weight: var(--font-semibold);
   color: var(--ai-text-main);
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom: var(--spacing-xl);
   display: flex;
   align-items: center;
 }
 
 .card-title::before {
-  content: '';
-  display: inline-block;
-  width: 3px;
-  height: 14px;
-  background-color: var(--boss-primary);
-  margin-right: var(--spacing-lg);
-  border-radius: var(--radius-xs);
+  display: none;
 }
 
 .mt-16 {
@@ -931,16 +925,21 @@ onUnmounted(() => {
 .stats-row {
   display: flex;
   align-items: center;
-  background: var(--boss-bg-white);
-  border-radius: var(--radius-card);
-  padding: var(--spacing-3) var(--spacing-4);
-  border: 1px solid var(--boss-border-color);
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  border: 0;
+  gap: var(--spacing-lg);
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
   flex: 1;
+  background: var(--boss-bg-color);
+  border: 1px solid var(--boss-border-color);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-xl);
 }
 
 .stat-label {
@@ -950,8 +949,9 @@ onUnmounted(() => {
 }
 
 .stat-value {
-  font-size: var(--text-2xl);
-  font-weight: 600;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .text-primary {
@@ -963,22 +963,19 @@ onUnmounted(() => {
 }
 
 .stat-divider {
-  width: 1px;
-  height: 30px;
-  background-color: var(--boss-border-color);
-  margin: 0 var(--spacing-3xl);
+  display: none;
 }
 
 .stat-actions {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
 }
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
-  gap: var(--spacing-2xl);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: var(--spacing-lg);
 }
 
 .setting-item {
@@ -986,8 +983,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-lg);
-  background: var(--ai-bg-code);
-  padding: 10px 12px;
+  background: var(--boss-bg-color);
+  padding: var(--spacing-xl);
   border-radius: var(--radius-md);
   border: 1px solid var(--ai-border-light);
 }
@@ -1056,7 +1053,7 @@ onUnmounted(() => {
 .push-record-item {
   margin-bottom: 10px;
   font-size: var(--text-base);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
   display: flex;
   align-items: flex-start;
   padding-bottom: var(--spacing-lg);
