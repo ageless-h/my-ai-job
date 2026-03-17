@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <defs>
+    <linearGradient id="aiHunterLogoGradient" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12D6D2"/>
+      <stop offset="1" stop-color="#00A8A7"/>
+    </linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="url(#aiHunterLogoGradient)"/>
+  <path d="M8 10.2H16C16.6627 10.2 17.2 10.7373 17.2 11.4V16.4C17.2 17.0627 16.6627 17.6 16 17.6H8C7.33726 17.6 6.8 17.0627 6.8 16.4V11.4C6.8 10.7373 7.33726 10.2 8 10.2Z" stroke="white" stroke-width="1.6"/>
+  <path d="M9 10V8.7C9 7.76112 9.76112 7 10.7 7H13.3C14.2389 7 15 7.76112 15 8.7V10" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M10.4 13.2H13.6" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="17.8" cy="6.2" r="1.2" fill="white" fill-opacity="0.95"/>
+</svg>

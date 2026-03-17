@@ -28,6 +28,9 @@ import DeliveryFilter from '@/features/delivery-filter/components/DeliveryFilter
 import AiJob from '@/features/job-assistant/components/AiJob.vue';
 import MemorySession from '@/features/memory-session/components/MemorySession.vue';
 import RunRecord from '@/features/run-record/components/RunRecord.vue';
+import aiHunterLogo from '@/assets/brand/ai-hunter-logo.svg';
+
+const sidebarTitleIconBackground = `url("${aiHunterLogo}")`;
 
 // ============================================================================
 // 常量定义
@@ -609,8 +612,9 @@ onUpdated(() => {
   --ai-primary: var(--boss-primary, #00bebd);
   --ai-primary-light: var(--boss-primary-light, rgba(0, 190, 189, 0.12));
   --ai-primary-hover: var(--boss-primary-hover, #00a8a7);
-  --ai-header-height: 54px;
-  --ai-nav-width: 96px;
+  --ai-radius: var(--radius-button, var(--radius-md));
+  --ai-header-height: 64px;
+  --ai-nav-width: 72px;
 }
 
 /* Drawer Sidebar */
@@ -676,11 +680,11 @@ onUpdated(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--spacing-4);
+  padding: 0 var(--spacing-2xl);
   border-bottom: 1px solid var(--boss-border-color);
   flex-shrink: 0;
   background: var(--boss-bg-white);
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 :deep(.ai-sidebar-title) {
@@ -688,38 +692,46 @@ onUpdated(() => {
   align-items: center;
   gap: var(--spacing-2);
   min-width: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
+  font-size: var(--text-xl);
+  font-weight: 600;
   color: var(--boss-text-primary);
   white-space: nowrap;
+  letter-spacing: 0.5px;
 }
 
 :deep(.ai-sidebar-title::before) {
   content: '';
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  background: url('https://z.zhipin.com/web/v2/favicon.ico') center / cover no-repeat;
+  border-radius: var(--radius-md);
+  background: v-bind(sidebarTitleIconBackground) center / cover no-repeat;
+  box-shadow: 0 2px 4px rgba(0, 190, 189, 0.2);
 }
 
 :deep(.ai-sidebar-minimize) {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   border-radius: var(--radius-md);
   color: var(--boss-text-secondary);
+  background: var(--boss-bg-white);
+  border: 1px solid var(--boss-border-light);
   transition:
     background-color 0.16s ease,
-    color 0.16s ease;
+    color 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
 }
 
 :deep(.ai-sidebar-minimize:hover) {
-  background: var(--ai-bg-subtle);
+  background: var(--boss-bg-hover);
   color: var(--boss-text-primary);
+  border-color: var(--boss-border-color);
+  transform: none;
 }
 
 /* Navigation Tabs */
@@ -743,26 +755,29 @@ onUpdated(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 64px;
+  flex: 0 0 68px;
   min-width: 0;
   max-width: none;
-  height: 64px;
+  height: 68px;
   flex-direction: column;
   font-size: var(--text-md);
   font-weight: 500;
-  color: var(--ai-text-sub);
+  color: var(--boss-text-secondary);
   cursor: pointer;
   position: relative;
   transition:
     background-color 0.2s ease,
     color 0.2s ease,
-    border-color 0.2s ease;
+    border-color 0.2s ease,
+    transform 0.2s ease;
   user-select: none;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   overflow: hidden;
-  padding: var(--spacing-lg) var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-xs);
   text-align: center;
   border-left: 3px solid transparent;
+  margin: 0;
+  border-radius: 0;
 }
 
 :deep(.ai-nav-tab span) {
@@ -774,15 +789,19 @@ onUpdated(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
-  font-size: var(--text-sm);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 :deep(.ai-nav-tab.is-active) {
-  flex: 0 0 64px;
+  flex: 0 0 68px;
   max-width: none;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   background: var(--boss-bg-white);
   border-left-color: var(--boss-primary);
+  color: var(--boss-text-primary);
+  box-shadow: none;
 }
 
 :deep(.ai-nav-tab.is-active span) {
@@ -791,12 +810,7 @@ onUpdated(() => {
 
 :deep(.ai-nav-tab:hover) {
   background-color: var(--boss-bg-hover);
-  color: var(--ai-text-main);
-}
-
-:deep(.ai-nav-tab.is-active) {
-  font-weight: 700;
-  color: var(--boss-primary);
+  color: var(--boss-text-primary);
 }
 
 :deep(.ai-nav-tab::after) {
@@ -860,7 +874,18 @@ onUpdated(() => {
 :deep(.ai-sidebar .el-button p) {
   margin: 0;
   font-size: var(--text-md);
-  line-height: 1;
+  line-height: var(--line-height-none);
+}
+
+/* 保证非禁用下拉/触发器可交互，避免父级样式污染 */
+:deep(.ai-sidebar .el-select:not(.is-disabled) .el-select__wrapper.el-tooltip__trigger),
+:deep(.ai-sidebar .el-date-editor:not(.is-disabled).el-tooltip__trigger) {
+  pointer-events: auto;
+}
+
+:deep(.ai-sidebar .el-select.is-disabled .el-select__wrapper.el-tooltip__trigger),
+:deep(.ai-sidebar .el-date-editor.is-disabled.el-tooltip__trigger) {
+  pointer-events: none;
 }
 
 /* ===== Sub-component Styles (Element Plus) ===== */
@@ -946,7 +971,7 @@ onUpdated(() => {
   padding: 0 0 var(--spacing-sm) 0 !important;
   justify-content: flex-start !important;
   height: auto !important;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 :deep(.form-preference .el-form-item__content) {
   width: 100% !important;
@@ -1113,7 +1138,7 @@ onUpdated(() => {
 :deep(.ai-config .el-textarea__inner) {
   min-height: 100px !important;
   font-size: var(--text-base);
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 /* Select in AI config */
 :deep(.ai-config .el-select) {
@@ -1195,7 +1220,7 @@ onUpdated(() => {
   content: attr(title);
   position: absolute;
   right: 64px;
-  background: rgba(17, 24, 39, 0.92);
+  background: var(--shadow-tooltip);
   color: var(--ai-bg);
   padding: var(--spacing-md) var(--spacing-xl);
   border-radius: var(--radius-md);
