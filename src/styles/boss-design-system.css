@@ -11,16 +11,16 @@
 
   /* 文字颜色 */
   --boss-text-primary: #333333;
-  --boss-text-regular: #666666;
-  --boss-text-secondary: #666666;
-  --boss-text-tertiary: #999999;
+  --boss-text-regular: #5f6773;
+  --boss-text-secondary: #5f6773;
+  --boss-text-tertiary: #7e8794;
 
   /* 扩展文字颜色（兼容旧代码） */
   --ai-text-main: #303133;
   --ai-text-secondary: #606266;
-  --ai-text-sub: #909399;
+  --ai-text-sub: #7e8794;
   --ai-text-muted: #888888; /* 更浅的文字颜色 */
-  --ai-text-light: #999999; /* 极浅的文字颜色 */
+  --ai-text-light: #8c95a3; /* 极浅的文字颜色 */
   --ai-text-dark: #444444; /* 深色文字 */
   --ai-text-code: #434c5e; /* 代码文字颜色 */
 
@@ -62,11 +62,13 @@
   --shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-primary: 0 4px 12px rgba(0, 190, 189, 0.2);
   --shadow-primary-glow: 0 0 8px rgba(0, 190, 189, 0.4);
+  --shadow-tooltip: rgba(17, 24, 39, 0.92); /* Tooltip 背景色 */
 
   /* ========== 圆角系统（小圆角 - 高效专业） ========== */
   --radius-xs: 2px;
   --radius-sm: 4px;
-  --radius-base: 4px; /* 基础圆角：按钮、输入框 */
+  --radius-base: 4px; /* 基础圆角：输入框、基础控件 */
+  --radius-button: 6px; /* 按钮圆角：小圆角但可感知 */
   --radius-md: 6px;
   --radius-card: 6px; /* 卡片圆角：主卡片容器 */
   --radius-lg: 8px;
@@ -101,6 +103,13 @@
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
+
+  /* ========== 行高系统 ========== */
+  --line-height-none: 1;
+  --line-height-tight: 1.4;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+  --line-height-loose: 1.8;
 
   /* ========== 渐变系统 ========== */
   --gradient-subtle: linear-gradient(135deg, #f8fafc, #f1f5f9); /* 浅灰渐变 */
