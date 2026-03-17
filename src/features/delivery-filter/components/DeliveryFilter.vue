@@ -1,7 +1,5 @@
 <template>
   <div class="delivery-filter-tab">
-    <div class="header-title">投递过滤</div>
-
     <!-- 硬性约束部分 - 始终执行 -->
     <div class="boss-card">
       <div class="card-title">硬性约束（始终执行）</div>
@@ -17,7 +15,7 @@
       </div>
 
       <div class="activity-filter mt-16">
-        <el-checkbox v-model="userStore.user.preference.acE" class="mr-12" border
+        <el-checkbox v-model="userStore.user.preference.acE" class="activity-toggle" border
           >启用活跃度过滤</el-checkbox
         >
         <div class="activity-dims" :class="{ 'is-disabled': !userStore.user.preference.acE }">
@@ -115,18 +113,26 @@
         <div class="judge-divider mt-16"></div>
 
         <el-form label-position="top" class="judge-form mt-16">
-          <el-row :gutter="16">
-            <el-col :span="12">
-              <el-form-item label="AI请求失败策略">
-                <el-select v-model="aiForm.onAiError" class="full-width">
+          <el-row :gutter="12" class="policy-group">
+            <el-col :xs="24" :sm="12">
+              <el-form-item label="AI请求失败策略" class="policy-item">
+                <el-select
+                  v-model="aiForm.onAiError"
+                  class="full-width"
+                  popper-class="policy-select-popper"
+                >
                   <el-option label="拒绝投递（默认，更保守）" value="reject" />
                   <el-option label="回退到传统投递规则" value="fallback-traditional" />
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="12">
-              <el-form-item label="AI结果无法解析策略">
-                <el-select v-model="aiForm.onInvalidResult" class="full-width">
+            <el-col :xs="24" :sm="12">
+              <el-form-item label="AI结果无法解析策略" class="policy-item">
+                <el-select
+                  v-model="aiForm.onInvalidResult"
+                  class="full-width"
+                  popper-class="policy-select-popper"
+                >
                   <el-option label="拒绝投递（默认，更保守）" value="reject" />
                   <el-option label="回退到传统投递规则" value="fallback-traditional" />
                 </el-select>
@@ -355,7 +361,7 @@
       <div class="footer-right buttons">
         <el-button link class="text-muted" @click="resetForm">恢复默认过滤</el-button>
         <el-button
-          color="#00bebd"
+          :color="'var(--boss-primary)'"
           type="primary"
           class="save-btn"
           style="color: white"
@@ -556,45 +562,29 @@ preferenceDefaultValueHandler();
   background-color: var(--boss-bg-color);
 }
 
-.header-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--boss-text-primary);
-  margin-bottom: 16px;
-  border-left: 3px solid var(--boss-primary, #00bebd);
-  padding-left: 8px;
-  line-height: 1;
-}
-
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: var(--spacing-2xl) var(--spacing-3xl);
+  padding: var(--spacing-2xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
 }
 
 .card-title {
-  font-size: 15px;
+  font-size: var(--text-xl);
   font-weight: 600;
   color: var(--boss-text-primary);
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .card-title::before {
-  content: '';
-  display: inline-block;
-  width: 3px;
-  height: 14px;
-  background-color: var(--boss-primary, #00bebd);
-  margin-right: 8px;
-  border-radius: var(--radius-xs);
+  display: none;
 }
 
 .card-subtitle {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--boss-text-regular);
   margin-bottom: 8px;
@@ -604,7 +594,7 @@ preferenceDefaultValueHandler();
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .switch-content {
@@ -613,15 +603,15 @@ preferenceDefaultValueHandler();
 }
 
 .label {
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--boss-text-primary);
 }
 
 .sub-desc {
-  font-size: 12px;
+  font-size: var(--text-base);
   color: var(--boss-text-secondary);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
 }
 
 .judge-divider {
@@ -632,45 +622,120 @@ preferenceDefaultValueHandler();
 
 .responsive-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 0 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 0 var(--spacing-2xl);
 }
 
 .switch-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
 }
 
 .activity-filter {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  background: var(--boss-bg-hover);
-  padding: var(--spacing-2-5) var(--spacing-2xl);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+:deep(.activity-toggle.el-checkbox.is-bordered) {
+  margin-right: 0;
+  margin-bottom: 0;
+  min-height: 44px;
+  width: 100%;
+  padding: 10px 16px;
   border-radius: var(--radius-card);
-  border: 1px solid var(--boss-border-color);
+  background: var(--boss-bg-white);
+  border-color: var(--boss-border-color);
+  transition: all 0.2s ease;
+}
+
+:deep(.activity-toggle.el-checkbox.is-bordered.is-checked) {
+  border-color: var(--boss-primary, #00bebd);
+  background-color: var(--boss-primary-light);
+}
+
+:deep(.activity-toggle.el-checkbox.is-bordered:hover) {
+  border-color: rgba(0, 190, 189, 0.35);
+}
+
+:deep(.activity-toggle .el-checkbox__label) {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--boss-text-primary);
+}
+
+:deep(.activity-toggle .el-checkbox__input.is-checked + .el-checkbox__label) {
+  color: var(--boss-text-primary);
 }
 
 .activity-dims {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-left: 12px;
-  padding-left: 20px;
-  border-left: 1px solid var(--boss-border-color);
+  gap: var(--spacing-md) var(--spacing-lg);
+  margin-left: 0;
+  padding: var(--spacing-sm) 0 0;
+  border-top: 1px dashed var(--boss-border-light);
+  border-left: none;
+  min-height: 0;
 }
 
 .dim-label {
-  font-size: 13px;
-  color: var(--boss-text-regular);
+  flex: 0 0 100%;
+  font-size: var(--text-sm);
+  color: var(--boss-text-secondary);
+  line-height: var(--line-height-tight);
+  margin: 0 0 2px;
 }
 
-.is-disabled {
-  opacity: 0.5;
-  pointer-events: none;
+.activity-dims.is-disabled {
+  opacity: 1;
+}
+
+.activity-dims.is-disabled .dim-label {
+  color: var(--boss-text-secondary);
+}
+
+.activity-dims.is-disabled :deep(.el-checkbox__label) {
+  color: var(--boss-text-secondary);
+}
+
+.activity-dims.is-disabled :deep(.el-checkbox__input.is-disabled .el-checkbox__inner) {
+  background-color: transparent;
+  border-color: var(--boss-border-color);
+}
+
+.activity-dims.is-disabled :deep(.el-checkbox__input.is-disabled.is-checked .el-checkbox__inner) {
+  background-color: rgba(0, 190, 189, 0.14);
+  border-color: rgba(0, 190, 189, 0.4);
+}
+
+.activity-dims :deep(.el-checkbox) {
+  margin-right: 0;
+  min-height: 24px;
+  padding-right: 0;
+}
+
+.activity-dims :deep(.el-checkbox__label) {
+  font-size: var(--text-sm);
+  color: var(--boss-text-secondary);
+}
+
+.activity-dims :deep(.el-checkbox.is-checked .el-checkbox__label) {
+  color: var(--boss-text-primary);
+  font-weight: 500;
+}
+
+@media (max-width: 900px) {
+  .activity-dims {
+    padding: var(--spacing-sm) 0 0;
+  }
 }
 
 .judge-inline-switches {
@@ -682,7 +747,7 @@ preferenceDefaultValueHandler();
 }
 
 .switch-content span {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 500;
   color: var(--boss-text-primary);
 }
@@ -695,10 +760,67 @@ preferenceDefaultValueHandler();
   width: 100%;
 }
 
+.policy-group {
+  margin: 0;
+}
+
+:deep(.policy-item.el-form-item) {
+  margin-bottom: 0;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border: 1px solid var(--boss-border-light);
+  border-radius: var(--radius-card);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 252, 0.96) 100%);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+:deep(.policy-item.el-form-item:hover) {
+  border-color: rgba(0, 190, 189, 0.28);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+:deep(.policy-item .el-form-item__label) {
+  color: var(--boss-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: var(--line-height-tight);
+  padding-bottom: var(--spacing-md);
+}
+
+:deep(.policy-item .el-select .el-select__wrapper) {
+  min-height: 32px;
+  border-radius: var(--radius-button, var(--radius-md));
+  background-color: var(--boss-bg-white);
+  box-shadow: 0 0 0 1px var(--boss-border-color) inset;
+  transition:
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+:deep(.policy-item .el-select .el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px rgba(0, 190, 189, 0.35) inset;
+}
+
+:deep(.policy-item .el-select .el-select__wrapper.is-focused),
+:deep(.policy-item .el-select .el-input__wrapper.is-focus) {
+  background-color: var(--boss-bg-white);
+  box-shadow:
+    0 0 0 1px var(--boss-primary) inset,
+    0 0 0 3px rgba(0, 190, 189, 0.14) !important;
+}
+
+:deep(.policy-item .el-select__placeholder),
+:deep(.policy-item .el-select__selected-item) {
+  font-size: var(--text-base);
+  color: var(--boss-text-primary);
+}
+
 .interval-groups {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px 32px;
+  gap: 16px 24px;
   background: var(--boss-bg-hover);
   padding: var(--spacing-2xl);
   border-radius: var(--radius-card);
@@ -711,13 +833,13 @@ preferenceDefaultValueHandler();
 }
 
 .interval-label {
-  font-size: 14px;
+  font-size: var(--text-md);
   color: var(--boss-text-primary);
   margin-right: 8px;
 }
 
 .interval-unit {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--boss-text-secondary);
   margin-left: 8px;
 }
@@ -727,9 +849,9 @@ preferenceDefaultValueHandler();
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   background: var(--boss-bg-white);
-  padding: var(--spacing-2xl) var(--spacing-3xl);
+  padding: var(--spacing-2xl);
   border-radius: var(--radius-card);
   border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;
@@ -782,8 +904,14 @@ preferenceDefaultValueHandler();
   margin-right: 12px;
 }
 
+@media (max-width: 900px) {
+  :deep(.policy-item.el-form-item) {
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+}
+
 .text-xs {
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 :deep(.custom-chk-label) {
@@ -799,7 +927,7 @@ preferenceDefaultValueHandler();
 
 :deep(.el-checkbox__label) {
   white-space: normal;
-  line-height: 1.4;
+  line-height: var(--line-height-tight);
   word-break: break-word;
   vertical-align: middle;
 }
@@ -823,7 +951,7 @@ preferenceDefaultValueHandler();
 
 :deep(.boss-grid-check .el-checkbox__label) {
   white-space: normal;
-  line-height: 1.4;
+  line-height: var(--line-height-tight);
   flex: 1;
 }
 
@@ -837,9 +965,9 @@ preferenceDefaultValueHandler();
 
 :deep(.el-form-item__label) {
   color: var(--boss-text-regular);
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 500;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
   padding-bottom: 4px;
 }
 </style>

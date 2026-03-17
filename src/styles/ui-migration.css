@@ -19,6 +19,67 @@
   --el-input-focus-border-color: var(--boss-primary);
   --el-select-input-focus-border-color: var(--boss-primary);
   --el-switch-on-color: var(--boss-primary);
+
+  /* Element Plus 圆角覆盖 - 按钮使用更清晰的小圆角 */
+  --el-border-radius-base: var(--radius-button, var(--radius-md));
+  --el-border-radius-small: var(--radius-base);
+  --el-button-border-radius: var(--radius-button, var(--radius-md));
+  --el-border-radius-round: 9999px;
+  --el-border-radius-circle: 50%;
+}
+
+/* 侧边栏 z-index 很高（99999），确保 Element Plus 弹层不会被遮挡 */
+.el-select__popper.el-popper,
+.el-picker__popper.el-popper,
+.el-tooltip__popper.el-popper {
+  z-index: 100100 !important;
+}
+
+/* 异常处理策略专用下拉菜单（精致化内部菜单样式） */
+.policy-select-popper.el-popper {
+  border: 1px solid var(--boss-border-color, #e4e8ee) !important;
+  border-radius: var(--radius-card, 6px) !important;
+  padding: 4px;
+  background: var(--boss-bg-white, #ffffff) !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12) !important;
+}
+
+.policy-select-popper .el-select-dropdown {
+  border: none;
+  box-shadow: none;
+  border-radius: var(--radius-base, 4px);
+  background: transparent;
+}
+
+.policy-select-popper .el-scrollbar__view {
+  padding: 2px 0;
+}
+
+.policy-select-popper .el-select-dropdown__item {
+  margin: 0 2px;
+  min-height: 32px;
+  line-height: 32px;
+  border-radius: var(--radius-base, 4px);
+  padding: 0 10px;
+  color: var(--boss-text-primary, #1f2937);
+  font-size: var(--text-base, 13px);
+}
+
+.policy-select-popper .el-select-dropdown__item.hover,
+.policy-select-popper .el-select-dropdown__item:hover {
+  background: var(--boss-bg-hover, #f4f7f9);
+  color: var(--boss-text-primary, #1f2937);
+}
+
+.policy-select-popper .el-select-dropdown__item.is-selected {
+  background: rgba(0, 190, 189, 0.12);
+  color: var(--boss-primary, #00bebd) !important;
+  font-weight: 600;
+}
+
+.policy-select-popper .el-select-dropdown__item.is-disabled {
+  color: var(--boss-text-tertiary, #9aa4b2);
+  opacity: 0.72;
 }
 
 #ai-job,
@@ -28,45 +89,59 @@
   box-sizing: border-box;
 }
 
-#ai-job .e,
+/* 强制所有按钮使用统一小圆角（含原生button兜底） */
+#ai-job .el-button:not(.is-round):not(.is-circle),
+#app .el-button:not(.is-round):not(.is-circle),
+#ai-job button[type='button'],
+#app button[type='button'],
+#ai-job input[type='button'],
+#app input[type='button'],
+#ai-job input[type='submit'],
+#app input[type='submit'],
+#ai-job input[type='reset'],
+#app input[type='reset'] {
+  border-radius: var(--radius-button, var(--radius-md)) !important;
+}
+
+#ai-job .el-checkbox__input.is-checked .el-checkbox__inner,
 #app .el-checkbox__input.is-checked .el-checkbox__inner,
-#ai-job .e,
+#ai-job .el-checkbox__input.is-indeterminate .el-checkbox__inner,
 #app .el-checkbox__input.is-indeterminate .el-checkbox__inner,
-#ai-job .e,
+#ai-job .el-radio__input.is-checked .el-radio__inner,
 #app .el-radio__input.is-checked .el-radio__inner,
-#ai-job .e,
+#ai-job .el-switch.is-checked .el-switch__core,
 #app .el-switch.is-checked .el-switch__core {
   border-color: var(--boss-primary) !important;
   background-color: var(--boss-primary) !important;
 }
 
-#ai-job .e,
+#ai-job .el-input__wrapper.is-focus,
 #app .el-input__wrapper.is-focus,
-#ai-job .e,
+#ai-job .el-input__wrapper:focus-within,
 #app .el-input__wrapper:focus-within,
-#ai-job .e,
+#ai-job .el-textarea__inner:focus,
 #app .el-textarea__inner:focus,
-#ai-job .e,
+#ai-job .el-select .el-input__wrapper.is-focus,
 #app .el-select .el-input__wrapper.is-focus,
-#ai-job .e,
+#ai-job .el-select .el-input__wrapper:focus-within,
 #app .el-select .el-input__wrapper:focus-within {
   box-shadow: 0 0 0 1px var(--boss-primary) inset !important;
 }
 
-#ai-job .e,
+#ai-job .el-checkbox.is-checked .el-checkbox__label,
 #app .el-checkbox.is-checked .el-checkbox__label,
-#ai-job .e,
+#ai-job .el-checkbox__input.is-checked + .el-checkbox__label,
 #app .el-checkbox__input.is-checked + .el-checkbox__label,
-#ai-job .e,
+#ai-job .el-radio.is-checked .el-radio__label,
 #app .el-radio.is-checked .el-radio__label,
-#ai-job .e,
+#ai-job .el-radio__input.is-checked + .el-radio__label,
 #app .el-radio__input.is-checked + .el-radio__label,
-#ai-job .e,
+#ai-job .el-select-dropdown__item.is-selected,
 #app .el-select-dropdown__item.is-selected {
   color: var(--boss-primary) !important;
 }
 
-#ai-job .e,
+#ai-job .el-tag,
 #app .el-tag {
   white-space: nowrap;
   display: inline-flex;
@@ -113,7 +188,7 @@
   box-shadow: var(--shadow-hover);
 }
 
-#ai-job .e,
+#ai-job .el-button--primary:not(.is-plain):not(.is-link):not(.is-text),
 #app .el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
   --el-button-bg-color: var(--boss-primary);
   --el-button-border-color: var(--boss-primary);
@@ -122,38 +197,38 @@
 }
 
 /* ========== Task 6: 按钮样式 ========== */
-#ai-job .e,
+#ai-job .el-button,
 #app .el-button {
-  border-radius: var(--radius-base);
+  border-radius: var(--radius-button, var(--radius-md)) !important;
   transition: all 150ms ease;
 }
 
-#ai-job .e,
+#ai-job .el-button--default,
 #app .el-button--default {
   background: var(--boss-bg-color);
   border: 1px solid var(--boss-border-color);
   color: var(--boss-text-primary);
 }
 
-#ai-job .e,
+#ai-job .el-button--default:hover,
 #app .el-button--default:hover {
   background: var(--boss-bg-hover);
   border-color: var(--boss-primary);
   color: var(--boss-primary);
 }
 
-#ai-job .e,
+#ai-job .el-button--primary,
 #app .el-button--primary {
-  border-radius: var(--radius-base);
+  border-radius: var(--radius-button, var(--radius-md)) !important;
 }
 
-#ai-job .e,
+#ai-job .el-button--primary:hover,
 #app .el-button--primary:hover {
   background: var(--boss-primary-hover);
 }
 
 /* ========== Task 7: 输入框样式 ========== */
-#ai-job .e,
+#ai-job .el-input__wrapper,
 #app .el-input__wrapper {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
@@ -161,20 +236,20 @@
   transition: all 150ms ease;
 }
 
-#ai-job .e,
+#ai-job .el-input__wrapper:hover,
 #app .el-input__wrapper:hover {
   border-color: var(--boss-primary);
 }
 
-#ai-job .e,
+#ai-job .el-input__wrapper.is-focus,
 #app .el-input__wrapper.is-focus,
-#ai-job .e,
+#ai-job .el-input__wrapper:focus-within,
 #app .el-input__wrapper:focus-within {
   border-color: var(--boss-primary);
   box-shadow: 0 0 0 2px rgba(0, 190, 189, 0.1);
 }
 
-#ai-job .e,
+#ai-job .el-textarea__inner,
 #app .el-textarea__inner {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
@@ -182,25 +257,25 @@
   transition: all 150ms ease;
 }
 
-#ai-job .e,
+#ai-job .el-textarea__inner:hover,
 #app .el-textarea__inner:hover {
   border-color: var(--boss-primary);
 }
 
-#ai-job .e,
+#ai-job .el-textarea__inner:focus,
 #app .el-textarea__inner:focus {
   border-color: var(--boss-primary);
   box-shadow: 0 0 0 2px rgba(0, 190, 189, 0.1);
 }
 
-#ai-job .e,
+#ai-job .el-select .el-input__wrapper,
 #app .el-select .el-input__wrapper {
   background: var(--boss-bg-white);
   border: 1px solid var(--boss-border-color);
   border-radius: var(--radius-base);
 }
 
-#ai-job .e,
+#ai-job .el-select .el-input__wrapper:hover,
 #app .el-select .el-input__wrapper:hover {
   border-color: var(--boss-primary);
 }
