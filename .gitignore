@@ -11,3 +11,9 @@ logs/
 .VSCodeCounter/
 venv/
 .worktrees/
+
+# 本地 UI 调试截图与临时备份
+/ui-*.png
+/ui-*.jpg
+/debug-*.png
+/src/styles/*.bak
