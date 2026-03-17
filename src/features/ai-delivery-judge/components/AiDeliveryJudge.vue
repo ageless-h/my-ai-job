@@ -13,7 +13,6 @@
 -->
 <template>
   <div class="ai-delivery-judge-tab">
-    <div class="header-title">AI 投递判定</div>
     <AiDeliveryJudgeSettingsPanel
       :show-section-header="false"
       :embedded="true"
@@ -35,16 +34,6 @@ import AiDeliveryJudgeSettingsPanel from '@/features/ai-delivery-judge/component
   overflow-y: auto;
   box-sizing: border-box;
   background: var(--ai-bg-subtle);
-}
-
-.header-title {
-  font-size: var(--text-xl);
-  font-weight: 500;
-  color: var(--ai-text-main);
-  margin-bottom: var(--spacing-2xl);
-  border-left: 3px solid var(--boss-primary, #00bebd);
-  padding-left: var(--spacing-lg);
-  line-height: 1;
 }
 
 .bottom-spacer {

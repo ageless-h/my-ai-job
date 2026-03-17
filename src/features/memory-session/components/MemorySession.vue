@@ -21,8 +21,6 @@
 -->
 <template>
   <div class="memory-session-tab">
-    <div class="header-title">对话与记忆策略</div>
-
     <div class="boss-card">
       <div class="setting-row">
         <div class="switch-content">
@@ -394,20 +392,10 @@ onMounted(() => {
   padding-bottom: 80px;
 }
 
-.header-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--boss-text-primary);
-  margin-bottom: 16px;
-  border-left: 3px solid var(--boss-primary);
-  padding-left: 8px;
-  line-height: 1;
-}
-
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: var(--spacing-2xl) var(--spacing-3xl);
+  padding: var(--spacing-2xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
 }
@@ -418,22 +406,16 @@ onMounted(() => {
 }
 
 .card-title {
-  font-size: 15px;
+  font-size: var(--text-xl);
   font-weight: 600;
   color: var(--boss-text-primary);
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .card-title::before {
-  content: '';
-  display: inline-block;
-  width: 3px;
-  height: 14px;
-  background-color: var(--boss-primary);
-  margin-right: 8px;
-  border-radius: var(--radius-base);
+  display: none;
 }
 
 .responsive-grid {
@@ -456,15 +438,15 @@ onMounted(() => {
 }
 
 .label {
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--boss-text-primary);
 }
 
 .sub-desc {
-  font-size: 12px;
+  font-size: var(--text-base);
   color: var(--boss-text-tertiary);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
 }
 
 .custom-chk-label {
@@ -483,10 +465,10 @@ onMounted(() => {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
-  font-size: 14px;
+  gap: 8px;
+  font-size: var(--text-md);
   color: var(--boss-text-secondary);
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .condition-box {
@@ -497,7 +479,7 @@ onMounted(() => {
 }
 
 .condition-title {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--boss-text-secondary);
   font-weight: 500;
 }
@@ -521,7 +503,7 @@ onMounted(() => {
 }
 
 .grid-label {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--boss-text-secondary);
   white-space: nowrap;
 }
@@ -536,9 +518,9 @@ onMounted(() => {
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   background: var(--boss-bg-white);
-  padding: var(--spacing-2xl) var(--spacing-3xl);
+  padding: var(--spacing-2xl);
   border-radius: var(--radius-card);
   border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;
@@ -591,7 +573,7 @@ onMounted(() => {
 
 :deep(.custom-chk-label .el-checkbox__label) {
   white-space: normal;
-  line-height: 1.4;
+  line-height: var(--line-height-tight);
   padding-left: 8px;
   word-break: break-word;
 }
@@ -612,13 +594,13 @@ onMounted(() => {
 :deep(.boss-form .el-form-item__label) {
   padding-bottom: 4px;
   color: var(--boss-text-primary);
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 500;
 }
 
 :deep(.el-checkbox__label) {
   white-space: normal;
-  line-height: 1.4;
+  line-height: var(--line-height-tight);
   word-break: break-word;
   vertical-align: middle;
 }

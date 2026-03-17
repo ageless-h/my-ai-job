@@ -848,7 +848,7 @@ onMounted(() => {
   font-size: var(--text-md);
   font-weight: 600;
   color: var(--ai-text-main);
-  line-height: 1.4;
+  line-height: var(--line-height-tight);
 }
 .api-config-card__sub {
   margin-top: var(--spacing-sm);
@@ -937,7 +937,7 @@ onMounted(() => {
   justify-content: flex-start !important;
   text-align: left !important;
   height: auto !important;
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
   padding: 0 0 var(--spacing-md) !important;
 }
 
@@ -969,7 +969,7 @@ onMounted(() => {
 .api-preset-tip {
   margin-top: var(--spacing-md);
   font-size: var(--text-sm);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
   color: var(--ai-text-sub);
 }
 .api-preset-link-row {
@@ -982,7 +982,7 @@ onMounted(() => {
 .api-preset-note {
   margin-top: var(--spacing-md);
   font-size: var(--text-sm);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
   color: var(--ai-warning);
 }
 .api-template-actions {

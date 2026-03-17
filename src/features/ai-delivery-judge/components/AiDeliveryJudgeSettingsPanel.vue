@@ -407,7 +407,7 @@ const copyPayload = async () => {
 .sub-desc {
   font-size: var(--text-sm);
   color: var(--ai-text-sub);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
 }
 
 .mt-4 {
@@ -483,14 +483,14 @@ const copyPayload = async () => {
   margin-top: 10px;
   font-size: var(--text-sm);
   color: var(--ai-text-sub);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
 }
 
 .judge-policy-hint {
   margin-top: var(--spacing-lg);
   font-size: var(--text-sm);
   color: var(--ai-text-sub);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
 }
 
 .text-muted {
@@ -551,7 +551,7 @@ const copyPayload = async () => {
   padding: var(--spacing-2xl);
   font-family: 'JetBrains Mono', Consolas, Monaco, Courier, monospace;
   font-size: var(--text-base);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
   color: var(--ai-text-code);
   box-shadow: none !important;
   resize: none;
@@ -583,10 +583,10 @@ const copyPayload = async () => {
 }
 
 :deep(.el-form-item__label) {
-  color: #444;
+  color: var(--ai-text-dark);
   font-size: var(--text-md);
   font-weight: 500;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
   padding-bottom: var(--spacing-sm);
 }
 </style>

@@ -280,7 +280,7 @@ const deletePresetById = async (id) => {
 }
 .preset-list-tip {
   font-size: var(--text-sm);
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
   color: var(--ai-text-secondary);
 }
 .preset-card {
@@ -304,7 +304,7 @@ const deletePresetById = async (id) => {
 .preset-card__content {
   font-size: var(--text-sm);
   color: var(--ai-text-secondary);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
   margin-bottom: var(--spacing-lg);
   word-break: break-all;
 }
@@ -343,7 +343,7 @@ const deletePresetById = async (id) => {
 }
 .variable-hint__title {
   font-size: var(--text-sm);
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
   color: var(--ai-text-secondary);
   margin-bottom: var(--spacing-md);
 }

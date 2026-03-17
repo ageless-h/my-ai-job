@@ -784,7 +784,6 @@ onMounted(async () => {
 
 <template>
   <div class="ai-config-tab">
-    <div class="header-title">AI 配置</div>
     <div class="boss-card mt-16">
       <div class="card-title">提示词中心</div>
       <div class="ai-section-desc">统一管理系统判断和代聊预设，支持调试</div>
@@ -955,24 +954,19 @@ onMounted(async () => {
   height: 100%;
   min-height: 0;
   width: 100%;
-  padding: var(--spacing-3xl) var(--spacing-3xl) 100px;
+  padding: var(--spacing-2xl);
+  padding-bottom: 100px;
   box-sizing: border-box;
   background: var(--boss-bg-color);
   overflow-y: auto;
 }
 
-.header-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--boss-text-primary);
-  margin-bottom: 16px;
-  border-left: 3px solid var(--boss-primary);
-  padding-left: 8px;
-  line-height: 1;
-}
-
 .mt-16 {
   margin-top: 20px;
+}
+
+.ai-config-tab > .boss-card:first-child {
+  margin-top: 0;
 }
 
 .mt-24 {
@@ -994,7 +988,7 @@ onMounted(async () => {
 .boss-card {
   background: var(--boss-bg-white);
   border-radius: var(--radius-card);
-  padding: var(--spacing-2xl) var(--spacing-3xl);
+  padding: var(--spacing-2xl);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--boss-border-color);
 }
@@ -1008,8 +1002,8 @@ onMounted(async () => {
 
 .ai-section-desc {
   font-size: 13px;
-  color: var(--boss-text-tertiary);
-  margin-bottom: 20px;
+  color: var(--boss-text-secondary);
+  margin-bottom: 16px;
   line-height: 1.5;
 }
 
@@ -1022,14 +1016,14 @@ onMounted(async () => {
 
 .nested-title {
   padding: var(--spacing-3-5) var(--spacing-2xl) 0;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--boss-text-primary);
 }
 
 .nested-desc {
   padding: var(--spacing-md) var(--spacing-2xl) var(--spacing-3-5);
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--boss-text-tertiary);
   line-height: 1.6;
   border-bottom: none;
@@ -1037,7 +1031,11 @@ onMounted(async () => {
 }
 
 .nested-body {
-  padding: var(--spacing-3xl);
+  padding: var(--spacing-2xl);
+}
+
+.ai-config-tab > .boss-card:first-child .nested-body {
+  padding-top: 0;
 }
 
 .nested-actions {
@@ -1046,7 +1044,7 @@ onMounted(async () => {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: space-between;
-  padding: var(--spacing-xl) var(--spacing-3xl);
+  padding: var(--spacing-xl) var(--spacing-2xl);
   border-top: 1px solid var(--boss-border-color);
   background: transparent;
 }
@@ -1152,7 +1150,7 @@ onMounted(async () => {
 }
 
 .extra-val {
-  color: var(--boss-primary);
+  color: var(--boss-text-secondary);
   font-weight: 500;
 }
 
@@ -1189,7 +1187,7 @@ onMounted(async () => {
 }
 
 .status-text.is-active {
-  color: var(--boss-primary);
+  color: var(--boss-text-primary);
   font-weight: 500;
 }
 
@@ -1275,7 +1273,7 @@ onMounted(async () => {
 .boss-btn-back {
   border: 0;
   padding: 0;
-  color: var(--boss-primary);
+  color: var(--boss-text-secondary);
   background: transparent;
 }
 
