@@ -11,6 +11,7 @@ import App from '@/app/App.vue';
 import { createStoreRuntimeAdapter } from '@/app/adapters/store-adapter';
 import { request } from '@/core/http/request';
 import { PlatformFactory } from '@/core/platform/platform-factory';
+import { LocalDB } from '@/core/storage';
 
 declare global {
   interface Window {
@@ -38,7 +39,18 @@ const ensureSingleRoot = () => {
   return roots[0] || null;
 };
 
-const mountApp = () => {
+const initializeLocalDB = async (): Promise<void> => {
+  console.info('[AI Job Hunting] 正在初始化 LocalDB...');
+
+  try {
+    await LocalDB.init();
+    console.info('[AI Job Hunting] LocalDB 初始化成功');
+  } catch (error) {
+    console.error('[AI Job Hunting] LocalDB 初始化失败:', error);
+  }
+};
+
+const mountApp = async () => {
   const existingRoot = ensureSingleRoot();
   if (existingRoot) {
     window.__AI_JOB_HUNTING_MOUNTED__ = true;
@@ -50,6 +62,8 @@ const mountApp = () => {
   }
 
   window.__AI_JOB_HUNTING_MOUNTING__ = true;
+
+  await initializeLocalDB();
 
   const rootApp = document.createElement('div');
   rootApp.id = ROOT_ID;
@@ -85,7 +99,7 @@ const mountApp = () => {
 };
 
 if (document.readyState === 'complete') {
-  mountApp();
+  void mountApp();
 } else {
-  window.addEventListener('load', mountApp, { once: true });
+  window.addEventListener('load', () => void mountApp(), { once: true });
 }

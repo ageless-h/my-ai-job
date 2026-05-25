@@ -3,7 +3,8 @@ import vue from '@vitejs/plugin-vue';
 import monkey from 'vite-plugin-monkey';
 import path from 'node:path';
 
-const DEFAULT_API_BASE_URL = 'https://43.138.246.37/';
+// Backend API is disabled in the frontend-only build.
+const DEFAULT_API_BASE_URL = '';
 
 const normalizeApiBaseUrl = (rawUrl: string | undefined): string => {
   const candidate = `${rawUrl || ''}`.trim();

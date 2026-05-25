@@ -25,7 +25,6 @@ const _unsafeWindow = (typeof unsafeWindow !== 'undefined'
  */
 const OUTBOUND_HOST_ALLOWLIST_DEFAULT = [
   'zhipin.com',
-  '43.138.246.37',
   'api.openai.com',
   'openrouter.ai',
   'api.deepseek.com',
