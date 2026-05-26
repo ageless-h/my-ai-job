@@ -272,6 +272,7 @@ import {
 } from '@/shared/utils/resume';
 import { UserStore } from '@/state/user';
 import { loginInterceptor } from '@/core/auth/auth';
+import { SecureLocalDB } from '@/core/storage';
 import { ElNotification, ElMessageBox } from 'element-plus';
 import { Refresh, View, Upload, Picture, Download, UploadFilled } from '@element-plus/icons-vue';
 import axios from 'axios';
@@ -1097,18 +1098,15 @@ const handleSave = async () => {
 
   isSaving.value = true;
   try {
-    await axios2.post(
-      '/api/user/save/preference',
-      {
-        ...userStore.user,
-        aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
-      },
-      {
-        timeout: PREFERENCE_SAVE_TIMEOUT_MS,
-      }
-    );
+    // 保存到本地存储
+    await SecureLocalDB.savePreferences({
+      id: userStore.user.id || 'default',
+      ...userStore.user.preference,
+      phone: userStore.user.phone,
+      email: userStore.user.email,
+    });
     showAppMessage({ message: '账户信息保存成功', type: 'success', duration: 2000 });
-  } catch (error) {
+  } catch (error: any) {
     showAppMessage({
       message: `保存失败：${error?.message || '未知错误'}`,
       type: 'error',

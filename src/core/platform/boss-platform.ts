@@ -806,7 +806,7 @@ export class BossPlatform extends AbsPlatform {
         const filterInput = buildAiDeliveryFilterJobInput(baseInfo, extInfo);
         let judgeResult!: { match: boolean; reason: string; valid: boolean; parseMode: string };
         const judgeTraceId = this.buildAiJudgeTraceId();
-        const filterPath = AiPower.getFilterPath();
+        const filterPath = await AiPower.getFilterPath();
         const aiJudgeStartedAt = Date.now();
         const maskedUserProfile = this.maskAiDeliveryUserProfile(userProfile);
 

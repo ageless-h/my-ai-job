@@ -380,6 +380,7 @@ import { Tools } from '@/shared/utils/tools';
 import { normalizePreferenceBoolean } from '@/shared/utils/preference';
 import { UserStore } from '@/state/user';
 import { loginInterceptor } from '@/core/auth/auth';
+import { SecureLocalDB } from '@/core/storage';
 
 const userStore = UserStore();
 const axios2 = inject('$axios') as any;
@@ -512,25 +513,24 @@ const submitForm = async () => {
     onInvalidResult: aiForm.onInvalidResult,
   });
 
-  // 保存传统配置
-  await axios2
-    .post(
-      '/api/user/save/preference',
-      {
-        ...userStore.user,
-        aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
-      },
-      {
-        timeout: PREFERENCE_SAVE_TIMEOUT_MS,
-      }
-    )
-    .then(() => {
-      showAppMessage({
-        message: '投递过滤设置保存成功',
-        type: 'success',
-        duration: 2000,
-      });
+  // 保存到本地存储
+  try {
+    await SecureLocalDB.savePreferences({
+      id: 'default',
+      ...userStore.user.preference,
+    } as any);
+    showAppMessage({
+      message: '投递过滤设置保存成功',
+      type: 'success',
+      duration: 2000,
     });
+  } catch (error: any) {
+    showAppMessage({
+      message: `保存失败：${error?.message || '未知错误'}`,
+      type: 'error',
+      duration: 2000,
+    });
+  }
 };
 
 const resetForm = () => {

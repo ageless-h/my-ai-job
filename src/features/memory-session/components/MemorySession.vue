@@ -233,6 +233,7 @@ import { Tools } from '@/shared/utils/tools';
 import { normalizePreferenceBoolean } from '@/shared/utils/preference';
 import { UserStore } from '@/state/user';
 import { loginInterceptor } from '@/core/auth/auth';
+import { SecureLocalDB } from '@/core/storage';
 import ConversationCleaner from '@/features/conversation-cleaner/components/ConversationCleaner.vue';
 
 const userStore = UserStore();
@@ -344,16 +345,13 @@ const saveMemoryProfile = () => {
 const handleAISeatStatusChange = async (val: boolean) => {
   if (!loginInterceptor()) return;
   try {
-    await axios2.post(
-      '/api/user/save/preference',
-      {
-        aiSeatStatus: val ? 1 : 0,
-      },
-      {
-        timeout: PREFERENCE_SAVE_TIMEOUT_MS,
-      }
-    );
-  } catch (_error) {
+    // 保存到本地存储
+    const currentPrefs = await SecureLocalDB.getPreferences();
+    await SecureLocalDB.savePreferences({
+      ...(currentPrefs || { id: userStore.user.id || 'default' }),
+      aiSeatStatus: val ? 1 : 0,
+    });
+  } catch (_error: any) {
     showAppMessage({ type: 'error', message: 'AI 对话开关保存失败，请重试' });
   }
 };
@@ -361,20 +359,16 @@ const handleAISeatStatusChange = async (val: boolean) => {
 // ---- Save preference (subset) ----
 const handleSavePreference = async () => {
   if (!loginInterceptor()) return;
-  await axios2
-    .post(
-      '/api/user/save/preference',
-      {
-        ...userStore.user,
-        aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
-      },
-      {
-        timeout: PREFERENCE_SAVE_TIMEOUT_MS,
-      }
-    )
-    .then(() => {
-      showAppMessage({ message: '对话与通知设置保存成功', type: 'success', duration: 2000 });
+  try {
+    await SecureLocalDB.savePreferences({
+      id: userStore.user.id || 'default',
+      ...userStore.user.preference,
+      aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
     });
+    showAppMessage({ message: '对话与通知设置保存成功', type: 'success', duration: 2000 });
+  } catch (error: any) {
+    showAppMessage({ message: `保存失败：${error?.message || '未知错误'}`, type: 'error', duration: 2000 });
+  }
 };
 
 onMounted(() => {

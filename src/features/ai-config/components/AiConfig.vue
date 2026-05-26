@@ -26,6 +26,9 @@ import { computed, onMounted, provide, ref, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import { Plus, Back } from '@element-plus/icons-vue';
 import { request, showAppMessage } from '@/core/http/request';
+import { directTest } from '@/core/ai/direct-ai-client';
+import { SecureLocalDB } from '@/core/storage';
+import type { AiConfig } from '@/core/storage';
 import {
   Tools,
   DEFAULT_AI_DELIVERY_JUDGE_PROMPT,
@@ -39,6 +42,7 @@ import PromptPresetManager from './PromptPresetManager.vue';
 import DebugConsole from './DebugConsole.vue';
 
 interface FormConfig {
+  id?: string;
   userId: number;
   provider: number;
   modelName: string;
@@ -318,25 +322,26 @@ const handleProviderChange = (value: number, keepModelName = false): void => {
 };
 
 const fetchAllProviderDetails = async () => {
+  // 从本地配置获取供应商信息
   try {
-    const response = await request.get('/api/user/ai/config/all/provider', {
-      silentErrorToast: true,
-      silentTimeoutToast: true,
-      silentNetworkToast: true,
+    const configs = await SecureLocalDB.getAiConfigs();
+    // 根据本地配置构建供应商详情
+    const detailsMap: ProviderDetailsMap = {};
+    configs.forEach((config) => {
+      const code = Number(config.provider);
+      if (Number.isFinite(code) && !detailsMap[code]) {
+        detailsMap[code] = {
+          code,
+          name: config.provider,
+          models: [config.modelName],
+          defaultBaseUrl: config.baseUrl,
+        } as unknown as ProviderDetail;
+      } else if (detailsMap[code] && Array.isArray(detailsMap[code].models)) {
+        (detailsMap[code].models as string[]).push(config.modelName);
+      }
     });
-    if (response.data.code === 200) {
-      const details = Array.isArray(response.data.data)
-        ? (response.data.data as ProviderDetail[])
-        : [];
-      providerDetails.value = details.reduce<ProviderDetailsMap>((acc, detail) => {
-        const code = Number(detail.code);
-        if (Number.isFinite(code)) {
-          acc[code] = detail;
-        }
-        return acc;
-      }, {});
-    }
-  } catch (error) {
+    providerDetails.value = detailsMap;
+  } catch (error: any) {
     providerDetails.value = {};
     console.warn('[AI对话] 获取供应商信息失败，已使用默认供应商配置', error);
   }
@@ -365,23 +370,29 @@ const applyLocalConfigFallback = () => {
 
 const fetchConfig = async () => {
   try {
-    const response = await request.get('/api/user/ai/config/current', {
-      silentErrorToast: true,
-      silentTimeoutToast: true,
-      silentNetworkToast: true,
-    });
-    if (response.data.code === 200) {
-      ensureGlobalPresetCatalog();
-      let config = response.data.data;
-      if (!config) {
-        config = {
-          status: 0,
-          provider: 1,
-          timeout: 60,
-        };
-      }
+    // 从本地存储获取当前激活的 AI 配置
+    const activeConfig = await SecureLocalDB.getActiveAiConfig();
+    ensureGlobalPresetCatalog();
+
+    if (activeConfig) {
+      // 转换本地配置到表单格式
+      const config = {
+        id: activeConfig.id,
+        userId: 0, // 本地存储不使用 userId
+        provider: Number(activeConfig.provider) || 1,
+        modelName: activeConfig.modelName,
+        apiKey: activeConfig.apiKey,
+        baseUrl: activeConfig.baseUrl,
+        timeout: activeConfig.timeout || 60,
+        completionsPath: '/chat/completions',
+        apiFormat: activeConfig.apiFormat || 'completions',
+        testPassed: 1, // 已激活的配置默认测试通过
+        status: 1,
+        userPrompt: '',
+      };
       form.value = { ...form.value, ...config };
       lastFetchedConfig.value = { ...config };
+
       const ext = ensureAiConfigExtSchema();
       if (
         !form.value.modelName &&
@@ -393,9 +404,11 @@ const fetchConfig = async () => {
       }
       handleProviderChange(form.value.provider, true);
       syncCurrentChannelToExt();
+    } else {
+      // 没有本地配置，使用默认值
+      applyLocalConfigFallback();
     }
   } catch (error) {
-    console.warn('[AI对话] 获取配置失败，已降级到本地配置', error);
     applyLocalConfigFallback();
   }
 };
@@ -421,28 +434,35 @@ watch(
   }
 );
 
-const doPersistConfig = async (endpoint: string): Promise<boolean> => {
+const doPersistConfig = async (): Promise<boolean> => {
   if (Number(form.value.provider) === 0) {
     syncCurrentChannelToExt();
     return true;
   }
 
-  const { userPrompt, apiFormat, ...rest } = form.value;
-  const response = await request.post(endpoint, rest, {
-    silentErrorToast: true,
-    silentTimeoutToast: true,
-    silentNetworkToast: true,
-  });
-  if (response.data.code === 200) {
-    syncCurrentChannelToExt();
-    return true;
-  }
-  return false;
+  // 保存到本地存储
+  const config: AiConfig = {
+    id: form.value.id || `config-${Date.now()}`,
+    name: `${form.value.provider}-${form.value.modelName}`,
+    provider: String(form.value.provider),
+    modelName: form.value.modelName,
+    apiKey: form.value.apiKey,
+    baseUrl: form.value.baseUrl,
+    timeout: form.value.timeout,
+    apiFormat: (form.value.apiFormat as any) || 'completions',
+    isActive: true,
+    createdAt: Date.now(),
+  };
+
+  await SecureLocalDB.saveAiConfig(config);
+  await SecureLocalDB.setActiveAiConfig(config.id);
+  syncCurrentChannelToExt();
+  return true;
 };
 
 const handleSave = async () => {
   try {
-    const ok = await doPersistConfig('/api/user/ai/config/save');
+    const ok = await doPersistConfig();
     if (ok) {
       showAppMessage({ type: 'success', message: '保存成功' });
     }
@@ -454,7 +474,7 @@ const handleSave = async () => {
 
 const handleTempSave = async () => {
   try {
-    const ok = await doPersistConfig('/api/user/ai/config/temp/save');
+    const ok = await doPersistConfig();
     if (ok) {
       showAppMessage({ type: 'success', message: '保存成功' });
       await fetchConfig();
@@ -472,23 +492,9 @@ const handleSavePrompt = async () => {
   }
 
   try {
-    const composedPrompt = finalPromptPreview.value || '';
-    const resp = await request.post(
-      '/api/user/ai/config/temp/save',
-      {
-        userPrompt: composedPrompt,
-        userId: form.value.userId,
-      },
-      {
-        silentErrorToast: true,
-        silentTimeoutToast: true,
-        silentNetworkToast: true,
-      }
-    );
-    if (resp.data.code === 200) {
-      syncCurrentChannelToExt();
-      showAppMessage({ type: 'success', message: '保存成功' });
-    }
+    // 提示词通过 Tools.saveAiConfigExt 保存到 localStorage
+    syncCurrentChannelToExt();
+    showAppMessage({ type: 'success', message: '保存成功' });
   } catch (e) {
     showAppMessage({ type: 'error', message: `保存失败: ${getErrorMessage(e)}` });
   }
@@ -724,18 +730,17 @@ const handleSaveAiDeliveryPrompt = () => {
 const handleTest = async (): Promise<void> => {
   isTestLoading.value = true;
   try {
-    const response = await request.post('/api/user/ai/config/test', form.value, {
-      timeout: form.value.timeout * 1000 - 200,
-      silentErrorToast: true,
-      silentTimeoutToast: true,
-      silentNetworkToast: true,
-    });
-    if (response.data.code === 200) {
-      showAppMessage({ type: 'success', message: `测试通过: ${response.data.data || ''}` });
-      form.value.testPassed = 1;
-      return;
-    }
-    showAppMessage({ type: 'error', message: `测试失败: ${response.data.message || ''}` });
+    // Use local direct test instead of backend API
+    const config = {
+      baseUrl: form.value.baseUrl,
+      apiKey: form.value.apiKey,
+      modelName: form.value.modelName,
+      apiFormat: (form.value.apiFormat as any) || 'completions',
+      timeout: form.value.timeout,
+    };
+    const result = await directTest(config);
+    showAppMessage({ type: 'success', message: `测试通过: ${result || ''}` });
+    form.value.testPassed = 1;
   } catch (e) {
     showAppMessage({ type: 'error', message: `测试失败: ${getErrorMessage(e)}` });
   } finally {

@@ -188,24 +188,12 @@ const handleSendDebug = async () => {
       });
       persistCurrentDebugHistory();
     } else {
-      // 走后端
-      const payload = {
-        jobKey: getJobKey(),
-        question,
-        jobInfo: {},
-        userPrompt: resolvePromptVariables(finalPromptPreview.value || '', DEBUG_MOCK_VARS),
-        messageList: debugHistory.value.slice(0, debugHistory.value.length - 1),
-      };
-      const resp = await request.post('/api/user/ai/config/debug', payload, {
-        timeout: 60000,
-        headers: { 'Content-Type': 'application/json' },
+      // 未配置 AI，提示用户
+      state.showAppMessage({
+        type: 'warning',
+        message: '请先配置 AI 模型（在 AI 配置中添加并激活一个配置）',
       });
-      const data = resp?.data?.data || {};
-      const answer = data?.answerContent || '';
-      const answerTypes = Array.isArray(data?.answerTypeList) ? data.answerTypeList : [];
-      const operationTypes = Array.isArray(data?.operationTypeList) ? data.operationTypeList : [];
-      debugHistory.value.push({ role: 'assistant', content: answer, answerTypes, operationTypes });
-      persistCurrentDebugHistory();
+      return;
     }
   } catch (e) {
     state.showAppMessage({ type: 'error', message: `调试失败: ${e?.message || e || ''}` });

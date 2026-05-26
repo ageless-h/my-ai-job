@@ -1,33 +1,26 @@
 // -*- coding: utf-8 -*-
 import axios from 'axios';
+import { LocalAuthService } from '@/core/auth/local-auth';
+import { LogRecorder } from '@/core/engine/push-engine';
+import { showAppMessage } from '@/core/http/request';
+import { LocalDB, SecureLocalDB } from '@/core/storage';
 import { useLoginStore } from '@/state/login';
 import { useUserStore } from '@/state/user';
-import { LogRecorder } from '@/core/engine/push-engine';
-import { showAppMessage, request } from '@/core/http/request';
-import { setAuthorizationToken } from '@/core/auth/auth-session';
-import { Tools } from '@/shared/utils/tools';
-import { Logger } from '@/shared/utils/logger';
+import { fetchWithGM_request } from '@/shared/utils/fetch';
 import {
   getPreferenceValue,
   migratePreferenceKeys,
   normalizePreferenceBoolean,
 } from '@/shared/utils/preference';
-import { fetchWithGM_request } from '@/shared/utils/fetch';
+import { Logger } from '@/shared/utils/logger';
+import { Tools } from '@/shared/utils/tools';
+
 export { fetchWithGM_request } from '@/shared/utils/fetch';
 
 const logger = Logger.rootLogger;
-
 const loginLogRecorder = new LogRecorder();
+const preferenceLogRecorder = new LogRecorder();
 let loginIng = false;
-
-type PageContext = {
-  token?: string;
-  uid?: string | number;
-};
-
-const getPageContext = (): PageContext => {
-  return Tools.getSafePageContext();
-};
 
 const isNetworkLikeError = (error: any): boolean => {
   const code = error?.code || '';
@@ -60,7 +53,7 @@ const runWithRetry = async <T>(fn: () => Promise<T>, maxRetries = 3): Promise<T>
   throw lastError;
 };
 
-export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
+export const silentlyLogin = async (_bossUserId?: string): Promise<void> => {
   let loginCount = 0;
   while (loginIng && loginCount < 6) {
     logger.info('login... ', loginCount);
@@ -71,68 +64,37 @@ export const silentlyLogin = async (bossUserId?: string): Promise<void> => {
   loginIng = true;
   const loginStore = useLoginStore() as any;
 
-  let token = getPageContext().token;
-  let count = 0;
-  while (!token && count < 3) {
-    await Tools.sleep(300);
-    token = getPageContext().token;
-    count++;
-  }
+  try {
+    if (!LocalAuthService.isBossLoggedIn()) {
+      loginLogRecorder.info('未登录Boss，静默登录结束');
+      throw new Error('未登录Boss，静默登录失败');
+    }
 
-  if (!token) {
-    loginLogRecorder.info('未登录Boss，静默登录结束');
+    if (loginStore.login && (await LocalAuthService.isAuthenticated())) {
+      logger.info('已经登录，静默登录结束');
+      return;
+    }
+
+    const result = await LocalAuthService.authenticate();
+    if (!result.success) {
+      throw new Error(result.error || '本地认证失败');
+    }
+
+    loginStore.loginSuccess();
+    loginLogRecorder.info('静默登录成功');
+  } catch (error: unknown) {
+    loginLogRecorder.error('静默登录失败', error);
+    if (!isNetworkLikeError(error)) {
+      loginStore.loginFail();
+    }
+    return Promise.reject(error);
+  } finally {
     loginIng = false;
-    return Promise.reject(new Error('未登录Boss，静默登录失败'));
   }
-
-  if (!bossUserId) {
-    const uid = getPageContext().uid;
-    bossUserId = uid === undefined ? undefined : String(uid);
-  }
-
-  if (loginStore.login) {
-    logger.info('已经登录，静默登录结束');
-    loginIng = false;
-    return Promise.resolve();
-  }
-
-  return await request
-    .post(
-      `/api/user/silently/login?uniqueId=${bossUserId}`,
-      {},
-      {
-        silentErrorToast: true,
-        silentTimeoutToast: true,
-        silentNetworkToast: true,
-      }
-    )
-    .then(async (resp: any) => {
-      if (resp.data.code === 2000) {
-        loginLogRecorder.info('开始自动注册');
-        await handlerImport({ value: false });
-        loginStore.loginSuccess();
-        return;
-      }
-
-      setAuthorizationToken(resp.data.data);
-      loginStore.loginSuccess();
-      loginLogRecorder.info('静默登录成功');
-    })
-    .catch((e: unknown) => {
-      loginLogRecorder.error('静默登录失败', e);
-      if (!isNetworkLikeError(e)) {
-        loginStore.loginFail();
-      }
-      return Promise.reject(e);
-    })
-    .finally(() => {
-      loginIng = false;
-    });
 };
 
 export const loginInterceptor = (): boolean => {
-  const token = getPageContext().token;
-  if (!token) {
+  if (!LocalAuthService.extractBossToken()) {
     showAppMessage({
       message: '请先登录Boss',
       type: 'error',
@@ -149,9 +111,8 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
     return;
   }
 
-  const token = getPageContext().token;
-  const uid = getPageContext().uid;
-  const bossUserId = uid === undefined ? undefined : String(uid);
+  const token = LocalAuthService.extractBossToken();
+  const userId = LocalAuthService.extractBossUserId();
   if (!token) {
     showAppMessage({
       message: '未获取到Boss token 请刷新页面重试',
@@ -160,7 +121,7 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
     });
     return;
   }
-  if (!bossUserId) {
+  if (!userId) {
     showAppMessage({
       message: '未获取到Boss userId 请刷新页面重试',
       type: 'error',
@@ -171,63 +132,53 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
 
   importResumeLoading.value = true;
 
-  const resumeInfoResp = await axios.get('https://www.zhipin.com/wapi/zpgeek/resume/sidebar.json', {
-    headers: { Zp_token: token },
-  });
-  const zpData = (resumeInfoResp as any).data.zpData;
-  if (!zpData.attachmentList || zpData.attachmentList.length === 0) {
-    importResumeLoading.value = false;
+  try {
+    const resumeInfoResp = await axios.get('https://www.zhipin.com/wapi/zpgeek/resume/sidebar.json', {
+      headers: { Zp_token: token },
+    });
+    const zpData = (resumeInfoResp as any).data.zpData;
+    if (!zpData.attachmentList || zpData.attachmentList.length === 0) {
+      showAppMessage({
+        message: '请先在BOSS个人中心上传附件简历；作为AI代聊定制化回复的基础',
+        type: 'error',
+        duration: 3000,
+      });
+      return;
+    }
+
+    const resumeId = zpData.attachmentList[0].resumeId;
+    await fetchWithGM_request(
+      `https://docdownload.zhipin.com/wflow/zpgeek/download/download4geek?resumeId=${resumeId}`,
+      { headers: { Zp_token: token }, responseType: 'arraybuffer' }
+    );
+
+    await LocalDB.init();
+    const currentProfile = await SecureLocalDB.getUserProfile();
+    await SecureLocalDB.setUserProfile({
+      id: userId,
+      token,
+      email: currentProfile?.email,
+      phone: currentProfile?.phone,
+      authenticatedAt: currentProfile?.authenticatedAt ?? Date.now(),
+      lastSyncAt: Date.now(),
+    });
+
     showAppMessage({
-      message: '请先在BOSS个人中心上传附件简历；作为AI代聊定制化回复的基础',
+      message: '简历文件已获取，等待本地解析功能',
+      type: 'info',
+      duration: 3000,
+    });
+  } catch (error: any) {
+    logger.error('Import resume failed:', error);
+    showAppMessage({
+      message: `导入简历失败: ${error?.message || '未知错误'}`,
       type: 'error',
       duration: 3000,
     });
-    return;
-  }
-
-  const resumeId = zpData.attachmentList[0].resumeId;
-  const resumeFileResp = await fetchWithGM_request(
-    `https://docdownload.zhipin.com/wflow/zpgeek/download/download4geek?resumeId=${resumeId}`,
-    { headers: { Zp_token: token }, responseType: 'arraybuffer' }
-  );
-
-  const fileBlob = new Blob([resumeFileResp.response as BlobPart], { type: 'application/pdf' });
-  const formData = new FormData();
-  formData.append('file', fileBlob);
-  formData.append('resumeId', resumeId);
-  formData.append('uniqueId', bossUserId);
-
-  const importResp = await request.post('/api/user/import/resume', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-
-  if ((importResp as any).data.code !== 200) {
-    showAppMessage({
-      message: `导入简历失败${(importResp as any).data.data.msg}`,
-      type: 'error',
-      duration: 3000,
-    });
+  } finally {
     importResumeLoading.value = false;
-    return;
   }
-
-  const loginResp = await request.post(`/api/user/silently/login?uniqueId=${bossUserId}`);
-  setAuthorizationToken((loginResp as any).data.data);
-
-  if (!(importResp as any).data.data.email) {
-    importResumeLoading.value = false;
-    return;
-  }
-
-  showAppMessage({
-    message: '导入简历成功',
-    type: 'success',
-    duration: 3000,
-  });
-  importResumeLoading.value = false;
 };
-
-const preferenceLogRecorder = new LogRecorder();
 
 export function userRemoteLoad(): void {
   preferenceLogRecorder.info('加载用户投递设置');
@@ -244,167 +195,37 @@ export function userRemoteLoad(): void {
   }
 
   runWithRetry(() => silentlyLogin(''), 3)
-    .then(() => {
-      logger.debug('调用接口加载用户投递设置');
-      return runWithRetry(
-        () =>
-          request.post(
-            '/api/user/userinfo',
-            {},
-            {
-              timeout: 20_000,
-              silentErrorToast: true,
-              silentTimeoutToast: true,
-              silentNetworkToast: true,
-            }
-          ),
-        3
-      );
-    })
-    .then((resp: any) => {
-      // 保留本地数据（如 importedResume），避免被服务器数据覆盖
+    .then(async () => {
+      logger.debug('从本地存储加载用户投递设置');
+      await LocalDB.init();
+
+      const profile = await SecureLocalDB.getUserProfile();
+      if (!profile) {
+        throw new Error('用户未登录');
+      }
+      const preferences = await LocalDB.getPreferences();
+
       const localImportedResume = runtimeUserStore2.user?.importedResume;
       const localResumeId = runtimeUserStore2.user?.resumeId;
       const localParsedResume = runtimeUserStore2.user?.parsedResume;
       const localAttachmentResume = runtimeUserStore2.user?.attachmentResume;
 
-      // 合并服务器数据
-      runtimeUserStore2.user = resp?.data?.data;
-
-      // 恢复本地数据
-      if (localImportedResume) {
-        runtimeUserStore2.user.importedResume = localImportedResume;
-      }
-      if (localResumeId) {
-        runtimeUserStore2.user.resumeId = localResumeId;
-      }
-      if (localParsedResume) {
-        runtimeUserStore2.user.parsedResume = localParsedResume;
-      }
-      if (localAttachmentResume) {
-        runtimeUserStore2.user.attachmentResume = localAttachmentResume;
-      }
-
-      if (!runtimeUserStore2?.user) {
-        runtimeUserStore2.user = {};
-        throw new Error('用户投递设置为空');
-      }
-      if (!runtimeUserStore2.user.preference) {
-        runtimeUserStore2.user.preference = {};
-      }
-      migratePreferenceKeys(runtimeUserStore2.user.preference);
-
-      const upgradePrefNumber = (
-        value: unknown,
-        oldDefault: number,
-        nextDefault: number
-      ): number => {
-        const n = Number(value);
-        if (!Number.isFinite(n) || n <= 0 || n === oldDefault) {
-          return nextDefault;
-        }
-        return n;
+      runtimeUserStore2.user = {
+        ...(runtimeUserStore2.user || {}),
+        id: profile.id,
+        email: profile.email,
+        phone: profile.phone,
+        preference: preferences || getDefaultPreferences(),
       };
 
-      runtimeUserStore2.user.preference.pushIntervalSec =
-        Number(getPreferenceValue(runtimeUserStore2.user.preference, 'pushIntervalSec', 'pi')) || 3;
-      runtimeUserStore2.user.preference.pi =
-        runtimeUserStore2.user.preference.pi || runtimeUserStore2.user.preference.pushIntervalSec;
-      runtimeUserStore2.user.preference.npi = runtimeUserStore2.user.preference.npi || 6;
-      runtimeUserStore2.user.preference.maxDailyActions = upgradePrefNumber(
-        runtimeUserStore2.user.preference.maxDailyActions,
-        80,
-        120
-      );
-      runtimeUserStore2.user.preference.maxDailyActions = upgradePrefNumber(
-        runtimeUserStore2.user.preference.maxDailyActions,
-        120,
-        150
-      );
-      runtimeUserStore2.user.preference.maxActionsPerMinute = upgradePrefNumber(
-        runtimeUserStore2.user.preference.maxActionsPerMinute,
-        6,
-        9
-      );
-      runtimeUserStore2.user.preference.maxConsecutiveFailures = upgradePrefNumber(
-        runtimeUserStore2.user.preference.maxConsecutiveFailures,
-        8,
-        10
-      );
-      runtimeUserStore2.user.preference.cooldownMinutesOnLimit = upgradePrefNumber(
-        runtimeUserStore2.user.preference.cooldownMinutesOnLimit,
-        30,
-        25
-      );
-      if (typeof runtimeUserStore2.user.preference.safetyTimeWindowE !== 'boolean') {
-        runtimeUserStore2.user.preference.safetyTimeWindowE = false;
-      }
-      runtimeUserStore2.user.preference.safetyStartHour =
-        runtimeUserStore2.user.preference.safetyStartHour ?? 8;
-      runtimeUserStore2.user.preference.safetyEndHour =
-        runtimeUserStore2.user.preference.safetyEndHour ?? 22;
-      runtimeUserStore2.user.preference.imMaxReloadPerDay = upgradePrefNumber(
-        runtimeUserStore2.user.preference.imMaxReloadPerDay,
-        10,
-        15
-      );
-      runtimeUserStore2.user.preference.cleanerManualConfirmThreshold = upgradePrefNumber(
-        runtimeUserStore2.user.preference.cleanerManualConfirmThreshold,
-        8,
-        40
-      );
-      runtimeUserStore2.user.preference.autoContactMinIntervalSec = upgradePrefNumber(
-        runtimeUserStore2.user.preference.autoContactMinIntervalSec,
-        12,
-        10
-      );
-      runtimeUserStore2.user.preference.maxAutoMessagePerSession = upgradePrefNumber(
-        runtimeUserStore2.user.preference.maxAutoMessagePerSession,
-        20,
-        30
-      );
-      runtimeUserStore2.user.preference.maxAutoResumePerSession = upgradePrefNumber(
-        runtimeUserStore2.user.preference.maxAutoResumePerSession,
-        12,
-        18
-      );
-      runtimeUserStore2.user.preference.chatMinReplyIntervalSec = upgradePrefNumber(
-        runtimeUserStore2.user.preference.chatMinReplyIntervalSec,
-        15,
-        12
-      );
-      runtimeUserStore2.user.preference.chatMaxPerMinute = upgradePrefNumber(
-        runtimeUserStore2.user.preference.chatMaxPerMinute,
-        4,
-        6
-      );
-      runtimeUserStore2.user.preference.chatMaxSessionReplies = upgradePrefNumber(
-        runtimeUserStore2.user.preference.chatMaxSessionReplies,
-        50,
-        75
-      );
-      runtimeUserStore2.user.preference.autoResumeMaxPerSession = upgradePrefNumber(
-        runtimeUserStore2.user.preference.autoResumeMaxPerSession,
-        8,
-        12
-      );
-      runtimeUserStore2.user.preference.acE = normalizePreferenceBoolean(
-        runtimeUserStore2.user.preference.acE,
-        false
-      );
-      runtimeUserStore2.user.preference.acW = normalizePreferenceBoolean(
-        runtimeUserStore2.user.preference.acW,
-        true
-      );
-      runtimeUserStore2.user.preference.acM = normalizePreferenceBoolean(
-        runtimeUserStore2.user.preference.acM,
-        true
-      );
-      runtimeUserStore2.user.preference.acY = normalizePreferenceBoolean(
-        runtimeUserStore2.user.preference.acY,
-        true
-      );
-      Tools.migrateAiDeliveryJudgeConfigFromPreference(runtimeUserStore2.user.preference);
+      if (localImportedResume) runtimeUserStore2.user.importedResume = localImportedResume;
+      if (localResumeId) runtimeUserStore2.user.resumeId = localResumeId;
+      if (localParsedResume) runtimeUserStore2.user.parsedResume = localParsedResume;
+      if (localAttachmentResume) runtimeUserStore2.user.attachmentResume = localAttachmentResume;
+
+      migratePreferenceKeys(runtimeUserStore2.user.preference);
+      applyPreferences(runtimeUserStore2.user.preference);
+
       runtimeUserStore2.preferenceLoadStatus = 'success';
       runtimeUserStore2.preferenceLoadError = '';
       Tools.saveStoredUserProfile(runtimeUserStore2.user);
@@ -423,8 +244,73 @@ export function userRemoteLoad(): void {
       preferenceLogRecorder.error('加载用户投递设置失败', errorMsg);
     })
     .finally(() => {
+      runtimeUserStore2.user = runtimeUserStore2.user || {};
       if (!runtimeUserStore2.user.preference) {
-        runtimeUserStore2.user.preference = {};
+        runtimeUserStore2.user.preference = getDefaultPreferences();
       }
     });
+}
+
+function getDefaultPreferences() {
+  return {
+    pushIntervalSec: 3,
+    pi: 3,
+    npi: 6,
+    maxDailyActions: 150,
+    maxActionsPerMinute: 9,
+    maxConsecutiveFailures: 10,
+    cooldownMinutesOnLimit: 25,
+    safetyTimeWindowE: false,
+    safetyStartHour: 8,
+    safetyEndHour: 22,
+    imMaxReloadPerDay: 15,
+    cleanerManualConfirmThreshold: 40,
+    autoContactMinIntervalSec: 10,
+    maxAutoMessagePerSession: 30,
+    maxAutoResumePerSession: 18,
+    chatMinReplyIntervalSec: 12,
+    chatMaxPerMinute: 6,
+    chatMaxSessionReplies: 75,
+    autoResumeMaxPerSession: 12,
+    acE: false,
+    acW: true,
+    acM: true,
+    acY: true,
+  };
+}
+
+function applyPreferences(pref: any): void {
+  const upgradePrefNumber = (value: unknown, oldDefault: number, nextDefault: number): number => {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0 || n === oldDefault) {
+      return nextDefault;
+    }
+    return n;
+  };
+
+  pref.pushIntervalSec = Number(getPreferenceValue(pref, 'pushIntervalSec', 'pi')) || 3;
+  pref.pi = pref.pi || pref.pushIntervalSec;
+  pref.npi = pref.npi || 6;
+  pref.maxDailyActions = upgradePrefNumber(pref.maxDailyActions, 80, 120);
+  pref.maxDailyActions = upgradePrefNumber(pref.maxDailyActions, 120, 150);
+  pref.maxActionsPerMinute = upgradePrefNumber(pref.maxActionsPerMinute, 6, 9);
+  pref.maxConsecutiveFailures = upgradePrefNumber(pref.maxConsecutiveFailures, 8, 10);
+  pref.cooldownMinutesOnLimit = upgradePrefNumber(pref.cooldownMinutesOnLimit, 30, 25);
+  pref.safetyTimeWindowE = normalizePreferenceBoolean(pref.safetyTimeWindowE, false);
+  pref.safetyStartHour = pref.safetyStartHour ?? 8;
+  pref.safetyEndHour = pref.safetyEndHour ?? 22;
+  pref.imMaxReloadPerDay = upgradePrefNumber(pref.imMaxReloadPerDay, 10, 15);
+  pref.cleanerManualConfirmThreshold = upgradePrefNumber(pref.cleanerManualConfirmThreshold, 8, 40);
+  pref.autoContactMinIntervalSec = upgradePrefNumber(pref.autoContactMinIntervalSec, 12, 10);
+  pref.maxAutoMessagePerSession = upgradePrefNumber(pref.maxAutoMessagePerSession, 20, 30);
+  pref.maxAutoResumePerSession = upgradePrefNumber(pref.maxAutoResumePerSession, 12, 18);
+  pref.chatMinReplyIntervalSec = upgradePrefNumber(pref.chatMinReplyIntervalSec, 15, 12);
+  pref.chatMaxPerMinute = upgradePrefNumber(pref.chatMaxPerMinute, 4, 6);
+  pref.chatMaxSessionReplies = upgradePrefNumber(pref.chatMaxSessionReplies, 50, 75);
+  pref.autoResumeMaxPerSession = upgradePrefNumber(pref.autoResumeMaxPerSession, 8, 12);
+  pref.acE = normalizePreferenceBoolean(pref.acE, false);
+  pref.acW = normalizePreferenceBoolean(pref.acW, true);
+  pref.acM = normalizePreferenceBoolean(pref.acM, true);
+  pref.acY = normalizePreferenceBoolean(pref.acY, true);
+  Tools.migrateAiDeliveryJudgeConfigFromPreference(pref);
 }
