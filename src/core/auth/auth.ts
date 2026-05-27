@@ -147,10 +147,15 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
     }
 
     const resumeId = zpData.attachmentList[0].resumeId;
-    await fetchWithGM_request(
+    const attachmentName = zpData.attachmentList[0].fileName || `${resumeId}.pdf`;
+    const downloadResp = await fetchWithGM_request<ArrayBuffer>(
       `https://docdownload.zhipin.com/wflow/zpgeek/download/download4geek?resumeId=${resumeId}`,
       { headers: { Zp_token: token }, responseType: 'arraybuffer' }
     );
+    const buffer = downloadResp.response;
+    if (!buffer || !(buffer instanceof ArrayBuffer) || buffer.byteLength === 0) {
+      throw new Error('简历文件下载为空');
+    }
 
     await LocalDB.init();
     const currentProfile = await SecureLocalDB.getUserProfile();
@@ -163,9 +168,45 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
       lastSyncAt: Date.now(),
     });
 
+    // 本地零成本解析（pdf.js 提取文本；若已配置 AI 则结构化抽取，否则用正则兜底）
+    const { parseResumeFromBuffer } = await import('@/core/ai/resume-parser');
+    const aiConfig = await SecureLocalDB.getActiveAiConfig();
+    const directConfig = aiConfig
+      ? {
+          baseUrl: aiConfig.baseUrl,
+          apiKey: aiConfig.apiKey,
+          modelName: aiConfig.modelName,
+          apiFormat: aiConfig.apiFormat,
+          timeout: aiConfig.timeout,
+        }
+      : null;
+
+    const resumeData = await parseResumeFromBuffer(buffer, {
+      userId,
+      fileName: attachmentName,
+      aiConfig: directConfig,
+    });
+    await LocalDB.saveResume(resumeData);
+
+    // 同步到 user store，供 AI 代聊使用
+    try {
+      const runtimeUserStore = useUserStore() as any;
+      runtimeUserStore.user = {
+        ...(runtimeUserStore.user || {}),
+        importedResume: true,
+        resumeId,
+        attachmentResume: attachmentName,
+        parsedResume: resumeData.parsedData,
+      };
+    } catch (storeErr) {
+      logger.warn('更新用户简历状态失败', storeErr);
+    }
+
     showAppMessage({
-      message: '简历文件已获取，等待本地解析功能',
-      type: 'info',
+      message: directConfig
+        ? '简历解析完成（AI 结构化）'
+        : '简历解析完成（本地正则提取，配置 AI 后可自动结构化）',
+      type: 'success',
       duration: 3000,
     });
   } catch (error: any) {

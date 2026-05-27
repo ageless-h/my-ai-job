@@ -90,7 +90,10 @@ export default defineConfig(async ({ mode }) => {
                 license: 'Apache License 2.0',
                 ...(userscriptIcon ? { icon: userscriptIcon } : {}),
                 match: ['https://www.zhipin.com/web/geek/*', 'https://www.zhipin.com/overseas/*'],
-                connect: connectHosts,
+                connect: Array.from(new Set([...connectHosts, 'cdnjs.cloudflare.com'])),
+                require: [
+                  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+                ],
                 grant: [
                   'GM_addStyle',
                   'GM_addValueChangeListener',

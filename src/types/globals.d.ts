@@ -15,6 +15,21 @@ declare function GM_notification(options: {
 }): void;
 declare function GM_xmlhttpRequest(options: Record<string, unknown>): unknown;
 
+// pdf.js loaded via @require from CDN in production build
+declare const pdfjsLib: {
+  GlobalWorkerOptions: { workerSrc: string };
+  getDocument: (src: { data: ArrayBuffer } | { url: string } | Record<string, unknown>) => {
+    promise: Promise<{
+      numPages: number;
+      getPage: (pageNumber: number) => Promise<{
+        getTextContent: () => Promise<{
+          items: Array<{ str?: string; [key: string]: unknown }>;
+        }>;
+      }>;
+    }>;
+  };
+} | undefined;
+
 declare module 'vitest' {
   export interface VitestMatcher {
     toBe: (...args: unknown[]) => VitestMatcher;
