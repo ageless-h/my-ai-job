@@ -105,6 +105,34 @@
             style="--el-switch-off-color: var(--ai-disabled)"
           />
         </div>
+
+        <div class="setting-item setting-item--stack">
+          <div class="setting-label">推荐位目标</div>
+          <el-select
+            v-model="recommendLoopTargetText"
+            size="small"
+            filterable
+            allow-create
+            default-first-option
+            clearable
+            reserve-keyword
+            data-testid="recommend-loop-target-select"
+            placeholder="自动识别推荐位，可自定义输入"
+            no-data-text="未识别到"
+            @visible-change="handleRecommendLoopTargetDropdownVisible"
+          >
+            <el-option
+              v-for="option in recommendLoopTargetOptions"
+              :key="option"
+              :label="option"
+              :value="option"
+            />
+          </el-select>
+          <div class="setting-hint">
+            <template v-if="recommendLoopTargetOptions.length > 0">已识别 {{ recommendLoopTargetOptions.length }} 个候选项</template>
+            <template v-else>未识别到</template>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -238,6 +266,8 @@ const pushBtnText = ref(getStartButtonText());
 const mockPush = ref(false);
 const selfDefPushCountLimit = ref(platform?.selfDefPushCountLimit ?? -1);
 
+const RECORDS_UPDATE_INTERVAL_MS = 1200;
+
 const logRecorder = new LogRecorder();
 const latestPushRecords = ref<LogEntry[]>([]);
 const logsContainer = ref<HTMLElement | null>(null);
@@ -245,18 +275,90 @@ let recordsUpdateTimer: ReturnType<typeof setInterval> | null = null;
 let lastRenderedRecordsSignature = '';
 let recommendLoopCooldownTimer: ReturnType<typeof setTimeout> | null = null;
 
-const RECORDS_UPDATE_INTERVAL_MS = 1200;
-
 type StartPushOptions = {
   silent?: boolean;
   forceRecommendLoop?: boolean;
 };
 
 const RECOMMEND_LOOP_RELOAD_KEY = 'ai-job-recommend-loop-reload';
+const RECOMMEND_LOOP_TARGET_TEXT_PREFERENCE_KEY = 'imRecommendTargetText';
+const RECOMMEND_LOOP_TARGET_UNRECOGNIZED_TEXT = '未识别到';
 const RECOMMEND_LOOP_TTL_MS = 45 * 60 * 1e3;
 const RECOMMEND_LOOP_RESUME_MAX_ATTEMPTS = 15;
 const RECOMMEND_LOOP_RESUME_INTERVAL_MS = 1200;
 const RECOMMEND_LOOP_RETRY_BUFFER_MS = 1500;
+
+const RECOMMEND_LOOP_TARGET_ENTRY_SELECTORS = [
+  'a.expect-item.has-tooltip',
+  'a.expect-item',
+  '.expect-list a',
+  '.expect-item .text-content',
+];
+
+const normalizeComparableText = (text: string) =>
+  `${text || ''}`
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[()（）[\]【】]/g, '');
+
+const normalizeRecommendLoopTargetInput = (value: unknown): string => {
+  if (typeof value !== 'string') return '';
+  return value.trim().replace(/\s+/g, ' ');
+};
+
+const resolveRecommendLoopTargetText = (value: unknown): string =>
+  normalizeRecommendLoopTargetInput(value);
+
+const getRecommendLoopTargetDisplayText = (value: unknown): string => {
+  const normalized = resolveRecommendLoopTargetText(value);
+  return normalized || RECOMMEND_LOOP_TARGET_UNRECOGNIZED_TEXT;
+};
+
+const isRecommendLoopTargetMatched = (candidateText: string, targetText: string): boolean => {
+  const candidate = normalizeComparableText(candidateText);
+  const target = normalizeComparableText(resolveRecommendLoopTargetText(targetText));
+  if (!candidate || !target) return false;
+  return candidate === target || candidate.includes(target);
+};
+
+const buildRecommendLoopTargetOptions = (rawTexts: string[], currentTargetText: string): string[] => {
+  const options: string[] = [];
+  const seen = new Set<string>();
+  const pushOption = (raw: string) => {
+    const normalized = normalizeRecommendLoopTargetInput(raw);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    options.push(normalized);
+  };
+  for (const raw of rawTexts) pushOption(raw);
+  pushOption(resolveRecommendLoopTargetText(currentTargetText));
+  return options;
+};
+
+const recommendLoopTargetText = computed({
+  get: () => resolveRecommendLoopTargetText((userStore?.user?.preference as any)?.[RECOMMEND_LOOP_TARGET_TEXT_PREFERENCE_KEY]),
+  set: (value: string) => {
+    if (userStore?.user?.preference) {
+      (userStore.user.preference as any)[RECOMMEND_LOOP_TARGET_TEXT_PREFERENCE_KEY] = normalizeRecommendLoopTargetInput(value);
+    }
+  },
+});
+
+const recommendLoopTargetOptions = ref<string[]>([]);
+
+const refreshRecommendLoopTargetOptions = () => {
+  const rawTexts: string[] = [];
+  for (const selector of RECOMMEND_LOOP_TARGET_ENTRY_SELECTORS) {
+    const nodes = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+    for (const node of nodes) rawTexts.push(node.textContent || node.innerText || '');
+  }
+  recommendLoopTargetOptions.value = buildRecommendLoopTargetOptions(rawTexts, recommendLoopTargetText.value);
+};
+
+const handleRecommendLoopTargetDropdownVisible = (visible: boolean) => {
+  if (visible) refreshRecommendLoopTargetOptions();
+};
 
 const infiniteLoopEnabled = computed({
   get: () => !!userStore?.user?.preference?.imE,
@@ -277,104 +379,68 @@ const isRecommendSalaryLoopPage = () => {
   }
 };
 
-const normalizeText = (text: string) => `${text || ''}`.replace(/\s+/g, '');
+const getRecommendLoopTargetValue = () => resolveRecommendLoopTargetText(recommendLoopTargetText.value);
+const getRecommendLoopTargetLabel = () => getRecommendLoopTargetDisplayText(recommendLoopTargetText.value);
+const isRecommendLoopTargetText = (text: string) => isRecommendLoopTargetMatched(text, getRecommendLoopTargetValue());
 
-const isOtherJobsShenzhenText = (text: string) => {
-  const normalized = normalizeText(text);
-  return (
-    normalized.includes('其他职位(深圳)') ||
-    normalized.includes('其他职位（深圳）') ||
-    (normalized.includes('其他职位') && normalized.includes('深圳'))
-  );
-};
-
-const getOtherJobsShenzhenEntry = () => {
-  const selectors = ['a.expect-item.has-tooltip', 'a.expect-item', '.expect-list a'];
-  for (const selector of selectors) {
-    const nodes = Array.from(document.querySelectorAll(selector));
-    const hit = nodes.find((node) =>
-      isOtherJobsShenzhenText(node.textContent || (node as HTMLElement).innerText || '')
-    );
-    if (hit) {
-      return hit as HTMLElement;
-    }
-  }
-  const textNodes = Array.from(document.querySelectorAll('.text-content'));
-  const textHit = textNodes.find((node) =>
-    isOtherJobsShenzhenText(node.textContent || (node as HTMLElement).innerText || '')
-  );
-  if (textHit) {
-    return ((textHit as HTMLElement).closest('a.expect-item') || textHit) as HTMLElement;
+const getRecommendLoopTargetEntry = (): HTMLElement | null => {
+  for (const selector of RECOMMEND_LOOP_TARGET_ENTRY_SELECTORS) {
+    const nodes = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+    const hit = nodes.find((node) => isRecommendLoopTargetText(node.textContent || node.innerText || ''));
+    if (hit) return (hit.closest('a.expect-item') || hit) as HTMLElement;
   }
   return null;
 };
 
-const isOtherJobsShenzhenLikelyActive = () => {
+const isRecommendLoopTargetLikelyActive = (): boolean => {
   const activeEntries = Array.from(
     document.querySelectorAll(
       '.expect-item.active, .expect-item.cur, .expect-item.selected, .expect-item.current, .expect-item.on'
     )
-  );
-  if (
-    activeEntries.some((entry) =>
-      isOtherJobsShenzhenText(entry.textContent || (entry as HTMLElement).innerText || '')
-    )
-  ) {
-    return true;
-  }
+  ) as HTMLElement[];
+  if (activeEntries.some((e) => isRecommendLoopTargetText(e.textContent || e.innerText || ''))) return true;
   const activeTextEntries = Array.from(
     document.querySelectorAll(
       '.expect-item .text-content.active, .expect-item .text-content.cur, .expect-item .text-content.selected'
     )
-  );
-  return activeTextEntries.some((entry) =>
-    isOtherJobsShenzhenText(entry.textContent || (entry as HTMLElement).innerText || '')
-  );
+  ) as HTMLElement[];
+  return activeTextEntries.some((e) => isRecommendLoopTargetText(e.textContent || e.innerText || ''));
 };
 
 const triggerElementClick = (element: HTMLElement | null) => {
-  if (!element) {
-    return;
-  }
+  if (!element) return;
   const eventInit = { bubbles: true, cancelable: true, composed: true };
   element.dispatchEvent(new MouseEvent('mousedown', eventInit));
   element.dispatchEvent(new MouseEvent('mouseup', eventInit));
   element.dispatchEvent(new MouseEvent('click', eventInit));
-  if (typeof element.click === 'function') {
-    element.click();
-  }
+  if (typeof element.click === 'function') element.click();
 };
 
-const alignOtherJobsShenzhen = async () => {
-  if (!isRecommendSalaryLoopPage()) {
-    return false;
-  }
+const alignRecommendLoopTargetEntry = async (): Promise<boolean> => {
+  if (!isRecommendSalaryLoopPage()) return false;
+  refreshRecommendLoopTargetOptions();
+  const targetValue = getRecommendLoopTargetValue();
+  if (!targetValue) return false;
   const maxAttempts = 10;
-  logRecorder.info('推荐页无限循环：正在进入“其他职位(深圳)”');
+  const targetLabel = getRecommendLoopTargetLabel();
+  logRecorder.info(`推荐页无限循环：正在进入"${targetLabel}"`);
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    if (isOtherJobsShenzhenLikelyActive()) {
-      logRecorder.info('推荐页无限循环：已进入“其他职位(深圳)”');
+    if (isRecommendLoopTargetLikelyActive()) {
+      logRecorder.info(`推荐页无限循环：已进入"${targetLabel}"`);
       return true;
     }
-    const entry = getOtherJobsShenzhenEntry();
-    if (!entry) {
-      await Tools.sleep(600);
-      continue;
-    }
+    const entry = getRecommendLoopTargetEntry();
+    if (!entry) { await Tools.sleep(600); continue; }
     triggerElementClick(entry);
     await Tools.sleep(450);
-    if (!isOtherJobsShenzhenLikelyActive()) {
+    if (!isRecommendLoopTargetLikelyActive()) {
       const textEntry = entry.querySelector('.text-content') as HTMLElement | null;
-      if (textEntry) {
-        triggerElementClick(textEntry);
-      }
+      if (textEntry) triggerElementClick(textEntry);
     }
     await Tools.sleep(900);
   }
-  const aligned = isOtherJobsShenzhenLikelyActive();
-  if (!aligned) {
-    logRecorder.warn('推荐页无限循环：进入“其他职位(深圳)”失败，后续按当前列表继续');
-  }
+  const aligned = isRecommendLoopTargetLikelyActive();
+  if (!aligned) logRecorder.warn(`推荐页无限循环：进入"${targetLabel}"失败，后续按当前列表继续`);
   return aligned;
 };
 
@@ -478,12 +544,15 @@ const prepareRecommendLoopBeforeStart = async (enabled: boolean, silent = false)
     return false;
   }
 
-  const aligned = await alignOtherJobsShenzhen();
+  const aligned = await alignRecommendLoopTargetEntry();
   if (aligned) {
     return true;
   }
 
-  const warnMessage = '未定位到“其他职位(深圳)”入口，本轮按当前推荐列表继续';
+  const targetValue = getRecommendLoopTargetValue();
+  const warnMessage = targetValue
+    ? `未定位到"${targetValue}"入口，本轮按当前推荐列表继续`
+    : '未配置推荐位目标，本轮按当前推荐列表继续';
   logRecorder.warn(`推荐页无限循环：${warnMessage}`);
   if (!silent) {
     showAppMessage({
@@ -992,6 +1061,21 @@ onUnmounted(() => {
 .setting-label {
   font-size: var(--text-base);
   color: var(--ai-text-dark);
+}
+
+.setting-item--stack {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.setting-item--stack .el-select {
+  width: 100%;
+}
+
+.setting-hint {
+  font-size: var(--text-sm);
+  color: var(--ai-text-light);
 }
 
 .action-row {
