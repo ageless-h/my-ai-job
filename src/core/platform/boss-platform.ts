@@ -35,7 +35,7 @@ import {
 import { BossApiClient } from '@/core/platform/boss-api-client';
 
 const logger$1 = Logger.rootLogger;
-const AI_DELIVERY_JUDGE_TIMEOUT_MS = 12_000;
+const AI_DELIVERY_JUDGE_DEFAULT_TIMEOUT_MS = 30_000;
 const RUNTIME_RESUME_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const toText = (value: unknown, maxLength = 500): string => {
@@ -807,11 +807,14 @@ export class BossPlatform extends AbsPlatform {
         let judgeResult!: { match: boolean; reason: string; valid: boolean; parseMode: string };
         const judgeTraceId = this.buildAiJudgeTraceId();
         const filterPath = await AiPower.getFilterPath();
+        const aiDeliveryJudgeTimeoutMs = await AiPower.getFilterTimeoutMs(
+          AI_DELIVERY_JUDGE_DEFAULT_TIMEOUT_MS
+        );
         const aiJudgeStartedAt = Date.now();
         const maskedUserProfile = this.maskAiDeliveryUserProfile(userProfile);
 
         this.preferenceLogRecorder.info(
-          `工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${AI_DELIVERY_JUDGE_TIMEOUT_MS} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`
+          `工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${aiDeliveryJudgeTimeoutMs} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`
         );
         this.preferenceLogRecorder.info(
           `工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(',')} extKeys=${Object.keys(extInfo).join(',')}`
@@ -826,7 +829,7 @@ export class BossPlatform extends AbsPlatform {
               prompt,
               filterInput.jobBaseInfo,
               filterInput.jobExtInfo,
-              AI_DELIVERY_JUDGE_TIMEOUT_MS
+              aiDeliveryJudgeTimeoutMs
             );
             const filterElapsed = Date.now() - filterStartedAt;
 
@@ -941,14 +944,22 @@ export class BossPlatform extends AbsPlatform {
           this.preferenceLogRecorder.warn(
             `工作【${jobTitle}】AI判定结果不可解析 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} onInvalidResult=${aiConfig.onInvalidResult} reason=${judgeResult.reason}`
           );
-          throw new NotMatchError(jobTitle, judgeResult.reason, 'AI投递判断结果不可解析');
+          throw new NotMatchError(
+            jobTitle,
+            judgeResult.reason,
+            `AI投递判断结果不可解析：${judgeResult.reason}`
+          );
         }
 
         if (!judgeResult.match) {
           this.preferenceLogRecorder.info(
             `工作【${jobTitle}】AI投递判断不通过 trace=${judgeTraceId} reason=${judgeResult.reason}`
           );
-          throw new NotMatchError(jobTitle, judgeResult.reason, 'AI投递判断不通过');
+          throw new NotMatchError(
+            jobTitle,
+            judgeResult.reason,
+            `AI投递判断不通过：${judgeResult.reason}`
+          );
         }
 
         this.preferenceLogRecorder.info(
@@ -2531,6 +2542,62 @@ export class BossPlatform extends AbsPlatform {
     return fallback;
   }
 
+  private extractAiJudgeJsonText(text: string): string {
+    const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidate = (fencedMatch?.[1] || text).trim();
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return candidate.slice(start, end + 1);
+    }
+    return '';
+  }
+
+  private parseAiJudgeObjectPayload(
+    payload: any,
+    parseMode: string
+  ): { match: boolean; reason: string; valid: boolean; parseMode: string } | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+    if (typeof payload.match === 'boolean') {
+      return {
+        match: payload.match,
+        reason: this.normalizeAiJudgeReason(
+          payload.reason,
+          '[NO_REASON] AI未提供理由，已按判定结果执行'
+        ),
+        valid: true,
+        parseMode,
+      };
+    }
+    if (typeof payload.filter === 'boolean') {
+      return {
+        match: !payload.filter,
+        reason: this.normalizeAiJudgeReason(
+          payload.reason,
+          '[NO_REASON] AI未提供理由，已按过滤结果执行'
+        ),
+        valid: true,
+        parseMode,
+      };
+    }
+    return null;
+  }
+
+  private extractAiJudgeReasonFromText(text: string, fallback: string): string {
+    const reasonMatch = text.match(/reason\s*[:：=]\s*["“”']?([^"“”'，,}\n]+)["“”']?/i);
+    if (reasonMatch?.[1]) {
+      return this.normalizeAiJudgeReason(reasonMatch[1], fallback);
+    }
+    const cleaned = text
+      .replace(/```(?:json)?/gi, '')
+      .replace(/```/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return this.normalizeAiJudgeReason(cleaned, fallback);
+  }
+
   /**
    * 解析 AI 投递判定结果。
    *
@@ -2552,27 +2619,9 @@ export class BossPlatform extends AbsPlatform {
     }
 
     if (typeof raw === 'object') {
-      if (typeof raw.match === 'boolean') {
-        return {
-          match: raw.match,
-          reason: this.normalizeAiJudgeReason(
-            raw.reason,
-            '[NO_REASON] AI未提供理由，已按判定结果执行'
-          ),
-          valid: true,
-          parseMode: 'object.match',
-        };
-      }
-      if (typeof raw.filter === 'boolean') {
-        return {
-          match: !raw.filter,
-          reason: this.normalizeAiJudgeReason(
-            raw.reason,
-            '[NO_REASON] AI未提供理由，已按过滤结果执行'
-          ),
-          valid: true,
-          parseMode: 'object.filter',
-        };
+      const parsedObject = this.parseAiJudgeObjectPayload(raw, 'object');
+      if (parsedObject) {
+        return parsedObject;
       }
     }
 
@@ -2581,24 +2630,30 @@ export class BossPlatform extends AbsPlatform {
       try {
         // 优先按 JSON 字符串解析，兼容模型返回被包裹成文本的结构化结果。
         const parsed = JSON.parse(text);
-        if (typeof parsed.match === 'boolean') {
-          return {
-            match: parsed.match,
-            reason: this.normalizeAiJudgeReason(
-              parsed.reason,
-              '[NO_REASON] AI未提供理由，已按判定结果执行'
-            ),
-            valid: true,
-            parseMode: 'json-string.match',
-          };
+        const parsedObject = this.parseAiJudgeObjectPayload(parsed, 'json-string');
+        if (parsedObject) {
+          return parsedObject;
         }
       } catch (_e) {
-        // JSON 解析失败时再做轻量启发式识别，尽量从非标准输出中恢复结论。
+        const jsonText = this.extractAiJudgeJsonText(text);
+        if (jsonText) {
+          try {
+            const parsed = JSON.parse(jsonText);
+            const parsedObject = this.parseAiJudgeObjectPayload(parsed, 'json-substring');
+            if (parsedObject) {
+              return parsedObject;
+            }
+          } catch (_e2) {
+            // 子串仍不可解析时继续使用启发式识别。
+          }
+        }
+
+        // JSON 解析失败时再做轻量启发式识别，尽量从非标准输出中恢复结论并保留模型文本理由。
         const lower = text.toLowerCase();
         if (lower.includes('"match":true') || lower.includes('match:true')) {
           return {
             match: true,
-            reason: 'AI文本判定为可投递',
+            reason: this.extractAiJudgeReasonFromText(text, 'AI文本判定为可投递'),
             valid: true,
             parseMode: 'heuristic-string.true',
           };
@@ -2606,7 +2661,7 @@ export class BossPlatform extends AbsPlatform {
         if (lower.includes('"match":false') || lower.includes('match:false')) {
           return {
             match: false,
-            reason: 'AI文本判定为不投递',
+            reason: this.extractAiJudgeReasonFromText(text, 'AI文本判定为不投递'),
             valid: true,
             parseMode: 'heuristic-string.false',
           };

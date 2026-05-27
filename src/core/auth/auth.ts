@@ -1,5 +1,6 @@
 // -*- coding: utf-8 -*-
 import axios from 'axios';
+import { getActiveDirectConfig } from '@/core/ai/direct-ai-client';
 import { LocalAuthService } from '@/core/auth/local-auth';
 import { LogRecorder } from '@/core/engine/push-engine';
 import { showAppMessage } from '@/core/http/request';
@@ -53,6 +54,17 @@ const runWithRetry = async <T>(fn: () => Promise<T>, maxRetries = 3): Promise<T>
   throw lastError;
 };
 
+const waitForBossLoginContext = async (maxWaitMs = 5000, intervalMs = 250): Promise<boolean> => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt <= maxWaitMs) {
+    if (LocalAuthService.isBossLoggedIn()) {
+      return true;
+    }
+    await Tools.sleep(intervalMs);
+  }
+  return false;
+};
+
 export const silentlyLogin = async (_bossUserId?: string): Promise<void> => {
   let loginCount = 0;
   while (loginIng && loginCount < 6) {
@@ -65,7 +77,7 @@ export const silentlyLogin = async (_bossUserId?: string): Promise<void> => {
   const loginStore = useLoginStore() as any;
 
   try {
-    if (!LocalAuthService.isBossLoggedIn()) {
+    if (!(await waitForBossLoginContext())) {
       loginLogRecorder.info('未登录Boss，静默登录结束');
       throw new Error('未登录Boss，静默登录失败');
     }
@@ -179,7 +191,7 @@ export const handlerImport = async (importResumeLoading: { value: boolean }): Pr
           apiFormat: aiConfig.apiFormat,
           timeout: aiConfig.timeout,
         }
-      : null;
+      : getActiveDirectConfig();
 
     const resumeData = await parseResumeFromBuffer(buffer, {
       userId,

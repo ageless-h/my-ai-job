@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-import { directAsk, directAiCall } from '@/core/ai/direct-ai-client';
+import { directAsk, directAiCall, getActiveDirectConfig } from '@/core/ai/direct-ai-client';
 import type { DirectAiMessage, DirectAiConfig } from '@/core/ai/direct-ai-client';
 import { SecureLocalDB } from '@/core/storage/secure-local-db';
 import { LocalDB } from '@/core/storage/local-db';
@@ -89,17 +89,38 @@ const getActiveConfigFromLocalDB = async (): Promise<DirectAiConfig | null> => {
 
     const activeConfig = await SecureLocalDB.getActiveAiConfig();
     if (!activeConfig || !activeConfig.baseUrl || !activeConfig.apiKey || !activeConfig.modelName) {
-      return null;
+      const directConfig = getActiveDirectConfig();
+      if (directConfig) {
+        logger.info('Use active AI config from GM/localStorage model config state');
+      }
+      return directConfig;
     }
 
     return toDirectAiConfig(activeConfig);
   } catch (error) {
     logger.error('Failed to get active AI config from LocalDB:', error);
-    return null;
+    const directConfig = getActiveDirectConfig();
+    if (directConfig) {
+      logger.info('Fallback to active AI config from GM/localStorage model config state');
+    }
+    return directConfig;
   }
 };
 
 export class AiPower {
+  /**
+   * Resolve AI delivery filter timeout from active model config.
+   * Keeps the caller default as a lower bound, but honors a larger model timeout.
+   */
+  static async getFilterTimeoutMs(defaultTimeoutMs = 60_000): Promise<number> {
+    const config = await getActiveConfigFromLocalDB();
+    const configTimeoutMs = Number(config?.timeout || 0) * 1000;
+    if (!Number.isFinite(configTimeoutMs) || configTimeoutMs <= 0) {
+      return defaultTimeoutMs;
+    }
+    return Math.max(defaultTimeoutMs, configTimeoutMs);
+  }
+
   /**
    * Check if AI filtering is available (has active config in local storage)
    */
@@ -191,12 +212,19 @@ export class AiPower {
       logger.warn('AI.filter disabled because no active config found in LocalDB');
       throw new Error(AI_DELIVERY_DIRECT_REQUIRED_MESSAGE);
     }
+    const effectiveTimeoutMs = Math.max(
+      timeoutMs,
+      Number.isFinite(Number(directConfig.timeout)) ? Number(directConfig.timeout || 0) * 1000 : 0
+    );
 
     logger.info(
-      `AI.filter start path=direct timeoutMs=${timeoutMs} promptChars=${prompt.length} baseInfoChars=${jobBaseInfo.length} extInfoChars=${jobExtInfo.length}`
+      `AI.filter start path=direct timeoutMs=${effectiveTimeoutMs} promptChars=${prompt.length} baseInfoChars=${jobBaseInfo.length} extInfoChars=${jobExtInfo.length}`
     );
     const messages = buildDirectFilterMessages(prompt, jobBaseInfo, jobExtInfo);
-    const answer = await directAiCall(buildDirectTimeoutConfig(directConfig, timeoutMs), messages);
+    const answer = await directAiCall(
+      buildDirectTimeoutConfig(directConfig, effectiveTimeoutMs),
+      messages
+    );
     logger.info(`AI.filter done path=direct elapsedMs=${Date.now() - startedAt}`);
     return wrapFilterResponse(answer);
   }

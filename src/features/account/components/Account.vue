@@ -376,6 +376,24 @@ const pickFirstNonEmptyText = (
   return '';
 };
 
+const normalizeResumeWorkYearsText = (value: unknown): string => {
+  const text = `${value ?? ''}`.replace(/\s+/g, ' ').trim();
+  if (!text) {
+    return '';
+  }
+  if (/应届生/.test(text)) {
+    return '应届生';
+  }
+  if (/在校生|实习生/.test(text)) {
+    return text.replace(/^\d+\+?年/, '').trim() || text;
+  }
+  const yearsMatch = text.match(/\d+\+?年(?:经验|工作经验)?/);
+  if (yearsMatch) {
+    return yearsMatch[0];
+  }
+  return text;
+};
+
 const normalizePreviewMultiline = (value: unknown, maxLength = 20000): string => {
   const text = `${value ?? ''}`.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
   if (!text) {
@@ -514,7 +532,7 @@ const buildResumeTextFromPreviewData = (rawData: unknown, maxLength = 12000): st
 
   const basicLines = [
     `姓名：${`${baseInfo.nickName || ''}`.trim()}`,
-    `工作年限：${`${baseInfo.workYearDesc || ''}`.trim()}`,
+    `工作年限：${normalizeResumeWorkYearsText(baseInfo.workYearDesc)}`,
     `学历：${`${baseInfo.degreeCategory || ''}`.trim()}`,
     `求职状态：${`${data.applyStatusDesc || ''}`.trim()}`,
   ].filter((line) => line.split('：')[1]);
@@ -635,7 +653,7 @@ const fetchResumePreviewProfile = async (token: string) => {
   const firstExpect = toPlainRecord(
     expectList.find((item: any) => Number(item?.positionType ?? 0) === 0) || expectList[0]
   );
-  const workYears = `${baseInfo.workYearDesc || ''}`.trim();
+  const workYears = normalizeResumeWorkYearsText(baseInfo.workYearDesc);
   const education = `${baseInfo.degreeCategory || ''}`.trim();
   const fullName = `${baseInfo.nickName || ''}`.trim();
   const expectedJob = [
@@ -782,7 +800,9 @@ const writeImportedResumeToUser = (
       `${importData.resumeTextSource || ''}` ||
       (resumeText ? 'import-api' : stableResumeText ? 'resume-page-html' : ''),
     fullName: pickFirstNonEmptyText(sources, ['realName', 'name', 'fullName', 'userName'], 80),
-    workYears: pickFirstNonEmptyText(sources, ['workYear', 'workYears', 'workExperience'], 40),
+    workYears: normalizeResumeWorkYearsText(
+      pickFirstNonEmptyText(sources, ['workYear', 'workYears', 'workExperience'], 40)
+    ),
     education: pickFirstNonEmptyText(sources, ['education', 'degree', 'highestDegree'], 40),
     school: pickFirstNonEmptyText(sources, ['school', 'schoolName', 'college', 'university'], 80),
     major: pickFirstNonEmptyText(sources, ['major', 'majorName', 'speciality', 'specialty'], 80),

@@ -447,9 +447,7 @@ const alignRecommendLoopTargetEntry = async (): Promise<boolean> => {
 const shouldEnableRecommendLoop = () => {
   return (
     !!userStore?.user &&
-    !!userStore.user.preference.imE &&
-    !collectMode.value &&
-    isRecommendSalaryLoopPage()
+    !!userStore.user.preference.imE
   );
 };
 
@@ -802,7 +800,7 @@ const startPush = async (options: StartPushOptions = {}) => {
       if (shouldLoopRestart) {
         markRecommendLoopReload();
         showAppMessage({
-          message: '推荐页无限循环：本轮完成，正在刷新并自动继续投递',
+          message: `推荐页无限循环：本轮完成，正在刷新并自动继续${actionLabel.value}`,
           type: 'info',
           duration: 2500,
         });
@@ -910,7 +908,7 @@ const tryAutoResumeRecommendLoop = async () => {
       const started = await startPush({ silent: true, forceRecommendLoop: true });
       if (started) {
         showAppMessage({
-          message: '推荐页无限循环：页面已刷新，已继续自动运行',
+          message: `推荐页无限循环：页面已刷新，已继续自动${actionLabel.value}`,
           type: 'info',
           duration: 2000,
         });

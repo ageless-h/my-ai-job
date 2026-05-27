@@ -682,7 +682,12 @@ export abstract class AbsPlatform {
       collectResult.verified !== false
     ) {
       runtimeCounter().collectSuccessIncr();
-      this.preferenceLogRecorder.info(`工作【${jobTitle}】 收藏成功`);
+      const aiJudgeReason = `${jobDetail?.aiDeliveryJudge?.reason || ''}`.trim();
+      if (aiJudgeReason) {
+        this.preferenceLogRecorder.info(`工作【${jobTitle}】 收藏成功 AI理由：${aiJudgeReason}`);
+      } else {
+        this.preferenceLogRecorder.info(`工作【${jobTitle}】 收藏成功`);
+      }
       return jobDetail;
     }
 

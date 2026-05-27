@@ -350,6 +350,29 @@ const fetchAllProviderDetails = async () => {
 const applyLocalConfigFallback = () => {
   ensureGlobalPresetCatalog();
   const ext = ensureAiConfigExtSchema();
+  const activeDirectConfig = Tools.getActiveModelConfig(ext as unknown as Record<string, unknown>);
+  if (activeDirectConfig) {
+    const directConfig = {
+      id: activeDirectConfig.id,
+      userId: 0,
+      provider: Number(activeDirectConfig.provider) || 0,
+      modelName: activeDirectConfig.modelName,
+      apiKey: activeDirectConfig.apiKey,
+      baseUrl: activeDirectConfig.baseUrl,
+      timeout: activeDirectConfig.timeout || 60,
+      completionsPath: activeDirectConfig.completionsPath || '/chat/completions',
+      apiFormat: activeDirectConfig.apiFormat || 'completions',
+      testPassed: Number(activeDirectConfig.testPassed || 0),
+      status: 1,
+      userPrompt: '',
+    };
+    form.value = { ...form.value, ...directConfig };
+    lastFetchedConfig.value = { ...directConfig };
+    handleProviderChange(form.value.provider, true);
+    syncCurrentChannelToExt();
+    return;
+  }
+
   const fallbackConfig = {
     status: 0,
     provider: Number(ext?.currentConfig?.provider || 1),
@@ -363,7 +386,7 @@ const applyLocalConfigFallback = () => {
   syncCurrentChannelToExt();
 
   if (!isPreviewMode && !hasShownConfigFallbackWarning.value) {
-    showAppMessage({ type: 'warning', message: '配置接口暂不可用，已使用本地配置' });
+    showAppMessage({ type: 'info', message: '未检测到已启用模型配置，请在下方新增并启用 API Key' });
     hasShownConfigFallbackWarning.value = true;
   }
 };

@@ -135,6 +135,24 @@ const normalizeMultilineText = (value: unknown, fallback = '未提供'): string 
   return normalized || fallback;
 };
 
+const normalizeResumeWorkYearsText = (value: unknown): string => {
+  const text = normalizeInlineText(value, '');
+  if (!text) {
+    return '';
+  }
+  if (/应届生/.test(text)) {
+    return '应届生';
+  }
+  if (/在校生|实习生/.test(text)) {
+    return text.replace(/^\d+\+?年/, '').trim() || text;
+  }
+  const yearsMatch = text.match(/\d+\+?年(?:经验|工作经验)?/);
+  if (yearsMatch) {
+    return yearsMatch[0];
+  }
+  return text;
+};
+
 const formatList = (value: unknown, fallback = '无'): string => {
   const list = toArray(value)
     .map((item) => normalizeInlineText(item, ''))
@@ -546,6 +564,8 @@ const buildResumeIdentitySnapshot = (
         0,
         RESUME_NARRATIVE_SNIPPET_MAX_LENGTH
       );
+    } else if (field === 'workYears') {
+      identityDraft[field] = normalizeResumeWorkYearsText(hit.value);
     } else {
       identityDraft[field] = hit.value;
     }
