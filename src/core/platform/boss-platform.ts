@@ -1798,8 +1798,32 @@ export class BossPlatform extends AbsPlatform {
       }
     };
 
+    const tryInitGeekChatCore = () => {
+      const geekCore = Tools.window.GeekChatCore as { getInstance?: () => { init?: () => void; connect?: () => void } } | undefined;
+      if (!geekCore || typeof geekCore.getInstance !== 'function') {
+        return;
+      }
+
+      const geekCoreForCheck = geekCore as unknown;
+      if (this.isGeekChannelConnected(geekCoreForCheck)) {
+        return;
+      }
+
+      try {
+        const instance = geekCore.getInstance?.();
+        if (instance && typeof instance.init === 'function') {
+          instance.init();
+        } else if (instance && typeof instance.connect === 'function') {
+          instance.connect();
+        }
+      } catch (e) {
+        logger$1.debug('初始化 GeekChatCore 通道失败', e);
+      }
+    };
+
     tryInit(Tools.window.ChatWebsocketImage);
     tryInit(Tools.window.ChatWebsocket);
+    tryInitGeekChatCore();
 
     const startTs = Date.now();
     let reconnectTs = 0;
@@ -1828,6 +1852,24 @@ export class BossPlatform extends AbsPlatform {
             logger$1.debug('消息通道重连触发失败', e);
           }
         });
+
+        try {
+          const geekCore = Tools.window.GeekChatCore as { getInstance?: () => { reconnect?: () => void; connect?: () => void } } | undefined;
+          if (geekCore && typeof geekCore.getInstance === 'function') {
+            const geekCoreForCheck = geekCore as unknown;
+            if (!this.isGeekChannelConnected(geekCoreForCheck)) {
+              const instance = geekCore.getInstance?.();
+              if (instance && typeof instance.reconnect === 'function') {
+                instance.reconnect();
+              } else if (instance && typeof instance.connect === 'function') {
+                instance.connect();
+              }
+            }
+          }
+        } catch (e) {
+          logger$1.debug('GeekChatCore 通道重连触发失败', e);
+        }
+
         reconnectTs = Date.now();
       }
 

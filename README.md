@@ -67,7 +67,9 @@ npm install
 npm run dev
 ```
 
-浏览器会自动打开 http://localhost:5173，你可以：
+浏览器会自动打开 http://localhost:5173
+
+你可以：
 
 - 实时查看 UI 修改效果（热更新）
 - 使用 Vue DevTools 调试组件和状态
