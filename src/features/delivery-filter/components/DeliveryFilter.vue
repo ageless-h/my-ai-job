@@ -515,16 +515,28 @@ const submitForm = async () => {
 
   // 保存到本地存储
   try {
+    // 同步保存到 IndexedDB
     await SecureLocalDB.savePreferences({
       id: 'default',
       ...userStore.user.preference,
     } as any);
+
+    // 关键修复：同时保存到 localStorage/GM_setValue，确保刷新后能正确读取
+    Tools.saveStoredUserProfile(userStore.user);
+
+    // 记录保存日志
+    const logMessage = `[投递过滤] 保存成功 - 沟通与运行节律: ${userStore.user.preference.acE ? '开启' : '关闭'}, 传统投递规则: ${userStore.user.preference.traditionalDeliveryE ? '开启' : '关闭'}, 关键词过滤: 包含${focusSkills.value.length}个, 排除${excludeKeywords.value.length}个`;
+    console.info(logMessage);
+
     showAppMessage({
       message: '投递过滤设置保存成功',
       type: 'success',
       duration: 2000,
     });
   } catch (error: any) {
+    const errorLog = `[投递过滤] 保存失败: ${error?.message || '未知错误'}`;
+    console.error(errorLog);
+
     showAppMessage({
       message: `保存失败：${error?.message || '未知错误'}`,
       type: 'error',
