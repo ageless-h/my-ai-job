@@ -381,6 +381,7 @@ import { normalizePreferenceBoolean } from '@/shared/utils/preference';
 import { UserStore } from '@/state/user';
 import { loginInterceptor } from '@/core/auth/auth';
 import { SecureLocalDB } from '@/core/storage';
+import { LogRecorder } from '@/core/engine/push-engine';
 
 const userStore = UserStore();
 const axios2 = inject('$axios') as any;
@@ -524,9 +525,9 @@ const submitForm = async () => {
     // 关键修复：同时保存到 localStorage/GM_setValue，确保刷新后能正确读取
     Tools.saveStoredUserProfile(userStore.user);
 
-    // 记录保存日志
-    const logMessage = `[投递过滤] 保存成功 - 沟通与运行节律: ${userStore.user.preference.acE ? '开启' : '关闭'}, 传统投递规则: ${userStore.user.preference.traditionalDeliveryE ? '开启' : '关闭'}, 关键词过滤: 包含${focusSkills.value.length}个, 排除${excludeKeywords.value.length}个`;
-    console.info(logMessage);
+    // 记录保存日志到运行日志
+    const logRecorder = new LogRecorder('delivery-filter');
+    logRecorder.info(`投递过滤设置保存成功 - 活跃度过滤: ${userStore.user.preference.acE ? '开启' : '关闭'}, 传统投递规则: ${userStore.user.preference.traditionalDeliveryE ? '开启' : '关闭'}, 自定义招呼语: ${userStore.user.preference.cgE ? '开启' : '关闭'}, 投递频率: ${userStore.user.preference.pi}秒/次, 翻页等待: ${userStore.user.preference.npi}秒/页, 关键词过滤: 包含${focusSkills.value.length}个, 排除${excludeKeywords.value.length}个`);
 
     showAppMessage({
       message: '投递过滤设置保存成功',
@@ -534,8 +535,8 @@ const submitForm = async () => {
       duration: 2000,
     });
   } catch (error: any) {
-    const errorLog = `[投递过滤] 保存失败: ${error?.message || '未知错误'}`;
-    console.error(errorLog);
+    const logRecorder = new LogRecorder('delivery-filter');
+    logRecorder.error(`投递过滤设置保存失败: ${error?.message || '未知错误'}`);
 
     showAppMessage({
       message: `保存失败：${error?.message || '未知错误'}`,
