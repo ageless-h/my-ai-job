@@ -124,7 +124,13 @@ export class LocalDB {
   }
 
   static async savePreferences(preferences: UserPreferences): Promise<void> {
-    await this.ensureDB().put('preferences', preferences);
+    try {
+      const sanitized = JSON.parse(JSON.stringify(preferences)) as UserPreferences;
+      await this.ensureDB().put('preferences', sanitized);
+    } catch (error) {
+      console.error('Failed to sanitize preferences for IndexedDB:', error);
+      throw error;
+    }
   }
 
   static async getPreferences(): Promise<UserPreferences | undefined> {
