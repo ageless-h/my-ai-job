@@ -17,3 +17,4 @@ venv/
 /ui-*.jpg
 /debug-*.png
 /src/styles/*.bak
+.trae/
