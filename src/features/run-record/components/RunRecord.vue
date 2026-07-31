@@ -86,6 +86,19 @@
 
         <div class="spacer"></div>
 
+        <el-dropdown trigger="click" :teleported="false" @command="handleExport">
+          <el-button type="success" plain :disabled="totalLogs === 0">
+            <el-icon class="mr-4"><Download /></el-icon>导出
+            <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="json">导出为 JSON</el-dropdown-item>
+              <el-dropdown-item command="txt">导出为 TXT</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+
         <el-popover
           placement="bottom-end"
           :width="240"
@@ -237,7 +250,8 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { Delete, Search, Setting } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
+import { ArrowDown, Delete, Download, Search, Setting } from '@element-plus/icons-vue';
 import { LogRecorder } from '@/core/engine/push-engine';
 
 interface LogItem {
@@ -251,6 +265,8 @@ interface LogItem {
 const logRecorder = new LogRecorder();
 
 const logs = ref<LogItem[]>([]);
+// 当前过滤条件命中的全部日志（不受分页限制），供导出使用
+const filteredLogsCache = ref<LogItem[]>([]);
 const currentPage = ref(1);
 const pageSize = ref(20);
 const totalLogs = ref(0);
@@ -440,6 +456,7 @@ const fetchLogs = () => {
 
   // Update total count and paginate
   totalLogs.value = allLogs.length;
+  filteredLogsCache.value = allLogs;
   const startIndex = (currentPage.value - 1) * pageSize.value;
   logs.value = allLogs.slice(startIndex, startIndex + pageSize.value);
 };
@@ -459,6 +476,71 @@ const clearLogs = () => {
   logRecorder.clearLogs();
   currentPage.value = 1;
   fetchLogs();
+};
+
+const triggerDownload = (filename: string, content: string, mime: string) => {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  // 释放 URL，避免内存泄漏
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+};
+
+const buildExportFilename = (ext: string) => {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return `ai-job-logs-${stamp}.${ext}`;
+};
+
+const exportAsJson = () => {
+  const data = filteredLogsCache.value;
+  if (!data.length) {
+    ElMessage.warning('没有可导出的日志');
+    return;
+  }
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    count: data.length,
+    filters: { ...filter },
+    logs: data,
+  };
+  triggerDownload(
+    buildExportFilename('json'),
+    JSON.stringify(payload, null, 2),
+    'application/json;charset=utf-8'
+  );
+  ElMessage.success(`已导出 ${data.length} 条日志 (JSON)`);
+};
+
+const exportAsTxt = () => {
+  const data = filteredLogsCache.value;
+  if (!data.length) {
+    ElMessage.warning('没有可导出的日志');
+    return;
+  }
+  const lines = data.map((log) => {
+    const level = String(log.level || '').toUpperCase().padEnd(5, ' ');
+    const decision = log.aiDecision ? `[${log.aiDecision}] ` : '';
+    const reason = log.aiReason ? ` | 理由: ${log.aiReason}` : '';
+    return `${log.timestamp}  ${level}  ${decision}${log.message}${reason}`;
+  });
+  const header = `# AI 求职助手运行日志\n# 导出时间: ${new Date().toLocaleString()}\n# 日志条数: ${data.length}\n# --------\n`;
+  triggerDownload(buildExportFilename('txt'), header + lines.join('\n') + '\n', 'text/plain;charset=utf-8');
+  ElMessage.success(`已导出 ${data.length} 条日志 (TXT)`);
+};
+
+const handleExport = (command: string) => {
+  if (command === 'json') {
+    exportAsJson();
+  } else if (command === 'txt') {
+    exportAsTxt();
+  }
 };
 
 const getLevelTagType = (level: string) => {
