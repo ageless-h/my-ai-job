@@ -358,6 +358,17 @@
     </div>
 
     <div class="action-footer mt-24">
+      <div class="footer-left buttons">
+        <el-button link type="primary" @click="handleExport">导出配置</el-button>
+        <el-button link type="primary" @click="triggerImport">导入配置</el-button>
+        <input
+          ref="importInputRef"
+          type="file"
+          accept=".json"
+          style="display: none"
+          @change="handleImportFile"
+        />
+      </div>
       <div class="footer-right buttons">
         <el-button link class="text-muted" @click="resetForm">恢复默认过滤</el-button>
         <el-button
@@ -434,6 +445,105 @@ const upgradePrefNumber = (value: any, oldDefault: number, nextDefault: number) 
     return nextDefault;
   }
   return n;
+};
+
+// ============ 导入导出功能 ============
+const importInputRef = ref<HTMLInputElement | null>(null);
+
+const handleExport = () => {
+  try {
+    Tools.exportDeliveryFilterConfig(userStore.user.preference);
+    showAppMessage({
+      message: '投递过滤配置导出成功',
+      type: 'success',
+      duration: 2000,
+    });
+  } catch (error: any) {
+    showAppMessage({
+      message: `导出失败：${error?.message || '未知错误'}`,
+      type: 'error',
+      duration: 2000,
+    });
+  }
+};
+
+const triggerImport = () => {
+  importInputRef.value?.click();
+};
+
+const handleImportFile = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+
+    const error = Tools.validateDeliveryFilterImportData(parsed);
+    if (error) {
+      showAppMessage({
+        message: error,
+        type: 'error',
+        duration: 3000,
+      });
+      return;
+    }
+
+    const { preference: newPref, aiConfig } = Tools.importDeliveryFilterConfig(
+      parsed,
+      userStore.user.preference
+    );
+
+    // 更新 user preference
+    Object.assign(userStore.user.preference, newPref);
+
+    // 更新 AI 配置
+    aiForm.enabled = aiConfig.enabled;
+    aiForm.includeUserProfile = aiConfig.includeUserProfile;
+    aiForm.onAiError = aiConfig.onAiError;
+    aiForm.onInvalidResult = aiConfig.onInvalidResult;
+    focusSkills.value = [...aiConfig.focusSkills];
+    excludeKeywords.value = [...aiConfig.excludeKeywords];
+
+    // 持久化
+    await Tools.saveAiDeliveryJudgeConfig({
+      enabled: aiConfig.enabled,
+      focusSkills: aiConfig.focusSkills,
+      excludeKeywords: aiConfig.excludeKeywords,
+      includeUserProfile: aiConfig.includeUserProfile,
+      onAiError: aiConfig.onAiError,
+      onInvalidResult: aiConfig.onInvalidResult,
+    });
+
+    await SecureLocalDB.savePreferences({
+      id: 'default',
+      ...userStore.user.preference,
+    } as any);
+
+    Tools.saveStoredUserProfile(userStore.user);
+
+    // 记录日志
+    const logRecorder = new LogRecorder('delivery-filter');
+    logRecorder.info('投递过滤配置导入成功');
+
+    showAppMessage({
+      message: '投递过滤配置导入成功',
+      type: 'success',
+      duration: 2000,
+    });
+  } catch (error: any) {
+    showAppMessage({
+      message: `导入失败：${error?.message || '未知错误'}`,
+      type: 'error',
+      duration: 3000,
+    });
+  } finally {
+    // 重置 input value，允许重复选择同一文件
+    if (importInputRef.value) {
+      importInputRef.value.value = '';
+    }
+  }
 };
 
 const preferenceDefaultValueHandler = () => {
@@ -868,6 +978,12 @@ preferenceDefaultValueHandler();
   border-radius: var(--radius-card);
   border: 1px solid var(--boss-border-color);
   margin-bottom: 40px;
+}
+
+.footer-left.buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .footer-right.buttons {
