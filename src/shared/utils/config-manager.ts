@@ -1115,3 +1115,263 @@ export function migrateAiDeliveryJudgeConfigFromPreference(
   saveAiConfigExt(ext);
   return next;
 }
+
+/** 投递过滤配置导出数据的版本号 */
+export const DELIVERY_FILTER_CONFIG_VERSION = 1;
+
+/**
+ * 投递过滤配置导出数据结构。
+ * 用于 JSON 导入导出，包含所有投递过滤相关的配置项。
+ */
+export interface DeliveryFilterExportData {
+  /** 配置格式版本号 */
+  version: number;
+  /** 导出时间戳 (ms) */
+  exportedAt: number;
+  /** 硬性约束配置 */
+  hardConstraints: {
+    /** 自动过滤猎头岗位 */
+    fhE?: boolean;
+    /** 仅投递 BOSS 刚刚活跃/在线 */
+    polE?: boolean;
+    /** 启用活跃度过滤 */
+    acE?: boolean;
+    /** 允许的活跃维度：本周活跃 */
+    acW?: boolean;
+    /** 允许的活跃维度：本月活跃 */
+    acM?: boolean;
+    /** 允许的活跃维度：半年前活跃 */
+    acY?: boolean;
+  };
+  /** AI 智能过滤配置 */
+  aiFilter: {
+    /** 是否启用 AI 智能过滤 */
+    enabled?: boolean;
+    /** 包含求职者个人信息 */
+    includeUserProfile?: boolean;
+    /** 核心技能要求 */
+    focusSkills?: string[];
+    /** 绝对排除关键词 */
+    excludeKeywords?: string[];
+    /** AI 请求失败策略 */
+    onAiError?: 'reject' | 'fallback-traditional';
+    /** AI 结果无法解析策略 */
+    onInvalidResult?: 'reject' | 'fallback-traditional';
+  };
+  /** 传统软过滤配置 */
+  traditionalFilter: {
+    /** 启用传统投递规则 */
+    traditionalDeliveryE?: boolean;
+    /** 薪资要求启用 */
+    srE?: boolean;
+    /** 薪资范围 */
+    sr?: string;
+    /** 公司规模启用 */
+    csrE?: boolean;
+    /** 公司规模范围 */
+    csr?: string;
+    /** 公司名包含启用 */
+    cniE?: boolean;
+    /** 公司名包含列表 */
+    cni?: string[];
+    /** 公司名排除启用 */
+    cneE?: boolean;
+    /** 公司名排除列表 */
+    cne?: string[];
+    /** 岗位名称包含启用 */
+    jniE?: boolean;
+    /** 岗位名称包含列表 */
+    jni?: string[];
+    /** 岗位名称排除启用 */
+    jneE?: boolean;
+    /** 岗位名称排除列表 */
+    jne?: string[];
+    /** 工作内容JD包含启用 */
+    jciE?: boolean;
+    /** 工作内容JD包含列表 */
+    jci?: string[];
+    /** 工作内容JD排除启用 */
+    jceE?: boolean;
+    /** 工作内容JD排除列表 */
+    jce?: string[];
+  };
+  /** 沟通与运行节律配置 */
+  communication: {
+    /** 投递时发送自定义招呼语 */
+    cgE?: boolean;
+    /** 自定义招呼语内容 */
+    cg?: string;
+    /** 投递频率间隔（秒/次） */
+    pi?: number;
+    /** 翻页等待间隔（秒/页） */
+    npi?: number;
+  };
+}
+
+/**
+ * 从当前运行时状态构建投递过滤配置导出数据。
+ */
+export function buildDeliveryFilterExportData(
+  preference: Record<string, unknown>,
+  aiConfig?: AiDeliveryJudgeConfig
+): DeliveryFilterExportData {
+  const ai = aiConfig || getAiDeliveryJudgeConfig(preference);
+
+  return {
+    version: DELIVERY_FILTER_CONFIG_VERSION,
+    exportedAt: Date.now(),
+    hardConstraints: {
+      fhE: typeof preference.fhE === 'boolean' ? preference.fhE : undefined,
+      polE: typeof preference.polE === 'boolean' ? preference.polE : undefined,
+      acE: typeof preference.acE === 'boolean' ? preference.acE : undefined,
+      acW: typeof preference.acW === 'boolean' ? preference.acW : undefined,
+      acM: typeof preference.acM === 'boolean' ? preference.acM : undefined,
+      acY: typeof preference.acY === 'boolean' ? preference.acY : undefined,
+    },
+    aiFilter: {
+      enabled: ai.enabled,
+      includeUserProfile: ai.includeUserProfile,
+      focusSkills: ai.focusSkills,
+      excludeKeywords: ai.excludeKeywords,
+      onAiError: ai.onAiError,
+      onInvalidResult: ai.onInvalidResult,
+    },
+    traditionalFilter: {
+      traditionalDeliveryE:
+        typeof preference.traditionalDeliveryE === 'boolean'
+          ? preference.traditionalDeliveryE
+          : undefined,
+      srE: typeof preference.srE === 'boolean' ? preference.srE : undefined,
+      sr: typeof preference.sr === 'string' ? preference.sr : undefined,
+      csrE: typeof preference.csrE === 'boolean' ? preference.csrE : undefined,
+      csr: typeof preference.csr === 'string' ? preference.csr : undefined,
+      cniE: typeof preference.cniE === 'boolean' ? preference.cniE : undefined,
+      cni: Array.isArray(preference.cni) ? (preference.cni as string[]) : undefined,
+      cneE: typeof preference.cneE === 'boolean' ? preference.cneE : undefined,
+      cne: Array.isArray(preference.cne) ? (preference.cne as string[]) : undefined,
+      jniE: typeof preference.jniE === 'boolean' ? preference.jniE : undefined,
+      jni: Array.isArray(preference.jni) ? (preference.jni as string[]) : undefined,
+      jneE: typeof preference.jneE === 'boolean' ? preference.jneE : undefined,
+      jne: Array.isArray(preference.jne) ? (preference.jne as string[]) : undefined,
+      jciE: typeof preference.jciE === 'boolean' ? preference.jciE : undefined,
+      jci: Array.isArray(preference.jci) ? (preference.jci as string[]) : undefined,
+      jceE: typeof preference.jceE === 'boolean' ? preference.jceE : undefined,
+      jce: Array.isArray(preference.jce) ? (preference.jce as string[]) : undefined,
+    },
+    communication: {
+      cgE: typeof preference.cgE === 'boolean' ? preference.cgE : undefined,
+      cg: typeof preference.cg === 'string' ? preference.cg : undefined,
+      pi: typeof preference.pi === 'number' ? preference.pi : undefined,
+      npi: typeof preference.npi === 'number' ? preference.npi : undefined,
+    },
+  };
+}
+
+/**
+ * 验证投递过滤配置导入数据的结构有效性。
+ * @returns 如果验证通过返回 null，否则返回错误信息字符串
+ */
+export function validateDeliveryFilterImportData(data: unknown): string | null {
+  if (!isPlainObject(data)) {
+    return 'JSON 数据格式错误：根结构必须是对象';
+  }
+
+  const d = data as Record<string, unknown>;
+
+  if (typeof d.version !== 'number') {
+    return 'JSON 数据格式错误：缺少有效的版本号 (version)';
+  }
+
+  if (d.version > DELIVERY_FILTER_CONFIG_VERSION) {
+    return `版本不兼容：当前支持到 v${DELIVERY_FILTER_CONFIG_VERSION}，导入文件为 v${d.version}。请升级工具后重试。`;
+  }
+
+  if (d.hardConstraints !== undefined && !isPlainObject(d.hardConstraints)) {
+    return 'JSON 数据格式错误：hardConstraints 必须是对象';
+  }
+
+  if (d.aiFilter !== undefined && !isPlainObject(d.aiFilter)) {
+    return 'JSON 数据格式错误：aiFilter 必须是对象';
+  }
+
+  if (d.traditionalFilter !== undefined && !isPlainObject(d.traditionalFilter)) {
+    return 'JSON 数据格式错误：traditionalFilter 必须是对象';
+  }
+
+  if (d.communication !== undefined && !isPlainObject(d.communication)) {
+    return 'JSON 数据格式错误：communication 必须是对象';
+  }
+
+  return null;
+}
+
+/**
+ * 导入投递过滤配置。
+ * 将导入的 JSON 数据合并到 preference 和 AI 配置中。
+ * @param data 解析后的导入数据
+ * @param currentPreference 当前的 preference 对象（会被就地修改）
+ */
+export function importDeliveryFilterConfig(
+  data: DeliveryFilterExportData,
+  currentPreference: Record<string, unknown>
+): {
+  preference: Record<string, unknown>;
+  aiConfig: AiDeliveryJudgeConfig;
+} {
+  const pref = { ...currentPreference };
+
+  if (data.hardConstraints) {
+    const hc = data.hardConstraints;
+    if (hc.fhE !== undefined) pref.fhE = hc.fhE;
+    if (hc.polE !== undefined) pref.polE = hc.polE;
+    if (hc.acE !== undefined) pref.acE = hc.acE;
+    if (hc.acW !== undefined) pref.acW = hc.acW;
+    if (hc.acM !== undefined) pref.acM = hc.acM;
+    if (hc.acY !== undefined) pref.acY = hc.acY;
+  }
+
+  if (data.traditionalFilter) {
+    const tf = data.traditionalFilter;
+    if (tf.traditionalDeliveryE !== undefined) pref.traditionalDeliveryE = tf.traditionalDeliveryE;
+    if (tf.srE !== undefined) pref.srE = tf.srE;
+    if (tf.sr !== undefined) pref.sr = tf.sr;
+    if (tf.csrE !== undefined) pref.csrE = tf.csrE;
+    if (tf.csr !== undefined) pref.csr = tf.csr;
+    if (tf.cniE !== undefined) pref.cniE = tf.cniE;
+    if (tf.cni !== undefined) pref.cni = tf.cni;
+    if (tf.cneE !== undefined) pref.cneE = tf.cneE;
+    if (tf.cne !== undefined) pref.cne = tf.cne;
+    if (tf.jniE !== undefined) pref.jniE = tf.jniE;
+    if (tf.jni !== undefined) pref.jni = tf.jni;
+    if (tf.jneE !== undefined) pref.jneE = tf.jneE;
+    if (tf.jne !== undefined) pref.jne = tf.jne;
+    if (tf.jciE !== undefined) pref.jciE = tf.jciE;
+    if (tf.jci !== undefined) pref.jci = tf.jci;
+    if (tf.jceE !== undefined) pref.jceE = tf.jceE;
+    if (tf.jce !== undefined) pref.jce = tf.jce;
+  }
+
+  if (data.communication) {
+    const c = data.communication;
+    if (c.cgE !== undefined) pref.cgE = c.cgE;
+    if (c.cg !== undefined) pref.cg = c.cg;
+    if (c.pi !== undefined) pref.pi = c.pi;
+    if (c.npi !== undefined) pref.npi = c.npi;
+  }
+
+  const currentAi = getAiDeliveryJudgeConfig(pref);
+  const ai = data.aiFilter || {};
+  const aiConfig: AiDeliveryJudgeConfig = {
+    enabled: ai.enabled !== undefined ? ai.enabled : currentAi.enabled,
+    prompt: currentAi.prompt,
+    extraPrompt: currentAi.extraPrompt,
+    focusSkills: ai.focusSkills || currentAi.focusSkills,
+    excludeKeywords: ai.excludeKeywords || currentAi.excludeKeywords,
+    includeUserProfile:
+      ai.includeUserProfile !== undefined ? ai.includeUserProfile : currentAi.includeUserProfile,
+    onAiError: ai.onAiError || currentAi.onAiError,
+    onInvalidResult: ai.onInvalidResult || currentAi.onInvalidResult,
+  };
+
+  return { preference: pref, aiConfig };
+}

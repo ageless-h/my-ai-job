@@ -48,6 +48,9 @@ import {
   getAiDeliveryJudgeConfig,
   saveAiDeliveryJudgeConfig,
   migrateAiDeliveryJudgeConfigFromPreference,
+  buildDeliveryFilterExportData,
+  validateDeliveryFilterImportData,
+  importDeliveryFilterConfig,
   type AiConfigExt,
   type AiDeliveryJudgeConfig,
   type ModelApiFormat,
@@ -57,7 +60,9 @@ import {
   type PromptPresetStore,
   type AiDeliveryPromptItem,
   type AiDeliveryPromptStore,
+  type DeliveryFilterExportData,
   DEFAULT_AI_DELIVERY_JUDGE_PROMPT,
+  DELIVERY_FILTER_CONFIG_VERSION,
 } from './config-manager';
 
 export type {
@@ -72,8 +77,9 @@ export type {
   PromptPresetStore,
   AiDeliveryPromptItem,
   AiDeliveryPromptStore,
+  DeliveryFilterExportData,
 };
-export { DEFAULT_AI_DELIVERY_JUDGE_PROMPT };
+export { DEFAULT_AI_DELIVERY_JUDGE_PROMPT, DELIVERY_FILTER_CONFIG_VERSION };
 
 declare const unsafeWindow: Window & Record<string, unknown>;
 
@@ -189,6 +195,38 @@ export class Tools {
   static saveAiDeliveryJudgeConfig = saveAiDeliveryJudgeConfig;
   /** @see config-manager.migrateAiDeliveryJudgeConfigFromPreference */
   static migrateAiDeliveryJudgeConfigFromPreference = migrateAiDeliveryJudgeConfigFromPreference;
+  /** @see config-manager.buildDeliveryFilterExportData */
+  static buildDeliveryFilterExportData = buildDeliveryFilterExportData;
+  /** @see config-manager.validateDeliveryFilterImportData */
+  static validateDeliveryFilterImportData = validateDeliveryFilterImportData;
+  /** @see config-manager.importDeliveryFilterConfig */
+  static importDeliveryFilterConfig = importDeliveryFilterConfig;
+
+  /**
+   * 导出投递过滤配置（触发浏览器下载）
+   *
+   * 将当前偏好配置序列化为 JSON 文件并触发浏览器下载，
+   * 文件名包含时间戳以避免覆盖历史导出。
+   *
+   * @param preference 当前的偏好设置对象
+   *
+   * @example
+   * Tools.exportDeliveryFilterConfig(currentPreference);
+   * // 浏览器将下载 delivery-filter-config-{timestamp}.json
+   */
+  static exportDeliveryFilterConfig(preference: Record<string, unknown>): void {
+    const data = buildDeliveryFilterExportData(preference);
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `delivery-filter-config-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   // ==================== 依赖配置的安全工具方法 ====================
 

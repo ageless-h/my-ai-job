@@ -1798,8 +1798,53 @@ export class BossPlatform extends AbsPlatform {
       }
     };
 
+    const tryInitGeekChatCore = () => {
+      const geekCore = Tools.window.GeekChatCore as { getInstance?: () => { init?: () => void; connect?: () => void } } | undefined;
+      if (!geekCore || typeof geekCore.getInstance !== 'function') {
+        return;
+      }
+
+      const geekCoreForCheck = geekCore as unknown;
+      if (this.isGeekChannelConnected(geekCoreForCheck)) {
+        return;
+      }
+
+      try {
+        const instance = geekCore.getInstance?.();
+        if (instance && typeof instance.init === 'function') {
+          instance.init();
+        } else if (instance && typeof instance.connect === 'function') {
+          instance.connect();
+        }
+      } catch (e) {
+        logger$1.debug('初始化 GeekChatCore 通道失败', e);
+      }
+    };
+
+    /**
+     * 检查 GeekChatCore 的 client.send 是否可用（不要求 isConnected）。
+     * Message.send() 实际发送时也只检查 client.send 是否存在，这里与之对齐。
+     */
+    const isGeekChatCoreSendable = (): boolean => {
+      const geekCore = Tools.window.GeekChatCore as { getInstance?: () => { getClient?: () => { client?: { send?: unknown } } } } | undefined;
+      if (!geekCore || typeof geekCore.getInstance !== 'function') {
+        return false;
+      }
+      try {
+        const client = geekCore.getInstance?.()?.getClient?.()?.client;
+        const sendable = !!client && typeof client.send === 'function';
+        if (sendable && !this.isGeekChannelConnected(geekCore as unknown)) {
+          logger$1.debug('GeekChatCore client.send 可用但 isConnected 返回 false，仍视为就绪');
+        }
+        return sendable;
+      } catch {
+        return false;
+      }
+    };
+
     tryInit(Tools.window.ChatWebsocketImage);
     tryInit(Tools.window.ChatWebsocket);
+    tryInitGeekChatCore();
 
     const startTs = Date.now();
     let reconnectTs = 0;
@@ -1808,6 +1853,13 @@ export class BossPlatform extends AbsPlatform {
 
       // 只要任一通道可用，就允许后续发送逻辑继续执行。
       if (state.imageConnected || state.textConnected || state.geekConnected) {
+        return true;
+      }
+
+      // GeekChatCore 存在但 isConnected 返回 false 时，只要 client.send 可用就视为就绪，
+      // 让 Message.send() 自行尝试实际发送。
+      if (state.geekExists && isGeekChatCoreSendable()) {
+        logger$1.debug('GeekChatCore 通道 client.send 可用，视为就绪');
         return true;
       }
 
@@ -1828,6 +1880,24 @@ export class BossPlatform extends AbsPlatform {
             logger$1.debug('消息通道重连触发失败', e);
           }
         });
+
+        try {
+          const geekCore = Tools.window.GeekChatCore as { getInstance?: () => { reconnect?: () => void; connect?: () => void } } | undefined;
+          if (geekCore && typeof geekCore.getInstance === 'function') {
+            const geekCoreForCheck = geekCore as unknown;
+            if (!this.isGeekChannelConnected(geekCoreForCheck)) {
+              const instance = geekCore.getInstance?.();
+              if (instance && typeof instance.reconnect === 'function') {
+                instance.reconnect();
+              } else if (instance && typeof instance.connect === 'function') {
+                instance.connect();
+              }
+            }
+          }
+        } catch (e) {
+          logger$1.debug('GeekChatCore 通道重连触发失败', e);
+        }
+
         reconnectTs = Date.now();
       }
 
