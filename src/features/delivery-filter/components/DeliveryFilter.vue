@@ -328,8 +328,8 @@
       <div class="card-title">沟通与运行节律</div>
 
       <el-form-item class="custom-chk-label">
-        <el-checkbox v-model="userStore.user.preference.cgE">投递时发送自定义招呼语</el-checkbox>
-        <el-input v-model="userStore.user.preference.cg" type="textarea" :rows="3" />
+        <el-checkbox v-model="userStore.user.preference.customGreetingEnabled">投递时发送自定义招呼语</el-checkbox>
+        <el-input v-model="userStore.user.preference.customGreeting" type="textarea" :rows="3" />
       </el-form-item>
 
       <div class="interval-groups mt-16">
@@ -516,10 +516,7 @@ const handleImportFile = async (event: Event) => {
       onInvalidResult: aiConfig.onInvalidResult,
     });
 
-    await SecureLocalDB.savePreferences({
-      id: 'default',
-      ...userStore.user.preference,
-    } as any);
+    await SecureLocalDB.savePreferences(userStore.user.id, userStore.user.preference);
 
     Tools.saveStoredUserProfile(userStore.user);
 
@@ -627,17 +624,14 @@ const submitForm = async () => {
   // 保存到本地存储
   try {
     // 同步保存到 IndexedDB
-    await SecureLocalDB.savePreferences({
-      id: 'default',
-      ...userStore.user.preference,
-    } as any);
+    await SecureLocalDB.savePreferences(userStore.user.id, userStore.user.preference);
 
     // 关键修复：同时保存到 localStorage/GM_setValue，确保刷新后能正确读取
     Tools.saveStoredUserProfile(userStore.user);
 
     // 记录保存日志到运行日志
     const logRecorder = new LogRecorder('delivery-filter');
-    logRecorder.info(`投递过滤设置保存成功 - 活跃度过滤: ${userStore.user.preference.acE ? '开启' : '关闭'}, 传统投递规则: ${userStore.user.preference.traditionalDeliveryE ? '开启' : '关闭'}, 自定义招呼语: ${userStore.user.preference.cgE ? '开启' : '关闭'}, 投递频率: ${userStore.user.preference.pi}秒/次, 翻页等待: ${userStore.user.preference.npi}秒/页, 关键词过滤: 包含${focusSkills.value.length}个, 排除${excludeKeywords.value.length}个`);
+    logRecorder.info(`投递过滤设置保存成功 - 活跃度过滤: ${userStore.user.preference.acE ? '开启' : '关闭'}, 传统投递规则: ${userStore.user.preference.traditionalDeliveryE ? '开启' : '关闭'}, 自定义招呼语: ${userStore.user.preference.customGreetingEnabled ? '开启' : '关闭'}, 投递频率: ${userStore.user.preference.pi}秒/次, 翻页等待: ${userStore.user.preference.npi}秒/页, 关键词过滤: 包含${focusSkills.value.length}个, 排除${excludeKeywords.value.length}个`);
 
     showAppMessage({
       message: '投递过滤设置保存成功',

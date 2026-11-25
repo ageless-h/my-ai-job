@@ -123,19 +123,29 @@ export class LocalDB {
     await this.ensureDB().clear('userProfile');
   }
 
-  static async savePreferences(preferences: UserPreferences): Promise<void> {
-    try {
-      const sanitized = JSON.parse(JSON.stringify(preferences)) as UserPreferences;
-      await this.ensureDB().put('preferences', sanitized);
-    } catch (error) {
-      console.error('Failed to sanitize preferences for IndexedDB:', error);
-      throw error;
-    }
+  static async savePreferences(accountId: unknown, preferences: Partial<UserPreferences>): Promise<void> {
+    const id = preferenceAccountKey(accountId);
+    const sanitized = JSON.parse(JSON.stringify(preferences));
+    await this.ensureDB().put('preferences', { ...sanitized, id, accountScoped: true });
   }
 
-  static async getPreferences(): Promise<UserPreferences | undefined> {
-    const preferences = await this.ensureDB().getAll('preferences');
-    return preferences[0];
+  static async getPreferences(accountId: unknown, legacyProfile?: unknown): Promise<UserPreferences | undefined> {
+    const id = preferenceAccountKey(accountId);
+    const tx = this.ensureDB().transaction('preferences', 'readwrite');
+    let current = await tx.store.get(id);
+    // Old delivery-filter saves wrote default plus a GM profile mirror carrying the owner's id.
+    // A missing owner or a differing snapshot cannot identify which account saved default.
+    if (!current?.accountScoped && legacyProfile && typeof legacyProfile === 'object' &&
+        'id' in legacyProfile && String(legacyProfile.id) === id && 'preference' in legacyProfile) {
+      const legacy = await tx.store.get('default');
+      if (legacy && samePreferenceSnapshot(legacy, legacyProfile.preference)) {
+        current = { ...current, ...legacy, id, accountScoped: true };
+        await tx.store.put(current);
+        await tx.store.delete('default');
+      }
+    }
+    await tx.done;
+    return current;
   }
 
   static async saveAiConfig(config: AiConfig): Promise<void> {
@@ -203,9 +213,10 @@ export class LocalDB {
   static async exportAllData(): Promise<StorageExportData> {
     const db = this.ensureDB();
 
+    const userProfile = await this.getUserProfile();
     return {
-      userProfile: await this.getUserProfile(),
-      preferences: await this.getPreferences(),
+      userProfile,
+      preferences: userProfile ? await this.getPreferences(userProfile.id) : undefined,
       aiConfigs: await db.getAll('aiConfigs'),
       deliveryRecords: await db.getAllFromIndex('deliveryRecords', 'byTimestamp'),
       chatSessions: await db.getAll('chatSessions'),
@@ -214,6 +225,9 @@ export class LocalDB {
   }
 
   static async importAllData(data: StorageImportData): Promise<void> {
+    const owner = data.preferences && preferenceAccountKey(data.preferences.id === 'default'
+      ? data.userProfile?.id : data.preferences.id);
+    if (owner && data.userProfile && owner !== data.userProfile.id) throw new Error('备份偏好账号不一致');
     const db = this.ensureDB();
     const tx = db.transaction(
       ['userProfile', 'preferences', 'aiConfigs', 'deliveryRecords', 'chatSessions', 'resumeData'],
@@ -221,11 +235,12 @@ export class LocalDB {
     );
 
     if (data.userProfile) {
+      await tx.objectStore('userProfile').clear();
       await tx.objectStore('userProfile').put(data.userProfile);
     }
 
-    if (data.preferences) {
-      await tx.objectStore('preferences').put(data.preferences);
+    if (data.preferences && owner) {
+      await tx.objectStore('preferences').put({ ...data.preferences, id: owner, accountScoped: true });
     }
 
     for (const config of data.aiConfigs ?? []) {
@@ -264,6 +279,19 @@ export class LocalDB {
     ]);
     await tx.done;
   }
+}
+
+function preferenceAccountKey(value: unknown): string {
+  const key = typeof value === 'number' || typeof value === 'string' ? String(value).trim() : '';
+  if (!key || key === 'default') throw new Error('无法确定偏好所属账号');
+  return key;
+}
+
+function samePreferenceSnapshot(stored: UserPreferences, snapshot: unknown): boolean {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return false;
+  const comparable = (value: object) => JSON.stringify(Object.entries(value)
+    .filter(([key]) => key !== 'id').sort(([a], [b]) => a.localeCompare(b)));
+  return comparable(stored) === comparable(snapshot);
 }
 
 function errorMessage(error: unknown): string {

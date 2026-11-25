@@ -263,6 +263,7 @@
 import { computed, ref, inject } from 'vue';
 import { showAppMessage } from '@/core/http/request';
 import { Tools } from '@/shared/utils/tools';
+import { parseAccountPreferenceBackup } from '@/shared/utils/preference';
 import { TampermonkeyApi } from '@/shared/utils/tampermonkey';
 import {
   extractResumeTextFromHtml,
@@ -1001,8 +1002,7 @@ const importSetting = async () => {
   })
     .then(({ value }: any) => {
       try {
-        const importedPreference = JSON.parse(value);
-        userStore.user.preference = { ...importedPreference };
+        userStore.user.preference = parseAccountPreferenceBackup(value);
         ElNotification({
           title: '导入成功',
           message: '投递设置已导入，请点击保存以持久化保存',
@@ -1119,8 +1119,7 @@ const handleSave = async () => {
   isSaving.value = true;
   try {
     // 保存到本地存储
-    await SecureLocalDB.savePreferences({
-      id: userStore.user.id || 'default',
+    await SecureLocalDB.savePreferences(userStore.user.id, {
       ...userStore.user.preference,
       phone: userStore.user.phone,
       email: userStore.user.email,

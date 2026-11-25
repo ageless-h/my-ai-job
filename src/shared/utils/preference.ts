@@ -28,8 +28,6 @@ type PreferenceMigrationEntry = {
 
 const PREFERENCE_KEY_MIGRATIONS: PreferenceMigrationEntry[] = [
   { nextKey: 'pushIntervalSec', legacyKeys: ['pi'] },
-  { nextKey: 'customGreeting', legacyKeys: ['cg'] },
-  { nextKey: 'customGreetingEnabled', legacyKeys: ['cgE'] },
   { nextKey: 'customImageSet', legacyKeys: ['cI'] },
   { nextKey: 'customImageEnabled', legacyKeys: ['cIE'] },
   { nextKey: 'dialogReplyDelaySec', legacyKeys: ['dr'] },
@@ -51,7 +49,18 @@ const PREFERENCE_KEY_MIGRATIONS: PreferenceMigrationEntry[] = [
   { nextKey: 'aiDeliveryJudgeOnInvalidResult', legacyKeys: ['aiDeliverJudgeOnInvalidResult'] },
 ];
 
+function migrateGreeting(preference: Record<string, unknown>): void {
+  // The old form kept editing these aliases even after loading canonical keys.
+  if (typeof preference.cg === 'string') preference.customGreeting = preference.cg;
+  if (preference.cgE !== undefined) {
+    preference.customGreetingEnabled = normalizePreferenceBoolean(preference.cgE, false);
+  }
+  delete preference.cg;
+  delete preference.cgE;
+}
+
 export const migratePreferenceKeys = (preference: Record<string, unknown>): void => {
+  migrateGreeting(preference);
   for (const entry of PREFERENCE_KEY_MIGRATIONS) {
     const nextValue = preference[entry.nextKey];
     if (nextValue === undefined) {
@@ -73,6 +82,17 @@ export const migratePreferenceKeys = (preference: Record<string, unknown>): void
     }
   }
 };
+
+export function parseAccountPreferenceBackup(raw: string): Record<string, unknown> {
+  const saved = JSON.parse(raw);
+  if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+    throw new Error('投递设置必须是 JSON 对象');
+  }
+  // An exported row can carry the source account's database key.
+  delete saved.id;
+  migrateGreeting(saved);
+  return saved;
+}
 
 export const getPreferenceValue = (
   preference: Record<string, unknown>,

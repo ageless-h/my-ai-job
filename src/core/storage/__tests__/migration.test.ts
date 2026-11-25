@@ -52,7 +52,7 @@ describe('storage migration tools', () => {
       token: 'legacy-token',
       authenticatedAt: now
     });
-    expect(await LocalDB.getPreferences()).toEqual({ id: 'default', pushIntervalSec: 60, chatMaxPerMinute: 3 });
+    expect(await LocalDB.getPreferences('user-123')).toEqual({ id: 'user-123', accountScoped: true, pushIntervalSec: 60, chatMaxPerMinute: 3 });
     expect(await SecureLocalDB.getAiConfigs()).toEqual([
       {
         id: 'config-1',

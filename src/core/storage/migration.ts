@@ -48,7 +48,9 @@ export async function migrateFromLegacy(): Promise<boolean> {
     }
 
     if (legacy.preferences) {
-      await LocalDB.savePreferences(legacy.preferences);
+      const owner = legacy.preferences.id === 'default' ? legacy.userProfile?.id : legacy.preferences.id;
+      if (!owner) throw new Error('旧偏好缺少账号标识');
+      await LocalDB.savePreferences(owner, legacy.preferences);
       migrated = true;
     }
 

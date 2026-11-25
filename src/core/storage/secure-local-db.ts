@@ -82,12 +82,12 @@ export class SecureLocalDB {
     await LocalDB.deleteAiConfig(id);
   }
 
-  static async savePreferences(preferences: UserPreferences): Promise<void> {
-    await LocalDB.savePreferences(preferences);
+  static async savePreferences(accountId: unknown, preferences: Partial<UserPreferences>): Promise<void> {
+    await LocalDB.savePreferences(accountId, preferences);
   }
 
-  static async getPreferences(): Promise<UserPreferences | undefined> {
-    return await LocalDB.getPreferences();
+  static async getPreferences(accountId: unknown): Promise<UserPreferences | undefined> {
+    return await LocalDB.getPreferences(accountId);
   }
 
   static async exportEncryptedData(): Promise<string> {

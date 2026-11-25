@@ -8,6 +8,7 @@ export interface UserProfile {
 }
 
 export interface UserPreferences {
+  accountScoped?: boolean;
   id: string;
   pushIntervalSec: number;
   maxDailyActions: number;

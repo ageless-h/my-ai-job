@@ -1259,8 +1259,8 @@ export function buildDeliveryFilterExportData(
       jce: Array.isArray(preference.jce) ? (preference.jce as string[]) : undefined,
     },
     communication: {
-      cgE: typeof preference.cgE === 'boolean' ? preference.cgE : undefined,
-      cg: typeof preference.cg === 'string' ? preference.cg : undefined,
+      cgE: typeof preference.customGreetingEnabled === 'boolean' ? preference.customGreetingEnabled : undefined,
+      cg: typeof preference.customGreeting === 'string' ? preference.customGreeting : undefined,
       pi: typeof preference.pi === 'number' ? preference.pi : undefined,
       npi: typeof preference.npi === 'number' ? preference.npi : undefined,
     },
@@ -1353,8 +1353,8 @@ export function importDeliveryFilterConfig(
 
   if (data.communication) {
     const c = data.communication;
-    if (c.cgE !== undefined) pref.cgE = c.cgE;
-    if (c.cg !== undefined) pref.cg = c.cg;
+    if (typeof c.cgE === 'boolean') pref.customGreetingEnabled = c.cgE;
+    if (typeof c.cg === 'string') pref.customGreeting = c.cg;
     if (c.pi !== undefined) pref.pi = c.pi;
     if (c.npi !== undefined) pref.npi = c.npi;
   }
