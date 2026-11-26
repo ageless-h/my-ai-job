@@ -1,3 +1,4 @@
+import { stripResumeFields } from './resume-fields';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 import type {
@@ -220,7 +221,7 @@ export class LocalDB {
       aiConfigs: await db.getAll('aiConfigs'),
       deliveryRecords: await db.getAllFromIndex('deliveryRecords', 'byTimestamp'),
       chatSessions: await db.getAll('chatSessions'),
-      resumeData: (await db.getAll('resumeData'))[0]
+      resumeData: userProfile ? await this.getResume(userProfile.id) : undefined
     };
   }
 
@@ -234,6 +235,13 @@ export class LocalDB {
       'readwrite'
     );
 
+    const existing = await tx.objectStore('userProfile').getAllKeys();
+    const active = existing[0];
+    const expected = data.userProfile?.id ?? active;
+    if ((active && expected !== active) || (owner && expected !== owner) ||
+        (data.resumeData && (!expected || data.resumeData.userId !== expected))) {
+      throw new Error('备份账号与当前账号、偏好或附件简历不一致');
+    }
     if (data.userProfile) {
       await tx.objectStore('userProfile').clear();
       await tx.objectStore('userProfile').put(data.userProfile);
@@ -259,6 +267,24 @@ export class LocalDB {
       await tx.objectStore('resumeData').put(data.resumeData);
     }
 
+    await tx.done;
+  }
+
+  static async clearAccountSensitiveData(accountId: string): Promise<void> {
+    const id = preferenceAccountKey(accountId);
+    const tx = this.ensureDB().transaction(['userProfile', 'preferences', 'resumeData', 'aiConfigs'], 'readwrite');
+    if (!(await tx.objectStore('userProfile').get(id))) throw new Error('当前登录账号已变化');
+    const preferences = tx.objectStore('preferences');
+    const saved = await preferences.get(id);
+    if (saved) {
+      stripResumeFields(saved);
+      await preferences.put(saved);
+    }
+    await tx.objectStore('resumeData').delete(id);
+    const models = tx.objectStore('aiConfigs');
+    for (const model of await models.getAll()) {
+      if (model.apiKey) await models.put({ ...model, apiKey: '' });
+    }
     await tx.done;
   }
 

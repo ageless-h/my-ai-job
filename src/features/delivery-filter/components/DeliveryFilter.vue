@@ -46,7 +46,7 @@
         <div class="switch-content">
           <span class="label">启用 AI 智能过滤</span>
           <div class="sub-desc mt-4">
-            开启后将使用 AI 针对岗位 JD 和您的简历进行精准判断。关闭后仅使用传统规则。
+            {{ readiness || (strategy === 'legacy' ? '按旧版比对在线简历匹配卡，可选择是否包含个人信息。' : '判定时会将简历正文和「我的能力与项目」发送给已配置的 AI 模型。') }}
           </div>
         </div>
         <el-switch
@@ -62,23 +62,28 @@
         />
       </div>
 
-      <div v-if="aiForm.enabled" class="ai-config-section mt-16">
+      <div class="ai-config-section mt-16">
         <div class="judge-divider"></div>
 
-        <div class="judge-inline-switches mt-16">
-          <div class="switch-content">
-            <span>包含求职者个人信息</span>
-            <div class="sub-desc mt-4">将您的基本信息（学历、经验等）加入 AI 判断上下文。</div>
-          </div>
-          <el-switch
-            v-model="aiForm.includeUserProfile"
-            inline-prompt
-            active-text="开"
-            inactive-text="关"
-          />
+        <el-form label-position="top">
+          <el-form-item label="AI 比对方式">
+            <el-select v-model="judgeMode" class="full-width">
+              <el-option label="原版在线简历匹配" value="online" />
+              <el-option label="投递简历与项目匹配" value="attachment" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="judgeMode === 'attachment'" label="投递简历判定策略">
+            <el-select v-model="strategy" class="full-width">
+              <el-option v-for="key in attachmentOptions" :key="key" :label="DELIVERY_STRATEGIES[key].label" :value="key" />
+            </el-select>
+            <div class="sub-desc mt-4">{{ DELIVERY_STRATEGIES[strategy].detail }}</div>
+          </el-form-item>
+        </el-form>
+        <el-checkbox v-if="strategy === 'legacy'" v-model="onlineIncludeProfile">在匹配卡中包含在线简历信息</el-checkbox>
+        <div v-if="aiForm.enabled && !readiness" class="mt-16">
+          <el-button @click="confirmModelConsent">确认本账号的 AI 简历使用授权</el-button>
         </div>
-
-        <el-form label-position="top" class="judge-form mt-16">
+        <el-form v-if="aiForm.enabled" label-position="top" class="judge-form mt-16">
           <el-form-item label="核心技能要求 (AI将重点匹配)">
             <el-select
               v-model="focusSkills"
@@ -90,7 +95,7 @@
               placeholder="输入技能并按回车确认，例如：Vue3"
             />
             <div class="sub-desc mt-4">
-              如果 JD 中明确不包含或不需要这些核心技能，AI 将给出低分。
+              判定时优先参考这些技能与岗位职责的关联。
             </div>
           </el-form-item>
 
@@ -385,16 +390,34 @@
 </template>
 
 <script setup lang="ts">
-import { inject, reactive, ref } from 'vue';
+import { computed, inject, reactive, ref } from 'vue';
 import { showAppMessage } from '@/core/http/request';
 import { Tools } from '@/shared/utils/tools';
 import { normalizePreferenceBoolean } from '@/shared/utils/preference';
+import { DELIVERY_STRATEGIES, deliveryProfileIssue, normalizeDeliveryStrategy, selectJudgeMode } from '@/shared/utils/delivery-strategy';
+import { requestResumeStorageConsent } from '@/shared/utils/sensitive-data-consent';
 import { UserStore } from '@/state/user';
 import { loginInterceptor } from '@/core/auth/auth';
 import { SecureLocalDB } from '@/core/storage';
 import { LogRecorder } from '@/core/engine/push-engine';
 
 const userStore = UserStore();
+const readiness = computed(() => userStore.user.preference.deliveryStrategy === 'legacy' ? '' : deliveryProfileIssue(userStore.user.preference));
+async function confirmModelConsent() {
+  const id = userStore.user.id;
+  if (!id) return showAppMessage({type: 'warning', message: '请先登录 BOSS'});
+  const ok = await requestResumeStorageConsent(String(id));
+  showAppMessage({type: ok ? 'success' : 'info', message: ok ? '当前账号已授权' : '授权已取消'});
+}
+const attachmentOptions = ['portfolio', 'expand', 'broad'] as const;
+const judgeMode = computed<'online' | 'attachment'>({
+  get: () => userStore.user.preference.deliveryStrategy === 'legacy' ? 'online' : 'attachment',
+  set: mode => selectJudgeMode(userStore.user.preference, mode),
+});
+const strategy = computed({
+  get: () => normalizeDeliveryStrategy(userStore.user.preference.deliveryStrategy),
+  set: (value) => { userStore.user.preference.deliveryStrategy = value; },
+});
 const axios2 = inject('$axios') as any;
 const PREFERENCE_SAVE_TIMEOUT_MS = 30_000;
 
@@ -416,8 +439,18 @@ const aiForm = reactive({
   onInvalidResult: currentConfig.onInvalidResult,
 });
 
+const onlineIncludeProfile = computed<boolean>({
+  get: () => normalizePreferenceBoolean(userStore.user.preference.legacyIncludeUserProfile, aiForm.includeUserProfile),
+  set: (enabled: boolean) => { userStore.user.preference.legacyIncludeUserProfile = enabled; },
+});
+
 // AI 和传统规则互斥逻辑
 const handleAiToggle = (enabled: boolean) => {
+  if (enabled && readiness.value) {
+    aiForm.enabled = false;
+    showAppMessage({ type: 'warning', message: readiness.value });
+    return;
+  }
   if (enabled && userStore.user.preference.traditionalDeliveryE) {
     userStore.user.preference.traditionalDeliveryE = false;
     showAppMessage({
@@ -508,7 +541,7 @@ const handleImportFile = async (event: Event) => {
 
     // 持久化
     await Tools.saveAiDeliveryJudgeConfig({
-      enabled: aiConfig.enabled,
+      enabled: aiForm.enabled,
       focusSkills: aiConfig.focusSkills,
       excludeKeywords: aiConfig.excludeKeywords,
       includeUserProfile: aiConfig.includeUserProfile,
@@ -525,7 +558,7 @@ const handleImportFile = async (event: Event) => {
     logRecorder.info('投递过滤配置导入成功');
 
     showAppMessage({
-      message: '投递过滤配置导入成功',
+      message: aiForm.enabled && readiness.value ? '已导入并保留 AI 模式。' + readiness.value : '投递过滤配置导入成功',
       type: 'success',
       duration: 2000,
     });
@@ -611,6 +644,11 @@ const submitForm = async () => {
     return;
   }
 
+  if (aiForm.enabled && readiness.value) {
+    showAppMessage({ type: 'warning', message: readiness.value });
+    return;
+  }
+
   // 保存 AI 配置
   Tools.saveAiDeliveryJudgeConfig({
     enabled: aiForm.enabled,
@@ -651,11 +689,12 @@ const submitForm = async () => {
 };
 
 const resetForm = () => {
-  userStore.user.preference = {};
+  const { deliveryResume, deliveryProjects } = userStore.user.preference;
+  userStore.user.preference = { deliveryResume, deliveryProjects, deliveryStrategy: 'expand' };
   preferenceDefaultValueHandler();
 
   // 重置 AI 配置
-  aiForm.enabled = true;
+  aiForm.enabled = !readiness.value;
   aiForm.includeUserProfile = true;
   aiForm.onAiError = 'reject';
   aiForm.onInvalidResult = 'reject';

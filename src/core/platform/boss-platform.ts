@@ -1,3 +1,8 @@
+import { buildApplicationJudge } from '@/core/delivery/application-judge';
+import { hasResumeStorageConsent } from '@/shared/utils/sensitive-data-consent';
+import { DEFAULT_AI_DELIVERY_JUDGE_PROMPT } from '@/shared/utils/config-manager';
+import { DELIVERY_STRATEGIES, normalizeDeliveryStrategy, deliveryProfileIssue } from '@/shared/utils/delivery-strategy';
+import { findExcludedJobKeyword } from './job-keyword-filter';
 import { AiPower } from '@/core/ai/ai-power';
 import {
   AbsPlatform,
@@ -26,6 +31,7 @@ import {
   PushLimitError,
   PushStopError,
 } from '@/shared/errors';
+import { describeFollowupTrace } from '@/core/protocol/describe-followup-trace';
 import { getFollowupSender, prepareFollowupImage, resolveFollowupRecipient, type FollowupContent } from '@/core/protocol/followup-channel';
 import { simulateScrollToEnd } from '@/shared/utils/scroll';
 import {
@@ -655,6 +661,8 @@ export class BossPlatform extends AbsPlatform {
    * @throws {NotMatchError} 当岗位已沟通、不满足传统规则、AI 判定不通过或 AI 回退失败时抛出。
    */
   async matchJob(jobDetail: any): Promise<boolean> {
+    const assertRun = this.captureDispatchGuard();
+    assertRun();
     const jobTitle = this.getJobKey(jobDetail);
 
     try {
@@ -664,6 +672,18 @@ export class BossPlatform extends AbsPlatform {
 
       const aiFilterModeEnabled = this.shouldEnableAiDeliveryJudge();
       const traditionalDeliveryEnabled = this.isTraditionalDeliveryEnabled();
+      const owner = String(runtimeUserStore.user.id || '');
+      const assertModelConsent = () => {
+        if (String(runtimeUserStore.user.id || '') !== owner || !hasResumeStorageConsent(owner)) {
+          throw new PushStopError('请确认当前账号并在投递过滤中授权 AI 使用简历');
+        }
+      };
+      if (aiFilterModeEnabled) {
+        const pref = runtimeUserStore.user.preference;
+        const issue = pref.deliveryStrategy === 'legacy' ? '' : deliveryProfileIssue(pref);
+        if (issue) throw new PushStopError(issue);
+        assertModelConsent();
+      }
 
       // 硬性约束始终执行，不受 AI/传统模式影响，这是投递的底线规则。
       this.applyCommonHardConstraints(jobDetail, jobTitle);
@@ -680,6 +700,8 @@ export class BossPlatform extends AbsPlatform {
         jobDetail
       );
 
+      assertRun();
+      this.checkActivityFilter(jobDetailExt.activeTimeDesc, jobTitle);
       if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
         this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
       }
@@ -691,16 +713,25 @@ export class BossPlatform extends AbsPlatform {
 
       if (aiFilterModeEnabled) {
         const aiConfig = Tools.getAiDeliveryJudgeConfig(runtimeUserStore?.user?.preference || {});
-        const user = runtimeUserStore?.user || {};
-
-        // AI 过滤依赖候选人画像，因此在请求前尽量补全运行时简历叙述文本。
-        await this.ensureRuntimeResumeNarrative(user);
-        const preference = user.preference || {};
-        const userProfile = buildAiDeliveryUserProfile(user, preference);
-        const prompt = buildAiDeliveryJudgePrompt(aiConfig, userProfile);
+        const user = runtimeUserStore.user;
+        const pref = user.preference;
+        const strategy = normalizeDeliveryStrategy(pref.deliveryStrategy);
+        const label = DELIVERY_STRATEGIES[strategy].label;
+        let prompt: string;
+        let evidence = '';
+        if (strategy === 'legacy') {
+          await this.ensureRuntimeResumeNarrative(user);
+          const legacyDefault = '你是求职投递决策助手。请先检查硬性约束（排除关键词/排除公司/薪资明显不符/信息不足），任一命中则返回 match=false；再基于候选人匹配卡与岗位匹配卡评估职能、行业、技能、经验、学历、城市匹配度。';
+          prompt = buildAiDeliveryJudgePrompt({ ...aiConfig, includeUserProfile: pref.legacyIncludeUserProfile ?? aiConfig.includeUserProfile, prompt: !aiConfig.prompt || aiConfig.prompt === DEFAULT_AI_DELIVERY_JUDGE_PROMPT ? legacyDefault : aiConfig.prompt }, buildAiDeliveryUserProfile(user, pref));
+        } else {
+          ({ prompt, evidence } = buildApplicationJudge(aiConfig, pref));
+        }
+        prompt += '\n排除词按岗位实际职责判断。明确否定的描述（例如“不是外包岗位”）不能单独作为拒绝理由。';
         const baseInfo = this.unpackBaseInfo(jobDetail);
         const extInfo = this.unpackExtInfo(jobDetailExt);
         const filterInput = buildAiDeliveryFilterJobInput(baseInfo, extInfo);
+        const excluded = findExcludedJobKeyword(aiConfig.excludeKeywords, jobDetail, jobDetailExt.postDescription);
+        if (excluded) throw new NotMatchError(jobTitle, excluded, `命中绝对排除关键词：${excluded}`);
         let judgeResult!: { match: boolean; reason: string; valid: boolean; parseMode: string };
         const judgeTraceId = this.buildAiJudgeTraceId();
         const filterPath = await AiPower.getFilterPath();
@@ -708,26 +739,29 @@ export class BossPlatform extends AbsPlatform {
           AI_DELIVERY_JUDGE_DEFAULT_TIMEOUT_MS
         );
         const aiJudgeStartedAt = Date.now();
-        const maskedUserProfile = this.maskAiDeliveryUserProfile(userProfile);
+
 
         this.preferenceLogRecorder.info(
           `工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${aiDeliveryJudgeTimeoutMs} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`
         );
         this.preferenceLogRecorder.info(
-          `工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(',')} extKeys=${Object.keys(extInfo).join(',')}`
+          `工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} 策略=${label} 资料字数=${evidence.length}`
         );
 
         // AI 判定采用有限次重试，缓解短暂网络抖动或模型服务瞬时失败。
         const MAX_AI_RETRIES = 3;
         for (let attempt = 1; attempt <= MAX_AI_RETRIES; attempt++) {
+          assertRun();
+          assertModelConsent();
           try {
             const filterStartedAt = Date.now();
             const filterResp = await AiPower.filter(
               prompt,
               filterInput.jobBaseInfo,
-              filterInput.jobExtInfo,
+              evidence ? `${filterInput.jobExtInfo}\n\n[候选资料]\n${evidence}` : filterInput.jobExtInfo,
               aiDeliveryJudgeTimeoutMs
             );
+            assertRun();
             const filterElapsed = Date.now() - filterStartedAt;
 
             // 将模型输出解析成统一结构，方便后续执行业务分支与日志记录。
@@ -738,10 +772,11 @@ export class BossPlatform extends AbsPlatform {
             const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
             const retryInfo = attempt > 1 ? ` (重试${attempt - 1}次后成功)` : '';
             this.preferenceLogRecorder.info(
-              `工作【${jobTitle}】AI投递判断完成${retryInfo} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`
+              `工作【${jobTitle}】AI投递判断完成${retryInfo} 策略=${label} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`
             );
             break;
           } catch (error: any) {
+            assertRun();
             if (attempt < MAX_AI_RETRIES) {
               const retryDelay = 1000 * attempt;
               this.preferenceLogRecorder.warn(
@@ -765,15 +800,10 @@ export class BossPlatform extends AbsPlatform {
                 this.preferenceLogRecorder.warn(
                   `工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`
                 );
-                this.applyTraditionalFallbackChecks(
-                  traditionalDeliveryEnabled,
-                  jobDetail,
-                  jobDetailExt,
-                  jobTitle,
-                  fallbackReason
-                );
+                this.applyTraditionalFallbackChecks(jobDetail, jobDetailExt, jobTitle);
                 jobDetail.aiDeliveryJudge = {
                   traceId: judgeTraceId,
+                  strategy: label,
                   path: filterPath,
                   match: true,
                   reason: fallbackReason,
@@ -794,6 +824,7 @@ export class BossPlatform extends AbsPlatform {
         // 无论最终是否命中，都将 AI 判定原始结果挂载到岗位对象，便于后续日志和面板展示。
         jobDetail.aiDeliveryJudge = {
           traceId: judgeTraceId,
+          strategy: label,
           path: filterPath,
           match: judgeResult.match,
           reason: judgeResult.reason,
@@ -817,15 +848,10 @@ export class BossPlatform extends AbsPlatform {
             this.preferenceLogRecorder.warn(
               `工作【${jobTitle}】AI结果不可解析触发传统规则回退 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} reason=${fallbackReason}`
             );
-            this.applyTraditionalFallbackChecks(
-              traditionalDeliveryEnabled,
-              jobDetail,
-              jobDetailExt,
-              jobTitle,
-              fallbackReason
-            );
+            this.applyTraditionalFallbackChecks(jobDetail, jobDetailExt, jobTitle);
             jobDetail.aiDeliveryJudge = {
               traceId: judgeTraceId,
+              strategy: label,
               path: filterPath,
               match: true,
               reason: fallbackReason,
@@ -946,7 +972,7 @@ export class BossPlatform extends AbsPlatform {
    * @returns 无返回值。
    */
   pausePush(): void {
-    this.pushStatus = PushStatus.PAUSE;
+    super.pausePush();
   }
 
   /**
@@ -992,7 +1018,8 @@ export class BossPlatform extends AbsPlatform {
    * @throws {PushStopError} 当平台要求人工验证时抛出。
    * @throws {PushLimitError} 当识别到当日沟通人数已达上限时抛出。
    */
-  async doPush(jobDetail: any, errorMsg = '', retries = 3): Promise<any> {
+  async doPush(jobDetail: any, errorMsg = '', retries = 3, assertRun = this.captureDispatchGuard()): Promise<any> {
+    assertRun();
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
       throw new PushRequestError(jobTitle, errorMsg || '投递重试多次失败');
@@ -1008,8 +1035,10 @@ export class BossPlatform extends AbsPlatform {
     let pushResp: any = { code: PushResultStatus.NOT_START, message: '' };
     try {
       // 统一由当前方法控制重试节奏，底层客户端只负责单次 HTTP 请求。
+      assertRun();
       pushResp = await this.apiClient.doPush(jobDetail, 1);
     } catch (error: any) {
+      assertRun();
       const latestError = `${error?.message || '投递请求失败'}`;
 
       // 仅对网络层失败进行递归重试，业务性失败由上层直接感知并处理。
@@ -1019,7 +1048,7 @@ export class BossPlatform extends AbsPlatform {
           `工作【${jobTitle}】投递失败 (尝试${4 - retries}/3); 正在等待重试; 原因：${latestError}`
         );
         await Tools.sleep(retryDelay);
-        return await this.doPush(jobDetail, latestError, retries - 1);
+        return await this.doPush(jobDetail, latestError, retries - 1, assertRun);
       }
       logger$1.debug(`工作【${jobTitle}】投递失败; 原因：${latestError}`);
       throw error;
@@ -1341,7 +1370,8 @@ export class BossPlatform extends AbsPlatform {
    * @param jobDetail 目标岗位详情对象。
    * @returns 收藏执行结果及校验信息。
    */
-  async triggerFavoriteByDom(jobDetail: any): Promise<FavoriteResp> {
+  async triggerFavoriteByDom(jobDetail: any, assertRun = this.captureDispatchGuard()): Promise<FavoriteResp> {
+    assertRun();
     const card = this.findJobCardByJobDetail(jobDetail);
     if (!card) {
       return { success: false, message: '未定位到岗位卡片' };
@@ -1362,6 +1392,7 @@ export class BossPlatform extends AbsPlatform {
 
     const cardClickable = card.querySelector("a.job-card-left,a.job-name,[class*='job-card-left']");
     const clickTarget = cardClickable || card;
+    assertRun();
     clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await Tools.sleep(300);
 
@@ -1395,6 +1426,7 @@ export class BossPlatform extends AbsPlatform {
       return { success: false, message: `未找到收藏按钮${debugHint}` };
     }
 
+    assertRun();
     if (typeof favoriteBtn.click === 'function') {
       favoriteBtn.click();
     } else {
@@ -1426,7 +1458,8 @@ export class BossPlatform extends AbsPlatform {
    * @returns 收藏结果对象。
    * @throws {FavoriteRequestError} 当收藏在多次重试后仍失败时抛出。
    */
-  async doCollect(jobDetail: any, errorMsg = '', retries = 2): Promise<any> {
+  async doCollect(jobDetail: any, errorMsg = '', retries = 2, assertRun = this.captureDispatchGuard()): Promise<any> {
+    assertRun();
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
       throw new FavoriteRequestError(jobTitle, errorMsg || '收藏重试多次失败');
@@ -1446,7 +1479,7 @@ export class BossPlatform extends AbsPlatform {
       }
 
       // 优先尝试 DOM 通道，因为它能与页面真实状态保持同步。
-      const domResult = await this.triggerFavoriteByDom(jobDetail);
+      const domResult = await this.triggerFavoriteByDom(jobDetail, assertRun);
       if (domResult.success && domResult.verified !== false) {
         return {
           code: 0,
@@ -1459,7 +1492,7 @@ export class BossPlatform extends AbsPlatform {
       latestError = domResult.message || latestError;
       if (this._collectMode) {
         await Tools.sleep(400);
-        return await this.doCollect(jobDetail, latestError, retries - 1);
+        return await this.doCollect(jobDetail, latestError, retries - 1, assertRun);
       }
 
       const preference = runtimeUserStore?.user?.preference || {};
@@ -1468,7 +1501,8 @@ export class BossPlatform extends AbsPlatform {
 
       try {
         // DOM 通道失败后再回退到接口调用，并通过页面状态再次确认收藏是否真正成功。
-        const apiResp = await this.apiClient.doCollect(jobDetail, retries);
+        assertRun();
+        const apiResp = await this.apiClient.doCollect(jobDetail, 1, assertRun);
         if (this.apiClient.isFavoriteSuccess(apiResp)) {
           const confirmCheck = await this.waitFavoriteConfirmed(jobDetail, 1000);
           if (confirmCheck.confirmed) {
@@ -1484,15 +1518,18 @@ export class BossPlatform extends AbsPlatform {
           latestError = `${(apiResp?.message || `收藏接口异常(${apiResp?.code || 'unknown'})`).toString()}`;
         }
       } catch (error: any) {
+        if (error instanceof PushStopError) throw error;
         latestError = error?.message || '收藏接口请求失败';
       }
     } catch (error: any) {
+      if (error instanceof PushStopError) throw error;
+      assertRun();
       latestError = error?.message || latestError;
     }
 
     logger$1.debug(`工作【${jobTitle}】收藏失败; 正在等待重试; 原因：${latestError}`);
     await Tools.sleep(600);
-    return await this.doCollect(jobDetail, latestError, retries - 1);
+    return await this.doCollect(jobDetail, latestError, retries - 1, assertRun);
   }
 
   /**
@@ -1585,6 +1622,8 @@ export class BossPlatform extends AbsPlatform {
    * @throws {PushRequestError} 当投递结果不是成功且不属于每日上限时抛出。
    */
   async pushAfterHandler(pushResult: any, jobDetail: any): Promise<any> {
+    const assertRun = this.captureDispatchGuard();
+    assertRun();
     const jobTitle = this.getJobKey(jobDetail);
     if (pushResult.message === 'Success' && pushResult.code === 0) {
       pushResultCounter.successIncr();
@@ -1595,13 +1634,22 @@ export class BossPlatform extends AbsPlatform {
         this.preferenceLogRecorder.info(`工作【${jobTitle}】 投递成功`);
       }
 
+      const parent = jobDetail.aiDeliveryJudge;
       for (const kind of ['image', 'text'] as const) {
         if (this._pushMock || this.pushStatus !== PushStatus.PUSHING) break;
+        const label = kind === 'image' ? '图片简历' : '自定义招呼语';
+        const trace = `F-${this.buildAiJudgeTraceId()}`;
+        const prefix = `工作【${jobTitle}】${label} followup=${trace} aiTrace=${parent?.traceId || '无'} 策略=${parent?.strategy || '常规'}`;
         try {
-          await this.sendFollowup(jobDetail, kind);
+          assertRun();
+          await this.sendFollowup(jobDetail, kind, assertRun, prefix);
         } catch (error) {
-          const label = kind === 'image' ? '图片简历' : '自定义招呼语';
-          this.preferenceLogRecorder.warn(`工作【${jobTitle}】${label}未提交：${error instanceof Error ? error.message : '准备失败'}`);
+          // Guard messages and network exceptions can include private request data.
+          const message = error instanceof Error ? error.message : '';
+          const reason = ['无法确认当前岗位的收件人','收件人与当前岗位不一致','职位页消息通道未就绪',
+            '请先上传有效的图片简历','招呼语为空','读取图片简历尺寸超时','图片简历尺寸无效','图片简历无法加载','图片简历地址无效'].includes(message)
+            ? message : this.pushStatus !== PushStatus.PUSHING ? '运行已停止' : '准备或调用异常，请查看上一阶段';
+          this.preferenceLogRecorder.warn(`${prefix} 操作结束：${reason}`);
         }
       }
 
@@ -1616,7 +1664,7 @@ export class BossPlatform extends AbsPlatform {
     throw new PushRequestError(jobTitle, pushResult.message);
   }
 
-  private async sendFollowup(job: any, kind: FollowupContent['kind']): Promise<void> {
+  private async sendFollowup(job: any, kind: FollowupContent['kind'], assertRun: () => void, prefix: string): Promise<void> {
     const image = kind === 'image';
     const readSettings = () => {
       const pref = runtimeUserStore.user.preference;
@@ -1629,9 +1677,15 @@ export class BossPlatform extends AbsPlatform {
       return { enabled: normalizePreferenceBoolean(enabled, false), value };
     };
     const queued = readSettings();
-    if (!queued.enabled) return;
-
-    const prefix = `工作【${this.getJobKey(job)}】${image ? '图片简历' : '自定义招呼语'}`;
+    if (!queued.enabled) {
+      if (!image) this.preferenceLogRecorder.info(`${prefix} 开关已关闭，跳过发送`);
+      return;
+    }
+    const started = Date.now();
+    const record = (message: string) => this.preferenceLogRecorder.info(`${prefix} +${Date.now() - started}ms ${message}`);
+    const visibility = typeof document === 'undefined' ? 'unknown' : document.visibilityState;
+    const online = typeof navigator?.onLine === 'boolean' ? (navigator.onLine ? '在线' : '离线') : '未知';
+    record(`开始准备 页面=${visibility} 浏览器网络=${online}`);
     let content: FollowupContent;
     if (image) {
       const urls = String(queued.value || '').split('===');
@@ -1643,10 +1697,16 @@ export class BossPlatform extends AbsPlatform {
       content = { kind: 'text', text };
     }
 
+    assertRun();
+    record('开始确认收件人');
     const recipient = resolveFollowupRecipient(await this.requestBossDataByCache(job), job.encryptBossId);
     const interval = this.getAutoContactSafetyConfig().minIntervalSec * 1000;
-    const deadline = Math.max(Date.now(), this.lastAutoContactTs + interval) + 5500;
+    const safetyWaitMs = Math.max(0, this.lastAutoContactTs + interval - Date.now());
+    record(`收件人已确认 安全间隔剩余=${safetyWaitMs}ms`);
+    const deadline = Date.now() + safetyWaitMs + 5500;
+    let waitingForChannel = false;
     while (this.pushStatus === PushStatus.PUSHING) {
+      assertRun();
       const remaining = this.lastAutoContactTs + interval - Date.now();
       if (remaining > 0) {
         await Tools.sleep(Math.min(remaining, 250));
@@ -1659,22 +1719,26 @@ export class BossPlatform extends AbsPlatform {
       }
       const sender = getFollowupSender(Tools.window, kind);
       if (!sender) {
+        if (!waitingForChannel) record('等待页面消息通道，最长5500ms');
+        waitingForChannel = true;
         if (Date.now() >= deadline) throw new Error('职位页消息通道未就绪');
         await Tools.sleep(250);
         continue;
       }
       const current = readSettings();
       if (!current.enabled || current.value !== queued.value) {
-        this.preferenceLogRecorder.info(`${prefix}因${current.enabled ? '内容已更改' : '开关已关闭'}已取消`);
+        this.preferenceLogRecorder.info(`${prefix} 因${current.enabled ? '内容已更改' : '开关已关闭'}已取消`);
         return;
       }
+      assertRun();
       this.lastAutoContactTs = Date.now();
-      const result = await sender(recipient, content);
-      if (result.status === 'submitted') this.preferenceLogRecorder.info(`${prefix}已提交`);
-      else this.preferenceLogRecorder.warn(`${prefix}${result.status === 'unknown' ? '结果未知，未补发' : '提交失败'}：${result.reason}`);
+      const result = await sender(recipient, content, event => record(describeFollowupTrace(event)));
+      if (result.status === 'delivered') this.preferenceLogRecorder.info(`${prefix} 已获服务器送达回执`);
+      else if (result.status === 'submitted') this.preferenceLogRecorder.info(`${prefix} 已提交，送达待确认`);
+      else this.preferenceLogRecorder.warn(`${prefix} ${result.status === 'unknown' ? '结果未知，未补发' : '提交失败'}：${result.reason}`);
       return;
     }
-    this.preferenceLogRecorder.info(`${prefix}因暂停已取消`);
+    this.preferenceLogRecorder.info(`${prefix} 因暂停已取消`);
   }
 
   /**
@@ -1957,23 +2021,19 @@ export class BossPlatform extends AbsPlatform {
    * @returns 满足当前活跃度配置时返回 `true`。
    */
   bossIsActive(activeText: string, activePreference: Record<string, boolean> = {}): boolean {
-    const checkWeek = normalizePreferenceBoolean(activePreference.acW, true);
-    const checkMonth = normalizePreferenceBoolean(activePreference.acM, true);
-    const checkYear = normalizePreferenceBoolean(activePreference.acY, true);
-
-    if (checkWeek && activeText.includes('周')) {
-      return false;
-    }
-
-    if (checkMonth && activeText.includes('月')) {
-      return false;
-    }
-
-    if (checkYear && activeText.includes('年')) {
-      return false;
-    }
-
+    const text = typeof activeText === 'string' ? activeText : '';
+    if (text.includes('年')) return normalizePreferenceBoolean(activePreference.acY, true);
+    if (text.includes('月')) return normalizePreferenceBoolean(activePreference.acM, true);
+    if (text.includes('周')) return normalizePreferenceBoolean(activePreference.acW, true);
+    // 近期或未标明档位的活跃度由其他硬条件处理。
     return true;
+  }
+
+  private checkActivityFilter(activeText: string, jobTitle: string): void {
+    const pref = runtimeUserStore?.user?.preference || {};
+    if (normalizePreferenceBoolean(pref.acE, false) && !this.bossIsActive(activeText, pref)) {
+      throw new NotMatchError(jobTitle, activeText, '不满足活跃度检查');
+    }
   }
 
   /**
@@ -1997,28 +2057,9 @@ export class BossPlatform extends AbsPlatform {
   }
 
   /**
-   * 在 AI 回退到传统规则时执行传统规则校验。
-   *
-   * @param traditionalDeliveryEnabled 是否启用了传统投递规则。
-   * @param jobDetail 岗位基础详情对象。
-   * @param jobDetailExt 岗位扩展详情对象。
-   * @param jobTitle 岗位可读标识。
-   * @param fallbackReason 触发回退的原因说明。
-   * @returns 无返回值。
-   * @throws {NotMatchError} 当未开启传统规则或传统规则校验失败时抛出。
+   * 显式选择回退策略时，按保存的传统规则检查本岗位。
    */
-  private applyTraditionalFallbackChecks(
-    traditionalDeliveryEnabled: boolean,
-    jobDetail: any,
-    jobDetailExt: any,
-    jobTitle: string,
-    fallbackReason: string
-  ): void {
-    if (!traditionalDeliveryEnabled) {
-      throw new NotMatchError(jobTitle, fallbackReason, 'AI回退传统投递失败：未开启传统投递规则');
-    }
-
-    // 回退时需要完整执行传统基础与扩展规则，确保 AI 失败不会放宽既有约束。
+  private applyTraditionalFallbackChecks(jobDetail: any, jobDetailExt: any, jobTitle: string): void {
     this.applyCommonHardConstraints(jobDetail, jobTitle);
     this.applyTraditionalSoftFilters(jobDetail, jobTitle);
     this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
@@ -2129,14 +2170,6 @@ export class BossPlatform extends AbsPlatform {
    */
   private applyTraditionalExtChecks(jobDetailExt: any, jobTitle: string): void {
     const preference = runtimeUserStore?.user?.preference || {};
-    const activeTimeDesc = jobDetailExt.activeTimeDesc;
-    const isActiveFilterEnabled = normalizePreferenceBoolean(preference.acE, false);
-
-    // 活跃度规则用于过滤长时间未上线的招聘方，降低低响应岗位占比。
-    if (isActiveFilterEnabled && !this.bossIsActive(activeTimeDesc, preference)) {
-      throw new NotMatchError(jobTitle, activeTimeDesc, '不满足活跃度检查');
-    }
-
     const jobContent = jobDetailExt.postDescription;
     const jobContentExclude = preference.jce;
 
