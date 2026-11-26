@@ -157,7 +157,7 @@ export class BossApiClient {
    * @throws {FavoriteRequestError} 当收藏失败且重试次数耗尽时抛出
    * @throws {Error} 当未找到认证令牌或两个端点都失败时抛出
    */
-  async doCollect(jobDetail: any, retries = 2): Promise<FavoriteResponse> {
+  async doCollect(jobDetail: any, retries = 2, beforeRequest?: () => void): Promise<FavoriteResponse> {
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
       throw new FavoriteRequestError(jobTitle, '收藏重试多次失败');
@@ -173,6 +173,7 @@ export class BossApiClient {
         throw new Error('未找到认证令牌');
       }
 
+      beforeRequest?.();
       // 尝试第一个收藏端点（标记感兴趣）
       try {
         const response: AxiosResponse<FavoriteResponse> = await axios.post(
@@ -188,6 +189,7 @@ export class BossApiClient {
         logger.debug(`第一个收藏端点失败，尝试备用端点`);
       }
 
+      beforeRequest?.();
       // 尝试第二个收藏端点（收藏职位）
       const response: AxiosResponse<FavoriteResponse> = await axios.post(
         requests[1].url,
@@ -210,7 +212,7 @@ export class BossApiClient {
           `工作【${jobTitle}】收藏失败 (尝试${3 - retries}/2); 正在等待重试; 原因：${latestError}`
         );
         await Tools.sleep(retryDelay);
-        return await this.doCollect(jobDetail, retries - 1);
+        return await this.doCollect(jobDetail, retries - 1, beforeRequest);
       }
 
       logger.debug(`工作【${jobTitle}】收藏失败; 原因：${latestError}`);

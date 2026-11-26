@@ -1,3 +1,8 @@
+import { buildApplicationJudge } from '@/core/delivery/application-judge';
+import { hasResumeStorageConsent } from '@/shared/utils/sensitive-data-consent';
+import { DEFAULT_AI_DELIVERY_JUDGE_PROMPT } from '@/shared/utils/config-manager';
+import { DELIVERY_STRATEGIES, normalizeDeliveryStrategy, deliveryProfileIssue } from '@/shared/utils/delivery-strategy';
+import { findExcludedJobKeyword } from './job-keyword-filter';
 import { AiPower } from '@/core/ai/ai-power';
 import {
   AbsPlatform,
@@ -26,7 +31,8 @@ import {
   PushLimitError,
   PushStopError,
 } from '@/shared/errors';
-import { Message } from '@/core/protocol/message';
+import { describeFollowupTrace } from '@/core/protocol/describe-followup-trace';
+import { getFollowupSender, prepareFollowupImage, resolveFollowupRecipient, type FollowupContent } from '@/core/protocol/followup-channel';
 import { simulateScrollToEnd } from '@/shared/utils/scroll';
 import {
   querySelectorWithFallback,
@@ -51,88 +57,6 @@ const toRecord = (value: unknown): Record<string, unknown> => {
     ? (value as Record<string, unknown>)
     : {};
 };
-
-async function setChatWebsocket(): Promise<void> {
-  logger$1.info('check ChatWebsocket runtime channels');
-  if (!Tools.isBossDomainHost(Tools.getCurrentHostname())) {
-    logger$1.warn('当前域名不受信任，跳过消息通道初始化');
-    return;
-  }
-
-  const runtimeWindow = Tools.window as Window & {
-    ChatWebsocket?: unknown;
-    ChatWebsocketImage?: unknown;
-  };
-  if (!runtimeWindow.ChatWebsocketImage && runtimeWindow.ChatWebsocket) {
-    runtimeWindow.ChatWebsocketImage = runtimeWindow.ChatWebsocket;
-    logger$1.info('复用 ChatWebsocket 作为图片消息通道');
-    return;
-  }
-
-  if (runtimeWindow.ChatWebsocketImage) {
-    logger$1.info('图片消息通道已就绪');
-    return;
-  }
-
-  const scriptCandidates = [
-    'https://www.zhipin.com/web/common/security-js/socket.js',
-    'https://static.zhipin.com/web/common/security-js/socket.js',
-  ];
-
-  const loadScript = (src: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if (!Tools.isTrustedBossStaticUrl(src)) {
-        resolve(false);
-        return;
-      }
-
-      const existing = document.querySelector(`script[src=\"${src}\"]`) as HTMLScriptElement | null;
-      if (existing) {
-        if (runtimeWindow.ChatWebsocketImage || runtimeWindow.ChatWebsocket) {
-          resolve(true);
-          return;
-        }
-
-        existing.addEventListener('load', () => resolve(true), { once: true });
-        existing.addEventListener('error', () => resolve(false), { once: true });
-        window.setTimeout(
-          () => resolve(!!(runtimeWindow.ChatWebsocketImage || runtimeWindow.ChatWebsocket)),
-          1800
-        );
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = true;
-      script.addEventListener('load', () => resolve(true), { once: true });
-      script.addEventListener('error', () => resolve(false), { once: true });
-      document.head.appendChild(script);
-      window.setTimeout(
-        () => resolve(!!(runtimeWindow.ChatWebsocketImage || runtimeWindow.ChatWebsocket)),
-        2500
-      );
-    });
-  };
-
-  for (const scriptSrc of scriptCandidates) {
-    const loaded = await loadScript(scriptSrc);
-    if (!loaded) {
-      continue;
-    }
-
-    if (!runtimeWindow.ChatWebsocketImage && runtimeWindow.ChatWebsocket) {
-      runtimeWindow.ChatWebsocketImage = runtimeWindow.ChatWebsocket;
-    }
-
-    if (runtimeWindow.ChatWebsocketImage) {
-      logger$1.info('图片消息通道已通过 socket.js 初始化');
-      return;
-    }
-  }
-
-  logger$1.warn('未发现可用消息通道，自动图片消息将跳过');
-}
 
 /**
  * 收藏动作在不同执行通道下的统一返回结构。
@@ -294,7 +218,6 @@ export class BossPlatform extends AbsPlatform {
     this.lastRecommendListSignature = '';
     this.recommendNoProgressRounds = 0;
     this.sessionProcessedJobKeys.clear();
-    this.lastAutoContactTs = 0;
   }
 
   private getStableJobRuntimeKey(jobDetail: any): string {
@@ -499,26 +422,6 @@ export class BossPlatform extends AbsPlatform {
 
       guard++;
     }
-  }
-
-  /**
-   * 执行自动沟通安全校验，限制发送频率。
-   *
-   * @param _kind 本次自动沟通的类型，区分文本消息和图片简历。
-   * @returns 无返回值。
-   * @throws {Error} 当发送过快时抛出。
-   */
-  private enforceAutoContactSafety(_kind: 'message' | 'image'): void {
-    const safety = this.getAutoContactSafetyConfig();
-    const now = Date.now();
-    const elapsedSec = (now - this.lastAutoContactTs) / 1000;
-    if (this.lastAutoContactTs > 0 && elapsedSec < safety.minIntervalSec) {
-      throw new Error(
-        `自动${_kind === 'image' ? '发图' : '发消息'}触发过快，需间隔至少${safety.minIntervalSec}秒`
-      );
-    }
-
-    this.lastAutoContactTs = now;
   }
 
   /**
@@ -758,6 +661,8 @@ export class BossPlatform extends AbsPlatform {
    * @throws {NotMatchError} 当岗位已沟通、不满足传统规则、AI 判定不通过或 AI 回退失败时抛出。
    */
   async matchJob(jobDetail: any): Promise<boolean> {
+    const assertRun = this.captureDispatchGuard();
+    assertRun();
     const jobTitle = this.getJobKey(jobDetail);
 
     try {
@@ -767,6 +672,18 @@ export class BossPlatform extends AbsPlatform {
 
       const aiFilterModeEnabled = this.shouldEnableAiDeliveryJudge();
       const traditionalDeliveryEnabled = this.isTraditionalDeliveryEnabled();
+      const owner = String(runtimeUserStore.user.id || '');
+      const assertModelConsent = () => {
+        if (String(runtimeUserStore.user.id || '') !== owner || !hasResumeStorageConsent(owner)) {
+          throw new PushStopError('请确认当前账号并在投递过滤中授权 AI 使用简历');
+        }
+      };
+      if (aiFilterModeEnabled) {
+        const pref = runtimeUserStore.user.preference;
+        const issue = pref.deliveryStrategy === 'legacy' ? '' : deliveryProfileIssue(pref);
+        if (issue) throw new PushStopError(issue);
+        assertModelConsent();
+      }
 
       // 硬性约束始终执行，不受 AI/传统模式影响，这是投递的底线规则。
       this.applyCommonHardConstraints(jobDetail, jobTitle);
@@ -783,6 +700,8 @@ export class BossPlatform extends AbsPlatform {
         jobDetail
       );
 
+      assertRun();
+      this.checkActivityFilter(jobDetailExt.activeTimeDesc, jobTitle);
       if (!aiFilterModeEnabled && traditionalDeliveryEnabled) {
         this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
       }
@@ -794,16 +713,25 @@ export class BossPlatform extends AbsPlatform {
 
       if (aiFilterModeEnabled) {
         const aiConfig = Tools.getAiDeliveryJudgeConfig(runtimeUserStore?.user?.preference || {});
-        const user = runtimeUserStore?.user || {};
-
-        // AI 过滤依赖候选人画像，因此在请求前尽量补全运行时简历叙述文本。
-        await this.ensureRuntimeResumeNarrative(user);
-        const preference = user.preference || {};
-        const userProfile = buildAiDeliveryUserProfile(user, preference);
-        const prompt = buildAiDeliveryJudgePrompt(aiConfig, userProfile);
+        const user = runtimeUserStore.user;
+        const pref = user.preference;
+        const strategy = normalizeDeliveryStrategy(pref.deliveryStrategy);
+        const label = DELIVERY_STRATEGIES[strategy].label;
+        let prompt: string;
+        let evidence = '';
+        if (strategy === 'legacy') {
+          await this.ensureRuntimeResumeNarrative(user);
+          const legacyDefault = '你是求职投递决策助手。请先检查硬性约束（排除关键词/排除公司/薪资明显不符/信息不足），任一命中则返回 match=false；再基于候选人匹配卡与岗位匹配卡评估职能、行业、技能、经验、学历、城市匹配度。';
+          prompt = buildAiDeliveryJudgePrompt({ ...aiConfig, includeUserProfile: pref.legacyIncludeUserProfile ?? aiConfig.includeUserProfile, prompt: !aiConfig.prompt || aiConfig.prompt === DEFAULT_AI_DELIVERY_JUDGE_PROMPT ? legacyDefault : aiConfig.prompt }, buildAiDeliveryUserProfile(user, pref));
+        } else {
+          ({ prompt, evidence } = buildApplicationJudge(aiConfig, pref));
+        }
+        prompt += '\n排除词按岗位实际职责判断。明确否定的描述（例如“不是外包岗位”）不能单独作为拒绝理由。';
         const baseInfo = this.unpackBaseInfo(jobDetail);
         const extInfo = this.unpackExtInfo(jobDetailExt);
         const filterInput = buildAiDeliveryFilterJobInput(baseInfo, extInfo);
+        const excluded = findExcludedJobKeyword(aiConfig.excludeKeywords, jobDetail, jobDetailExt.postDescription);
+        if (excluded) throw new NotMatchError(jobTitle, excluded, `命中绝对排除关键词：${excluded}`);
         let judgeResult!: { match: boolean; reason: string; valid: boolean; parseMode: string };
         const judgeTraceId = this.buildAiJudgeTraceId();
         const filterPath = await AiPower.getFilterPath();
@@ -811,26 +739,29 @@ export class BossPlatform extends AbsPlatform {
           AI_DELIVERY_JUDGE_DEFAULT_TIMEOUT_MS
         );
         const aiJudgeStartedAt = Date.now();
-        const maskedUserProfile = this.maskAiDeliveryUserProfile(userProfile);
+
 
         this.preferenceLogRecorder.info(
           `工作【${jobTitle}】开始AI投递判断 trace=${judgeTraceId} path=${filterPath} timeoutMs=${aiDeliveryJudgeTimeoutMs} onAiError=${aiConfig.onAiError} onInvalidResult=${aiConfig.onInvalidResult}`
         );
         this.preferenceLogRecorder.info(
-          `工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} includeUserProfile=${aiConfig.includeUserProfile} userProfile=${JSON.stringify(maskedUserProfile)} baseKeys=${Object.keys(baseInfo).join(',')} extKeys=${Object.keys(extInfo).join(',')}`
+          `工作【${jobTitle}】AI输入摘要 trace=${judgeTraceId} promptChars=${prompt.length} baseInfoChars=${filterInput.jobBaseInfo.length} extInfoChars=${filterInput.jobExtInfo.length} 策略=${label} 资料字数=${evidence.length}`
         );
 
         // AI 判定采用有限次重试，缓解短暂网络抖动或模型服务瞬时失败。
         const MAX_AI_RETRIES = 3;
         for (let attempt = 1; attempt <= MAX_AI_RETRIES; attempt++) {
+          assertRun();
+          assertModelConsent();
           try {
             const filterStartedAt = Date.now();
             const filterResp = await AiPower.filter(
               prompt,
               filterInput.jobBaseInfo,
-              filterInput.jobExtInfo,
+              evidence ? `${filterInput.jobExtInfo}\n\n[候选资料]\n${evidence}` : filterInput.jobExtInfo,
               aiDeliveryJudgeTimeoutMs
             );
+            assertRun();
             const filterElapsed = Date.now() - filterStartedAt;
 
             // 将模型输出解析成统一结构，方便后续执行业务分支与日志记录。
@@ -841,10 +772,11 @@ export class BossPlatform extends AbsPlatform {
             const aiJudgeElapsedSec = (aiJudgeElapsed / 1000).toFixed(2);
             const retryInfo = attempt > 1 ? ` (重试${attempt - 1}次后成功)` : '';
             this.preferenceLogRecorder.info(
-              `工作【${jobTitle}】AI投递判断完成${retryInfo} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`
+              `工作【${jobTitle}】AI投递判断完成${retryInfo} 策略=${label} trace=${judgeTraceId} path=${filterPath} total=${aiJudgeElapsed}ms (${aiJudgeElapsedSec}s) filter=${filterElapsed}ms parse=${parseElapsed}ms parseMode=${judgeResult.parseMode} match=${judgeResult.match} reason=${judgeResult.reason}`
             );
             break;
           } catch (error: any) {
+            assertRun();
             if (attempt < MAX_AI_RETRIES) {
               const retryDelay = 1000 * attempt;
               this.preferenceLogRecorder.warn(
@@ -868,15 +800,10 @@ export class BossPlatform extends AbsPlatform {
                 this.preferenceLogRecorder.warn(
                   `工作【${jobTitle}】AI失败触发传统规则回退 trace=${judgeTraceId} reason=${fallbackReason}`
                 );
-                this.applyTraditionalFallbackChecks(
-                  traditionalDeliveryEnabled,
-                  jobDetail,
-                  jobDetailExt,
-                  jobTitle,
-                  fallbackReason
-                );
+                this.applyTraditionalFallbackChecks(jobDetail, jobDetailExt, jobTitle);
                 jobDetail.aiDeliveryJudge = {
                   traceId: judgeTraceId,
+                  strategy: label,
                   path: filterPath,
                   match: true,
                   reason: fallbackReason,
@@ -897,6 +824,7 @@ export class BossPlatform extends AbsPlatform {
         // 无论最终是否命中，都将 AI 判定原始结果挂载到岗位对象，便于后续日志和面板展示。
         jobDetail.aiDeliveryJudge = {
           traceId: judgeTraceId,
+          strategy: label,
           path: filterPath,
           match: judgeResult.match,
           reason: judgeResult.reason,
@@ -920,15 +848,10 @@ export class BossPlatform extends AbsPlatform {
             this.preferenceLogRecorder.warn(
               `工作【${jobTitle}】AI结果不可解析触发传统规则回退 trace=${judgeTraceId} path=${filterPath} parseMode=${judgeResult.parseMode} reason=${fallbackReason}`
             );
-            this.applyTraditionalFallbackChecks(
-              traditionalDeliveryEnabled,
-              jobDetail,
-              jobDetailExt,
-              jobTitle,
-              fallbackReason
-            );
+            this.applyTraditionalFallbackChecks(jobDetail, jobDetailExt, jobTitle);
             jobDetail.aiDeliveryJudge = {
               traceId: judgeTraceId,
+              strategy: label,
               path: filterPath,
               match: true,
               reason: fallbackReason,
@@ -1049,7 +972,7 @@ export class BossPlatform extends AbsPlatform {
    * @returns 无返回值。
    */
   pausePush(): void {
-    this.pushStatus = PushStatus.PAUSE;
+    super.pausePush();
   }
 
   /**
@@ -1095,7 +1018,8 @@ export class BossPlatform extends AbsPlatform {
    * @throws {PushStopError} 当平台要求人工验证时抛出。
    * @throws {PushLimitError} 当识别到当日沟通人数已达上限时抛出。
    */
-  async doPush(jobDetail: any, errorMsg = '', retries = 3): Promise<any> {
+  async doPush(jobDetail: any, errorMsg = '', retries = 3, assertRun = this.captureDispatchGuard()): Promise<any> {
+    assertRun();
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
       throw new PushRequestError(jobTitle, errorMsg || '投递重试多次失败');
@@ -1111,8 +1035,10 @@ export class BossPlatform extends AbsPlatform {
     let pushResp: any = { code: PushResultStatus.NOT_START, message: '' };
     try {
       // 统一由当前方法控制重试节奏，底层客户端只负责单次 HTTP 请求。
+      assertRun();
       pushResp = await this.apiClient.doPush(jobDetail, 1);
     } catch (error: any) {
+      assertRun();
       const latestError = `${error?.message || '投递请求失败'}`;
 
       // 仅对网络层失败进行递归重试，业务性失败由上层直接感知并处理。
@@ -1122,7 +1048,7 @@ export class BossPlatform extends AbsPlatform {
           `工作【${jobTitle}】投递失败 (尝试${4 - retries}/3); 正在等待重试; 原因：${latestError}`
         );
         await Tools.sleep(retryDelay);
-        return await this.doPush(jobDetail, latestError, retries - 1);
+        return await this.doPush(jobDetail, latestError, retries - 1, assertRun);
       }
       logger$1.debug(`工作【${jobTitle}】投递失败; 原因：${latestError}`);
       throw error;
@@ -1444,7 +1370,8 @@ export class BossPlatform extends AbsPlatform {
    * @param jobDetail 目标岗位详情对象。
    * @returns 收藏执行结果及校验信息。
    */
-  async triggerFavoriteByDom(jobDetail: any): Promise<FavoriteResp> {
+  async triggerFavoriteByDom(jobDetail: any, assertRun = this.captureDispatchGuard()): Promise<FavoriteResp> {
+    assertRun();
     const card = this.findJobCardByJobDetail(jobDetail);
     if (!card) {
       return { success: false, message: '未定位到岗位卡片' };
@@ -1465,6 +1392,7 @@ export class BossPlatform extends AbsPlatform {
 
     const cardClickable = card.querySelector("a.job-card-left,a.job-name,[class*='job-card-left']");
     const clickTarget = cardClickable || card;
+    assertRun();
     clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await Tools.sleep(300);
 
@@ -1498,6 +1426,7 @@ export class BossPlatform extends AbsPlatform {
       return { success: false, message: `未找到收藏按钮${debugHint}` };
     }
 
+    assertRun();
     if (typeof favoriteBtn.click === 'function') {
       favoriteBtn.click();
     } else {
@@ -1529,7 +1458,8 @@ export class BossPlatform extends AbsPlatform {
    * @returns 收藏结果对象。
    * @throws {FavoriteRequestError} 当收藏在多次重试后仍失败时抛出。
    */
-  async doCollect(jobDetail: any, errorMsg = '', retries = 2): Promise<any> {
+  async doCollect(jobDetail: any, errorMsg = '', retries = 2, assertRun = this.captureDispatchGuard()): Promise<any> {
+    assertRun();
     const jobTitle = this.getJobKey(jobDetail);
     if (retries === 0) {
       throw new FavoriteRequestError(jobTitle, errorMsg || '收藏重试多次失败');
@@ -1549,7 +1479,7 @@ export class BossPlatform extends AbsPlatform {
       }
 
       // 优先尝试 DOM 通道，因为它能与页面真实状态保持同步。
-      const domResult = await this.triggerFavoriteByDom(jobDetail);
+      const domResult = await this.triggerFavoriteByDom(jobDetail, assertRun);
       if (domResult.success && domResult.verified !== false) {
         return {
           code: 0,
@@ -1562,7 +1492,7 @@ export class BossPlatform extends AbsPlatform {
       latestError = domResult.message || latestError;
       if (this._collectMode) {
         await Tools.sleep(400);
-        return await this.doCollect(jobDetail, latestError, retries - 1);
+        return await this.doCollect(jobDetail, latestError, retries - 1, assertRun);
       }
 
       const preference = runtimeUserStore?.user?.preference || {};
@@ -1571,7 +1501,8 @@ export class BossPlatform extends AbsPlatform {
 
       try {
         // DOM 通道失败后再回退到接口调用，并通过页面状态再次确认收藏是否真正成功。
-        const apiResp = await this.apiClient.doCollect(jobDetail, retries);
+        assertRun();
+        const apiResp = await this.apiClient.doCollect(jobDetail, 1, assertRun);
         if (this.apiClient.isFavoriteSuccess(apiResp)) {
           const confirmCheck = await this.waitFavoriteConfirmed(jobDetail, 1000);
           if (confirmCheck.confirmed) {
@@ -1587,15 +1518,18 @@ export class BossPlatform extends AbsPlatform {
           latestError = `${(apiResp?.message || `收藏接口异常(${apiResp?.code || 'unknown'})`).toString()}`;
         }
       } catch (error: any) {
+        if (error instanceof PushStopError) throw error;
         latestError = error?.message || '收藏接口请求失败';
       }
     } catch (error: any) {
+      if (error instanceof PushStopError) throw error;
+      assertRun();
       latestError = error?.message || latestError;
     }
 
     logger$1.debug(`工作【${jobTitle}】收藏失败; 正在等待重试; 原因：${latestError}`);
     await Tools.sleep(600);
-    return await this.doCollect(jobDetail, latestError, retries - 1);
+    return await this.doCollect(jobDetail, latestError, retries - 1, assertRun);
   }
 
   /**
@@ -1654,257 +1588,10 @@ export class BossPlatform extends AbsPlatform {
     }
   }
 
-  /**
-   * 判断通用消息通道对象是否已连接。
-   *
-   * @param channel 运行时消息通道对象。
-   * @returns 通道存在且可发送时返回 `true`。
-   */
-  isSendChannelConnected(channel: any): boolean {
-    if (!channel) {
-      return false;
-    }
-
-    if (channel.client && typeof channel.client.isConnected === 'function') {
-      try {
-        return channel.client.isConnected();
-      } catch (_e) {
-        return false;
-      }
-    }
-
-    return typeof channel.send === 'function';
-  }
-
-  /**
-   * 判断 GeekChatCore 通道是否已连接。
-   *
-   * @param geekCore GeekChatCore 运行时实例。
-   * @returns 通道存在且连接正常时返回 `true`。
-   */
-  isGeekChannelConnected(geekCore: any): boolean {
-    if (!geekCore || typeof geekCore.getInstance !== 'function') {
-      return false;
-    }
-
-    try {
-      const instance = geekCore.getInstance?.();
-      const clientWrapper = instance?.getClient?.();
-      const client = clientWrapper?.client;
-      if (!client || typeof client.send !== 'function') {
-        return false;
-      }
-
-      if (typeof client.isConnected === 'function') {
-        return !!client.isConnected();
-      }
-
-      if (typeof client.connected === 'boolean') {
-        return client.connected;
-      }
-
-      if (typeof client.readyState === 'number') {
-        return client.readyState === 1;
-      }
-
-      return true;
-    } catch (_e) {
-      return false;
-    }
-  }
-
-  /**
-   * 汇总当前页面所有可用消息通道的存在性与连接状态。
-   *
-   * @returns 图片、文本和 Geek 通道的状态快照。
-   */
-  getSendChannelState(): {
-    imageExists: boolean;
-    imageConnected: boolean;
-    textExists: boolean;
-    textConnected: boolean;
-    geekExists: boolean;
-    geekConnected: boolean;
-  } {
-    const geekCore = Tools.window.GeekChatCore;
-    return {
-      imageExists: !!Tools.window.ChatWebsocketImage,
-      imageConnected: this.isSendChannelConnected(Tools.window.ChatWebsocketImage),
-      textExists: !!Tools.window.ChatWebsocket,
-      textConnected: this.isSendChannelConnected(Tools.window.ChatWebsocket),
-      geekExists: !!geekCore,
-      geekConnected: this.isGeekChannelConnected(geekCore),
-    };
-  }
-
-  /**
-   * 将消息通道状态格式化为便于日志输出的字符串。
-   *
-   * @param state 消息通道状态对象。
-   * @returns 适合输出到日志或异常信息中的紧凑状态串。
-   */
-  formatSendChannelState(state: {
-    imageExists: boolean;
-    imageConnected: boolean;
-    textExists: boolean;
-    textConnected: boolean;
-    geekExists: boolean;
-    geekConnected: boolean;
-  }): string {
-    return `image(${state.imageExists ? 'Y' : 'N'}/${state.imageConnected ? 'on' : 'off'}),text(${state.textExists ? 'Y' : 'N'}/${state.textConnected ? 'on' : 'off'}),geek(${state.geekExists ? 'Y' : 'N'}/${state.geekConnected ? 'on' : 'off'})`;
-  }
-
-  private getPageUidString(): string {
-    const uidValue = Tools.getPageUidString();
-    if (!uidValue) {
-      throw new Error('页面上下文 uid 为空');
-    }
-    return uidValue;
-  }
-
   private getBossTokenPreferCookie(): string {
     const pageMeta = Tools.window?._PAGE as { token?: unknown } | undefined;
     const token = Tools.getCookieValue('bst') || Tools.getPageToken() || `${pageMeta?.token || ''}`;
     return `${token || ''}`.trim();
-  }
-
-  /**
-   * 确保至少有一条消息发送通道可用。
-   *
-   * 方法会尝试初始化图片/文本通道，随后在限定时间内轮询状态，
-   * 并定期触发重连，以提高自动消息和图片简历发送的成功率。
-   *
-   * @param waitMs 最长等待时间，单位毫秒。
-   * @returns 任一发送通道准备就绪时返回 `true`，否则返回 `false`。
-   */
-  async ensureSendChannelReady(waitMs = 4500): Promise<boolean> {
-    if (!Tools.window.ChatWebsocketImage && typeof setChatWebsocket === 'function') {
-      await setChatWebsocket();
-    }
-
-    const tryInit = (channel: any) => {
-      if (!channel || typeof channel.init !== 'function') {
-        return;
-      }
-
-      if (this.isSendChannelConnected(channel)) {
-        return;
-      }
-
-      try {
-        channel.init();
-      } catch (e) {
-        logger$1.debug('初始化消息通道失败', e);
-      }
-    };
-
-    const tryInitGeekChatCore = () => {
-      const geekCore = Tools.window.GeekChatCore as { getInstance?: () => { init?: () => void; connect?: () => void } } | undefined;
-      if (!geekCore || typeof geekCore.getInstance !== 'function') {
-        return;
-      }
-
-      const geekCoreForCheck = geekCore as unknown;
-      if (this.isGeekChannelConnected(geekCoreForCheck)) {
-        return;
-      }
-
-      try {
-        const instance = geekCore.getInstance?.();
-        if (instance && typeof instance.init === 'function') {
-          instance.init();
-        } else if (instance && typeof instance.connect === 'function') {
-          instance.connect();
-        }
-      } catch (e) {
-        logger$1.debug('初始化 GeekChatCore 通道失败', e);
-      }
-    };
-
-    /**
-     * 检查 GeekChatCore 的 client.send 是否可用（不要求 isConnected）。
-     * Message.send() 实际发送时也只检查 client.send 是否存在，这里与之对齐。
-     */
-    const isGeekChatCoreSendable = (): boolean => {
-      const geekCore = Tools.window.GeekChatCore as { getInstance?: () => { getClient?: () => { client?: { send?: unknown } } } } | undefined;
-      if (!geekCore || typeof geekCore.getInstance !== 'function') {
-        return false;
-      }
-      try {
-        const client = geekCore.getInstance?.()?.getClient?.()?.client;
-        const sendable = !!client && typeof client.send === 'function';
-        if (sendable && !this.isGeekChannelConnected(geekCore as unknown)) {
-          logger$1.debug('GeekChatCore client.send 可用但 isConnected 返回 false，仍视为就绪');
-        }
-        return sendable;
-      } catch {
-        return false;
-      }
-    };
-
-    tryInit(Tools.window.ChatWebsocketImage);
-    tryInit(Tools.window.ChatWebsocket);
-    tryInitGeekChatCore();
-
-    const startTs = Date.now();
-    let reconnectTs = 0;
-    while (Date.now() - startTs < waitMs) {
-      const state = this.getSendChannelState();
-
-      // 只要任一通道可用，就允许后续发送逻辑继续执行。
-      if (state.imageConnected || state.textConnected || state.geekConnected) {
-        return true;
-      }
-
-      // GeekChatCore 存在但 isConnected 返回 false 时，只要 client.send 可用就视为就绪，
-      // 让 Message.send() 自行尝试实际发送。
-      if (state.geekExists && isGeekChatCoreSendable()) {
-        logger$1.debug('GeekChatCore 通道 client.send 可用，视为就绪');
-        return true;
-      }
-
-      if (Date.now() - reconnectTs > 1000) {
-        const reconnectChannels: Array<{ reConnection?: () => void } | undefined> = [
-          Tools.window.ChatWebsocketImage as { reConnection?: () => void } | undefined,
-          Tools.window.ChatWebsocket as { reConnection?: () => void } | undefined,
-        ];
-        reconnectChannels.forEach((channel) => {
-          if (!channel || typeof channel.reConnection !== 'function') {
-            return;
-          }
-
-          try {
-            // 对仍未连通的通道周期性发起重连，兼容页面懒初始化或掉线重连场景。
-            channel.reConnection();
-          } catch (e) {
-            logger$1.debug('消息通道重连触发失败', e);
-          }
-        });
-
-        try {
-          const geekCore = Tools.window.GeekChatCore as { getInstance?: () => { reconnect?: () => void; connect?: () => void } } | undefined;
-          if (geekCore && typeof geekCore.getInstance === 'function') {
-            const geekCoreForCheck = geekCore as unknown;
-            if (!this.isGeekChannelConnected(geekCoreForCheck)) {
-              const instance = geekCore.getInstance?.();
-              if (instance && typeof instance.reconnect === 'function') {
-                instance.reconnect();
-              } else if (instance && typeof instance.connect === 'function') {
-                instance.connect();
-              }
-            }
-          }
-        } catch (e) {
-          logger$1.debug('GeekChatCore 通道重连触发失败', e);
-        }
-
-        reconnectTs = Date.now();
-      }
-
-      await Tools.sleep(180);
-    }
-
-    return false;
   }
 
   private getRecommendPageScrollHeight(): number {
@@ -1935,6 +1622,8 @@ export class BossPlatform extends AbsPlatform {
    * @throws {PushRequestError} 当投递结果不是成功且不属于每日上限时抛出。
    */
   async pushAfterHandler(pushResult: any, jobDetail: any): Promise<any> {
+    const assertRun = this.captureDispatchGuard();
+    assertRun();
     const jobTitle = this.getJobKey(jobDetail);
     if (pushResult.message === 'Success' && pushResult.code === 0) {
       pushResultCounter.successIncr();
@@ -1945,21 +1634,23 @@ export class BossPlatform extends AbsPlatform {
         this.preferenceLogRecorder.info(`工作【${jobTitle}】 投递成功`);
       }
 
-      // 投递成功后的附加动作互不阻断：图片失败不影响消息发送，消息失败也不回滚投递结果。
-      try {
-        await this.pushAfterSendImage(jobDetail);
-      } catch (e: any) {
-        this.preferenceLogRecorder.warn(
-          `工作【${jobTitle}】发送图片简历失败 原因：${e?.message || e}`
-        );
-      }
-
-      try {
-        await this.pushAfterSendMsg(jobDetail);
-      } catch (e: any) {
-        this.preferenceLogRecorder.warn(
-          `工作【${jobTitle}】发送自定义消息失败 原因：${e?.message || e}`
-        );
+      const parent = jobDetail.aiDeliveryJudge;
+      for (const kind of ['image', 'text'] as const) {
+        if (this._pushMock || this.pushStatus !== PushStatus.PUSHING) break;
+        const label = kind === 'image' ? '图片简历' : '自定义招呼语';
+        const trace = `F-${this.buildAiJudgeTraceId()}`;
+        const prefix = `工作【${jobTitle}】${label} followup=${trace} aiTrace=${parent?.traceId || '无'} 策略=${parent?.strategy || '常规'}`;
+        try {
+          assertRun();
+          await this.sendFollowup(jobDetail, kind, assertRun, prefix);
+        } catch (error) {
+          // Guard messages and network exceptions can include private request data.
+          const message = error instanceof Error ? error.message : '';
+          const reason = ['无法确认当前岗位的收件人','收件人与当前岗位不一致','职位页消息通道未就绪',
+            '请先上传有效的图片简历','招呼语为空','读取图片简历尺寸超时','图片简历尺寸无效','图片简历无法加载','图片简历地址无效'].includes(message)
+            ? message : this.pushStatus !== PushStatus.PUSHING ? '运行已停止' : '准备或调用异常，请查看上一阶段';
+          this.preferenceLogRecorder.warn(`${prefix} 操作结束：${reason}`);
+        }
       }
 
       jobDetail.contact = true;
@@ -1973,125 +1664,81 @@ export class BossPlatform extends AbsPlatform {
     throw new PushRequestError(jobTitle, pushResult.message);
   }
 
-  /**
-   * 投递成功后发送自定义文本消息。
-   *
-   * @param jobDetail 已投递成功的岗位详情对象。
-   * @returns 无返回值。
-   * @throws {Error} 当消息通道不可用、BOSS 数据获取失败或消息发送失败时抛出。
-   */
-  async pushAfterSendMsg(jobDetail: any): Promise<void> {
-    const preference = runtimeUserStore?.user?.preference || {};
-    const customGreetingEnabled = normalizePreferenceBoolean(
-      getPreferenceValue(preference, 'customGreetingEnabled', 'cgE'),
-      false
-    );
-    if (!customGreetingEnabled || this._pushMock) {
+  private async sendFollowup(job: any, kind: FollowupContent['kind'], assertRun: () => void, prefix: string): Promise<void> {
+    const image = kind === 'image';
+    const readSettings = () => {
+      const pref = runtimeUserStore.user.preference;
+      const enabled = image
+        ? getPreferenceValue(pref, 'customImageEnabled', 'cIE')
+        : getPreferenceValue(pref, 'customGreetingEnabled', 'cgE');
+      const value = image
+        ? getPreferenceValue(pref, 'customImageSet', 'cI')
+        : getPreferenceValue(pref, 'customGreeting', 'cg');
+      return { enabled: normalizePreferenceBoolean(enabled, false), value };
+    };
+    const queued = readSettings();
+    if (!queued.enabled) {
+      if (!image) this.preferenceLogRecorder.info(`${prefix} 开关已关闭，跳过发送`);
       return;
     }
-
-    await Tools.sleep(Tools.getRandomNumber(700, 2200));
-    this.enforceAutoContactSafety('message');
-
-    // 发送前先确保页面运行时消息通道已就绪，避免直接丢消息。
-    const ready = await this.ensureSendChannelReady();
-    if (!ready) {
-      throw new Error(
-        `消息发送通道不可用(${this.formatSendChannelState(this.getSendChannelState())})`
-      );
+    const started = Date.now();
+    const record = (message: string) => this.preferenceLogRecorder.info(`${prefix} +${Date.now() - started}ms ${message}`);
+    const visibility = typeof document === 'undefined' ? 'unknown' : document.visibilityState;
+    const online = typeof navigator?.onLine === 'boolean' ? (navigator.onLine ? '在线' : '离线') : '未知';
+    record(`开始准备 页面=${visibility} 浏览器网络=${online}`);
+    let content: FollowupContent;
+    if (image) {
+      const urls = String(queued.value || '').split('===');
+      if (urls.length !== 2 || !urls.every(url => url.trim())) throw new Error('请先上传有效的图片简历');
+      content = await prepareFollowupImage(urls[0], urls[1]);
+    } else {
+      const text = queued.value;
+      if (typeof text !== 'string' || !text.trim()) throw new Error('招呼语为空');
+      content = { kind: 'text', text };
     }
 
-    const bossData = await this.requestBossDataByCache(jobDetail);
-    const customGreetingRaw = getPreferenceValue(preference, 'customGreeting', 'cg');
-    const customGreeting =
-      typeof customGreetingRaw === 'string'
-        ? customGreetingRaw
-        : customGreetingRaw == null
-          ? void 0
-          : `${customGreetingRaw}`;
-    const message = new Message({
-      form_uid: this.getPageUidString(),
-      to_uid: bossData.data.bossId.toString(),
-      to_name: jobDetail.encryptBossId,
-      content: customGreeting,
-      image: void 0,
-    });
-
-    let sendOk = message.send();
-    if (!sendOk) {
-      // 首次发送失败时进行一次短暂等待和通道重试，以兼容连接刚恢复但尚未稳定的场景。
-      await Tools.sleep(300);
-      await this.ensureSendChannelReady(2200);
-      sendOk = message.send();
-    }
-
-    if (!sendOk) {
-      throw new Error(`消息发送失败(${this.formatSendChannelState(this.getSendChannelState())})`);
-    }
-  }
-
-  /**
-   * 投递成功后发送图片简历。
-   *
-   * @param jobDetail 已投递成功的岗位详情对象。
-   * @returns 无返回值。
-   * @throws {Error} 当图片配置不合法、消息通道不可用、BOSS 数据获取失败或发送失败时抛出。
-   */
-  async pushAfterSendImage(jobDetail: any): Promise<void> {
-    const preference = runtimeUserStore?.user?.preference || {};
-    const customImageEnabled = normalizePreferenceBoolean(
-      getPreferenceValue(preference, 'customImageEnabled', 'cIE'),
-      false
-    );
-    if (!customImageEnabled || this._pushMock) {
+    assertRun();
+    record('开始确认收件人');
+    const recipient = resolveFollowupRecipient(await this.requestBossDataByCache(job), job.encryptBossId);
+    const interval = this.getAutoContactSafetyConfig().minIntervalSec * 1000;
+    const safetyWaitMs = Math.max(0, this.lastAutoContactTs + interval - Date.now());
+    record(`收件人已确认 安全间隔剩余=${safetyWaitMs}ms`);
+    const deadline = Date.now() + safetyWaitMs + 5500;
+    let waitingForChannel = false;
+    while (this.pushStatus === PushStatus.PUSHING) {
+      assertRun();
+      const remaining = this.lastAutoContactTs + interval - Date.now();
+      if (remaining > 0) {
+        await Tools.sleep(Math.min(remaining, 250));
+        continue;
+      }
+      const verification = this.getManualVerificationReason();
+      if (verification) {
+        this.pausePush();
+        throw new Error(verification);
+      }
+      const sender = getFollowupSender(Tools.window, kind);
+      if (!sender) {
+        if (!waitingForChannel) record('等待页面消息通道，最长5500ms');
+        waitingForChannel = true;
+        if (Date.now() >= deadline) throw new Error('职位页消息通道未就绪');
+        await Tools.sleep(250);
+        continue;
+      }
+      const current = readSettings();
+      if (!current.enabled || current.value !== queued.value) {
+        this.preferenceLogRecorder.info(`${prefix} 因${current.enabled ? '内容已更改' : '开关已关闭'}已取消`);
+        return;
+      }
+      assertRun();
+      this.lastAutoContactTs = Date.now();
+      const result = await sender(recipient, content, event => record(describeFollowupTrace(event)));
+      if (result.status === 'delivered') this.preferenceLogRecorder.info(`${prefix} 已获服务器送达回执`);
+      else if (result.status === 'submitted') this.preferenceLogRecorder.info(`${prefix} 已提交，送达待确认`);
+      else this.preferenceLogRecorder.warn(`${prefix} ${result.status === 'unknown' ? '结果未知，未补发' : '提交失败'}：${result.reason}`);
       return;
     }
-
-    await Tools.sleep(Tools.getRandomNumber(900, 2400));
-    this.enforceAutoContactSafety('image');
-
-    const customerImageSet = `${getPreferenceValue(preference, 'customImageSet', 'cI') || ''}`;
-    if (!customerImageSet) {
-      return;
-    }
-
-    const [originImage, tinyImage] = customerImageSet.split('===');
-    if (!originImage || !tinyImage) {
-      throw new Error('图片简历配置格式异常，请重新上传图片简历');
-    }
-
-    const ready = await this.ensureSendChannelReady(5500);
-    if (!ready) {
-      throw new Error(
-        `图片消息发送通道不可用(${this.formatSendChannelState(this.getSendChannelState())})`
-      );
-    }
-
-    const bossData = await this.requestBossDataByCache(jobDetail);
-    const message = new Message({
-      form_uid: this.getPageUidString(),
-      to_uid: bossData.data.bossId.toString(),
-      to_name: jobDetail.encryptBossId,
-      content: '',
-      image: {
-        originImage,
-        tinyImage,
-      },
-    });
-
-    let sendOk = message.send();
-    if (!sendOk) {
-      // 图片消息对连接稳定性更敏感，失败后同样进行一次短重连再补发。
-      await Tools.sleep(350);
-      await this.ensureSendChannelReady(2200);
-      sendOk = message.send();
-    }
-
-    if (!sendOk) {
-      throw new Error(
-        `图片消息发送失败(${this.formatSendChannelState(this.getSendChannelState())})`
-      );
-    }
+    this.preferenceLogRecorder.info(`${prefix} 因暂停已取消`);
   }
 
   /**
@@ -2374,23 +2021,19 @@ export class BossPlatform extends AbsPlatform {
    * @returns 满足当前活跃度配置时返回 `true`。
    */
   bossIsActive(activeText: string, activePreference: Record<string, boolean> = {}): boolean {
-    const checkWeek = normalizePreferenceBoolean(activePreference.acW, true);
-    const checkMonth = normalizePreferenceBoolean(activePreference.acM, true);
-    const checkYear = normalizePreferenceBoolean(activePreference.acY, true);
-
-    if (checkWeek && activeText.includes('周')) {
-      return false;
-    }
-
-    if (checkMonth && activeText.includes('月')) {
-      return false;
-    }
-
-    if (checkYear && activeText.includes('年')) {
-      return false;
-    }
-
+    const text = typeof activeText === 'string' ? activeText : '';
+    if (text.includes('年')) return normalizePreferenceBoolean(activePreference.acY, true);
+    if (text.includes('月')) return normalizePreferenceBoolean(activePreference.acM, true);
+    if (text.includes('周')) return normalizePreferenceBoolean(activePreference.acW, true);
+    // 近期或未标明档位的活跃度由其他硬条件处理。
     return true;
+  }
+
+  private checkActivityFilter(activeText: string, jobTitle: string): void {
+    const pref = runtimeUserStore?.user?.preference || {};
+    if (normalizePreferenceBoolean(pref.acE, false) && !this.bossIsActive(activeText, pref)) {
+      throw new NotMatchError(jobTitle, activeText, '不满足活跃度检查');
+    }
   }
 
   /**
@@ -2414,28 +2057,9 @@ export class BossPlatform extends AbsPlatform {
   }
 
   /**
-   * 在 AI 回退到传统规则时执行传统规则校验。
-   *
-   * @param traditionalDeliveryEnabled 是否启用了传统投递规则。
-   * @param jobDetail 岗位基础详情对象。
-   * @param jobDetailExt 岗位扩展详情对象。
-   * @param jobTitle 岗位可读标识。
-   * @param fallbackReason 触发回退的原因说明。
-   * @returns 无返回值。
-   * @throws {NotMatchError} 当未开启传统规则或传统规则校验失败时抛出。
+   * 显式选择回退策略时，按保存的传统规则检查本岗位。
    */
-  private applyTraditionalFallbackChecks(
-    traditionalDeliveryEnabled: boolean,
-    jobDetail: any,
-    jobDetailExt: any,
-    jobTitle: string,
-    fallbackReason: string
-  ): void {
-    if (!traditionalDeliveryEnabled) {
-      throw new NotMatchError(jobTitle, fallbackReason, 'AI回退传统投递失败：未开启传统投递规则');
-    }
-
-    // 回退时需要完整执行传统基础与扩展规则，确保 AI 失败不会放宽既有约束。
+  private applyTraditionalFallbackChecks(jobDetail: any, jobDetailExt: any, jobTitle: string): void {
     this.applyCommonHardConstraints(jobDetail, jobTitle);
     this.applyTraditionalSoftFilters(jobDetail, jobTitle);
     this.applyTraditionalExtChecks(jobDetailExt, jobTitle);
@@ -2546,14 +2170,6 @@ export class BossPlatform extends AbsPlatform {
    */
   private applyTraditionalExtChecks(jobDetailExt: any, jobTitle: string): void {
     const preference = runtimeUserStore?.user?.preference || {};
-    const activeTimeDesc = jobDetailExt.activeTimeDesc;
-    const isActiveFilterEnabled = normalizePreferenceBoolean(preference.acE, false);
-
-    // 活跃度规则用于过滤长时间未上线的招聘方，降低低响应岗位占比。
-    if (isActiveFilterEnabled && !this.bossIsActive(activeTimeDesc, preference)) {
-      throw new NotMatchError(jobTitle, activeTimeDesc, '不满足活跃度检查');
-    }
-
     const jobContent = jobDetailExt.postDescription;
     const jobContentExclude = preference.jce;
 

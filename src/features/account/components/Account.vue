@@ -42,6 +42,8 @@
       </el-form>
     </div>
 
+    <DeliveryProfile :key="profileRevision" />
+
     <div class="boss-card mt-16">
       <div class="card-title">
         在线简历库
@@ -260,9 +262,12 @@
 
 <script setup lang="ts">
 // @ts-nocheck
+import DeliveryProfile from './DeliveryProfile.vue';
 import { computed, ref, inject } from 'vue';
 import { showAppMessage } from '@/core/http/request';
+import { stripAccountResume } from '@/core/storage/resume-fields';
 import { Tools } from '@/shared/utils/tools';
+import { parseAccountPreferenceBackup } from '@/shared/utils/preference';
 import { TampermonkeyApi } from '@/shared/utils/tampermonkey';
 import {
   extractResumeTextFromHtml,
@@ -290,6 +295,7 @@ const resumeTextPreviewVisible = ref(false);
 const resumeTextPreviewContent = ref('');
 const viewResumeContentLoading = ref(false);
 const isClearingData = ref(false);
+const profileRevision = ref(0);
 const isSaving = ref(false);
 const hasResume = computed(() => {
   return Boolean(`${userStore.user?.resumeId || ''}`.trim() || getResumeTextForPreview());
@@ -973,6 +979,8 @@ const handleUploadSuccess = async (response: any) => {
 // ---- Export / Import settings (migrated from Preference) ----
 const exportSetting = async () => {
   const preference = { ...userStore.user.preference };
+  delete preference.deliveryResume;
+  delete preference.deliveryProjects;
   const exportData = JSON.stringify(preference, null, 2);
   try {
     await navigator.clipboard.writeText(exportData);
@@ -1001,8 +1009,11 @@ const importSetting = async () => {
   })
     .then(({ value }: any) => {
       try {
-        const importedPreference = JSON.parse(value);
-        userStore.user.preference = { ...importedPreference };
+        const imported = parseAccountPreferenceBackup(value);
+        delete imported.deliveryResume;
+        delete imported.deliveryProjects;
+        const { deliveryResume, deliveryProjects } = userStore.user.preference;
+        userStore.user.preference = { ...imported, deliveryResume, deliveryProjects };
         ElNotification({
           title: '导入成功',
           message: '投递设置已导入，请点击保存以持久化保存',
@@ -1023,8 +1034,10 @@ const importSetting = async () => {
 
 // ---- Clear Sensitive Data ----
 const handleClearSensitiveData = async () => {
+  const owner = userStore.user.id;
+  if (!owner) return showAppMessage({ type: 'warning', message: '请先登录要清理的账号' });
   ElMessageBox.confirm(
-    '此操作将清除本地存储的简历内容和所有 API 密钥，且无法恢复。是否继续？',
+    '将清除当前账号的简历和项目，以及本浏览器中所有账号共用的模型 API 密钥，并撤销相关授权。是否继续？',
     '清除敏感数据',
     {
       confirmButtonText: '确认清除',
@@ -1036,10 +1049,13 @@ const handleClearSensitiveData = async () => {
       isClearingData.value = true;
       try {
         const { clearAllSensitiveData } = await import('@/shared/utils/sensitive-data-consent');
-        clearAllSensitiveData();
+        profileRevision.value++;
+        if (owner !== userStore.user.id) throw new Error('账号已切换，请重新操作');
+        await clearAllSensitiveData(String(owner));
+        if (owner === userStore.user.id) stripAccountResume(userStore.user);
         ElNotification({
           title: '清除成功',
-          message: '已清除所有敏感数据并撤销授权',
+          message: '当前账号的简历、项目和共用模型密钥已清除，相关授权已撤销',
           type: 'success',
           duration: 3000,
         });
@@ -1119,8 +1135,7 @@ const handleSave = async () => {
   isSaving.value = true;
   try {
     // 保存到本地存储
-    await SecureLocalDB.savePreferences({
-      id: userStore.user.id || 'default',
+    await SecureLocalDB.savePreferences(userStore.user.id, {
       ...userStore.user.preference,
       phone: userStore.user.phone,
       email: userStore.user.email,

@@ -346,9 +346,10 @@ const handleAISeatStatusChange = async (val: boolean) => {
   if (!loginInterceptor()) return;
   try {
     // 保存到本地存储
-    const currentPrefs = await SecureLocalDB.getPreferences();
-    await SecureLocalDB.savePreferences({
-      ...(currentPrefs || { id: userStore.user.id || 'default' }),
+    const accountId = userStore.user.id;
+    const currentPrefs = await SecureLocalDB.getPreferences(accountId);
+    await SecureLocalDB.savePreferences(accountId, {
+      ...currentPrefs,
       aiSeatStatus: val ? 1 : 0,
     });
   } catch (_error: any) {
@@ -360,8 +361,7 @@ const handleAISeatStatusChange = async (val: boolean) => {
 const handleSavePreference = async () => {
   if (!loginInterceptor()) return;
   try {
-    await SecureLocalDB.savePreferences({
-      id: userStore.user.id || 'default',
+    await SecureLocalDB.savePreferences(userStore.user.id, {
       ...userStore.user.preference,
       aiSeatStatus: userStore.user.aiSeatStatus ? 1 : 0,
     });

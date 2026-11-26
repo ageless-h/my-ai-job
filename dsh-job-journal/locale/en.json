@@ -1,0 +1,7 @@
+{
+    "meta":  {
+                 "detail":  "docs/DETAIL.md",
+                 "title":  "Job journal",
+                 "description":  "Ask DSH about synced job applications, greeting receipts and timeouts, or look up a single trace. The current profile receives events at 127.0.0.1:18761. For first-time pairing, open data/dsh-job-journal/credentials.json in the active DSH profile and enter its code in the userscript. Previously synced events remain available after the browser closes."
+             }
+}

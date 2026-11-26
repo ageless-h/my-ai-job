@@ -1,0 +1,3 @@
+- insert:
+    - id: job-journal
+      name: '@local/dsh-job-journal'

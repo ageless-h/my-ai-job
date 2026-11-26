@@ -86,9 +86,9 @@ describe('LocalDB', () => {
         acY: false
       };
 
-      await LocalDB.savePreferences(preferences);
+      await LocalDB.savePreferences('user-1', preferences);
 
-      expect(await LocalDB.getPreferences()).toEqual(preferences);
+      expect(await LocalDB.getPreferences('user-1')).toEqual({ ...preferences, id: 'user-1', accountScoped: true });
     });
   });
 

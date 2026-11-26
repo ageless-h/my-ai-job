@@ -256,7 +256,12 @@ export function userRemoteLoad(): void {
       if (!profile) {
         throw new Error('用户未登录');
       }
-      const preferences = await LocalDB.getPreferences();
+      let legacyProfile: unknown;
+      try {
+        const raw = Tools.getStoredUserProfileRaw();
+        if (raw) legacyProfile = JSON.parse(raw);
+      } catch { /* Unreadable legacy mirrors cannot establish ownership. */ }
+      const preferences = await LocalDB.getPreferences(profile.id, legacyProfile);
 
       const localImportedResume = runtimeUserStore2.user?.importedResume;
       const localResumeId = runtimeUserStore2.user?.resumeId;

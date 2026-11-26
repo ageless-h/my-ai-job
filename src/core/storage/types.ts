@@ -8,6 +8,9 @@ export interface UserProfile {
 }
 
 export interface UserPreferences {
+  deliveryResume?: { name: string; source: 'local' | 'boss'; text: string };
+  deliveryProjects?: string;
+  accountScoped?: boolean;
   id: string;
   pushIntervalSec: number;
   maxDailyActions: number;

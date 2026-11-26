@@ -1,4 +1,7 @@
 // -*- coding: utf-8 -*-
+import { watch } from 'vue';
+import { LogJournal, journalStorage, type LogEntry } from './log-journal';
+export type { LogEntry } from './log-journal';
 import { getPreferenceValue } from '@/shared/utils/preference';
 import type { PushResultCounterRuntime, RuntimeUserStore } from '@/core/runtime/runtime-contracts';
 import { Logger, LogLevel } from '@/shared/utils/logger';
@@ -60,15 +63,6 @@ function runtimeUserStoreRef(): RuntimeUserStore {
   return runtimeUserStore;
 }
 
-function formatLogTimestamp(date: Date): string {
-  const pad = (value: number, size = 2): string => `${value}`.padStart(size, '0');
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  const seconds = pad(date.getSeconds());
-  const milliseconds = pad(date.getMilliseconds(), 3);
-  return `${hours}:${minutes}:${seconds}.${milliseconds}`;
-}
-
 export enum PushStatus {
   NOT_START = 0,
   PUSHING = 1,
@@ -82,68 +76,33 @@ export enum PushResultStatus {
   FAIL = 1,
 }
 
-type LogEntry = {
-  level: string;
-  message: string;
-  timestamp: string;
-};
+let activeJournal: LogJournal | undefined;
 
 export class LogRecorder extends Logger {
-  static LOGS_STORAGE_KEY = 'logs_data';
-  static logs: LogEntry[] = [];
-
-  persistTimer: number | null = null;
-  maxLogs = 1000;
+  private readonly journal: LogJournal;
 
   constructor(name = '') {
     super(name);
-    this.loadLogsFromStorage();
-    this.startPersistTimer();
-
-    // 页面卸载时清理定时器
-    window.addEventListener('beforeunload', () => {
-      this.destroy();
-    });
+    this.journal = activeJournal ??= new LogJournal(journalStorage(TampermonkeyApi.CUR_CK));
   }
 
-  loadLogsFromStorage(): void {
-    const storedLogs = TampermonkeyApi.GmGetValue<LogEntry[]>(LogRecorder.LOGS_STORAGE_KEY, []);
-    const existingTimestamps = new Set(LogRecorder.logs.map((log) => log.timestamp));
-    const uniqueStoredLogs = storedLogs.filter((log) => !existingTimestamps.has(log.timestamp));
-    LogRecorder.logs = [...LogRecorder.logs, ...uniqueStoredLogs];
+  get storageMode(): 'persistent' | 'memory' { return this.journal.storageMode; }
+
+  subscribe(listener: () => void): () => void {
+    return this.journal.subscribe(listener);
   }
 
-  startPersistTimer(): void {
-    this.persistTimer = window.setInterval(() => {
-      this.persistLogs();
-    }, 10000);
-  }
-
-  destroy(): void {
-    if (this.persistTimer !== null) {
-      window.clearInterval(this.persistTimer);
-      this.persistTimer = null;
-    }
-    this.persistLogs(); // 最后一次持久化
-  }
-
-  persistLogs(): void {
-    TampermonkeyApi.GmSetValue(LogRecorder.LOGS_STORAGE_KEY, LogRecorder.logs);
+  snapshot(): LogEntry[] {
+    return this.journal.snapshot();
   }
 
   clearLogs(): void {
-    LogRecorder.logs = [];
-    this.persistLogs();
+    this.journal.clear();
   }
 
   addLog(level: string, message: string): void {
-    const timestamp = formatLogTimestamp(new Date());
-    LogRecorder.logs.push({ level, message, timestamp });
-    if (LogRecorder.logs.length > this.maxLogs) {
-      LogRecorder.logs.shift();
-    }
+    this.journal.append(level, message);
   }
-
   error(...messages: unknown[]): void {
     const msg = messages.join(' ');
     this.addLog('error', msg);
@@ -175,14 +134,15 @@ export class LogRecorder extends Logger {
   }
 
   getLogs(page: number, pageSize: number): LogEntry[] {
-    const start = (page - 1) * pageSize;
-    return LogRecorder.logs.slice(start, start + pageSize);
+    return this.journal.page(page, pageSize);
   }
 
   getLogCount(): number {
-    return LogRecorder.logs.length;
+    return this.journal.count();
   }
 }
+
+class DispatchStopped extends PushStopError {}
 
 export abstract class AbsPlatform {
   preferenceLogRecorder = new LogRecorder('recorder');
@@ -191,6 +151,27 @@ export abstract class AbsPlatform {
   protected _selfDefPushCountLimit = -1;
   protected _collectMode = false;
   protected _lastStopReason = '';
+  private dispatchEpoch = 0;
+  private activeRunGuard?: () => void;
+
+  /** Capture before an asynchronous action; recheck immediately before its effects. */
+  protected captureDispatchGuard(): () => void {
+    if (this.activeRunGuard) return this.activeRunGuard;
+    const epoch = this.dispatchEpoch;
+    const owner = String(runtimeUserStoreRef().user?.id ?? '');
+    const pageOwner = Tools.getPageUidString();
+    return () => {
+      if (this.pushStatus === PushStatus.PAUSE || epoch !== this.dispatchEpoch) {
+        throw new DispatchStopped('手动暂停，已取消待执行操作');
+      }
+      const currentPageOwner = Tools.getPageUidString();
+      if (String(runtimeUserStoreRef().user?.id ?? '') !== owner ||
+          (pageOwner && pageOwner !== currentPageOwner) ||
+          (currentPageOwner && currentPageOwner !== owner)) {
+        throw new DispatchStopped('当前 BOSS 账号已变化，已取消本轮待执行操作');
+      }
+    };
+  }
 
   get lastStopReason(): string {
     return this._lastStopReason;
@@ -246,6 +227,7 @@ export abstract class AbsPlatform {
     let hasWaited = false;
     let lastWarnAt = 0;
     while (true) {
+      this.activeRunGuard?.();
       if (this.pushStatus === PushStatus.PAUSE) {
         this.setLastStopReason(`手动暂停${actionName}`);
         return false;
@@ -342,7 +324,35 @@ export abstract class AbsPlatform {
   }
 
   async startPush(): Promise<void> {
+    if (this.activeRunGuard) throw new PushStopError('上一轮任务正在结束，请稍后再启动');
+    if (!runtimeUserStoreRef().user?.id) throw new PushStopError('未确认当前 BOSS 账号，请先登录');
     this.clearLastStopReason();
+    this.pushStatus = PushStatus.PUSHING;
+    const checkDispatch = this.captureDispatchGuard();
+    let ownerChanged = false;
+    const stopWatching = watch(() => String(runtimeUserStoreRef().user?.id ?? ''), () => {
+      ownerChanged = true;
+    }, { flush: 'sync' });
+    this.activeRunGuard = () => {
+      if (ownerChanged) throw new DispatchStopped('当前 BOSS 账号已变化，已取消本轮待执行操作');
+      checkDispatch();
+    };
+    try {
+      await this.runBatch();
+    } catch (error) {
+      if (!(error instanceof DispatchStopped)) throw error;
+      this.pushStatus = PushStatus.PAUSE;
+      this.setLastStopReason(error.message);
+      this.preferenceLogRecorder.info(error.message);
+    } finally {
+      stopWatching();
+      this.activeRunGuard = undefined;
+    }
+  }
+
+  private async runBatch(): Promise<void> {
+    const assertRun = this.captureDispatchGuard();
+    assertRun();
     const actionName = this._collectMode ? '收藏' : '投递';
     const safety = this.getSafetyConfig();
     const currentHost = Tools.getCurrentHostname();
@@ -390,23 +400,19 @@ export abstract class AbsPlatform {
       return;
     }
 
-    this.preferenceLogRecorder.info(`成功获取${actionName}锁 lock=${lockValue}`);
-
-    if (!(await this.ensureNoManualVerification(actionName))) {
-      TampermonkeyApi.GmSetValue(lockKey, ''); // 释放锁
-      return;
-    }
-
-    this.preferenceLogRecorder.info(`开始${actionName}`);
-
-    // 使用 try-finally 确保锁被释放
     try {
+      assertRun();
+      this.preferenceLogRecorder.info(`成功获取${actionName}锁 lock=${lockValue}`);
+
+      if (!(await this.ensureNoManualVerification(actionName))) return;
+      this.preferenceLogRecorder.info(`开始${actionName}`);
+
       if (this._collectMode) {
         runtimeCounter().clearOnceCollectSuccessCount();
       } else {
         runtimeCounter().clearOnceSuccessCount();
       }
-      this.pushStatus = PushStatus.PUSHING;
+      assertRun();
       this.startPreHandler();
       let sessionSuccessCount = 0;
       const recentActionTs: number[] = [];
@@ -440,10 +446,12 @@ export abstract class AbsPlatform {
           try {
             this.preMatchJob();
             await this.matchJob(jobDetail);
+            assertRun();
 
             if (this._collectMode) {
               this.collectPreHandler(jobDetail);
               const collectResult = await this.collect(jobDetail);
+              assertRun();
               await this.collectAfterHandler(collectResult, jobDetail);
               recentActionTs.push(Date.now());
               sessionSuccessCount++;
@@ -452,10 +460,13 @@ export abstract class AbsPlatform {
 
             this.pushPreHandler(jobDetail);
             const pushResult = await this.push(jobDetail);
+            assertRun();
             await this.pushAfterHandler(pushResult, jobDetail);
             recentActionTs.push(Date.now());
             sessionSuccessCount++;
           } catch (error: any) {
+            assertRun();
+            if (error instanceof DispatchStopped) throw error;
             switch (true) {
               case error instanceof NotMatchError:
                 if (this.preferenceLogRecorder.getLogLevel() === LogLevel.Debug) {
@@ -533,18 +544,23 @@ export abstract class AbsPlatform {
                     try {
                       this.preMatchJob();
                       await this.matchJob(jobDetail);
+                      assertRun();
                       if (this._collectMode) {
                         this.collectPreHandler(jobDetail);
                         const collectResult = await this.collect(jobDetail);
+                        assertRun();
                         await this.collectAfterHandler(collectResult, jobDetail);
                       } else {
                         this.pushPreHandler(jobDetail);
                         const pushResult = await this.push(jobDetail);
+                        assertRun();
                         await this.pushAfterHandler(pushResult, jobDetail);
                       }
                       retried = true;
                       break;
                     } catch (retryError: any) {
+                      assertRun();
+                      if (retryError instanceof DispatchStopped) throw retryError;
                       if (!this.isNetworkError(retryError)) {
                         logger.error('重试后非网络异常--->', retryError);
                         break;
@@ -577,17 +593,21 @@ export abstract class AbsPlatform {
 
           await Tools.sleep(safety.minActionIntervalSec * 1000 + Tools.getRandomNumber(400, 1600));
         }
+        assertRun();
       } while (await this.next());
 
       this.preferenceLogRecorder.info(`结束${actionName}`);
     } finally {
-      // 释放锁
-      TampermonkeyApi.GmSetValue(lockKey, '');
+      // A completed run must only release its own lock.
+      if (TampermonkeyApi.GmGetValue(lockKey, '') === lockValue) TampermonkeyApi.GmSetValue(lockKey, '');
       this.preferenceLogRecorder.info(`释放${actionName}锁 lock=${lockValue}`);
     }
   }
 
-  pausePush(): void {}
+  pausePush(): void {
+    this.dispatchEpoch = (this.dispatchEpoch ?? 0) + 1;
+    this.pushStatus = PushStatus.PAUSE;
+  }
 
   /** 检测是否为网络异常 */
   protected isNetworkError(error: any): boolean {

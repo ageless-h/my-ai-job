@@ -12,6 +12,7 @@ import { createStoreRuntimeAdapter } from '@/app/adapters/store-adapter';
 import { request } from '@/core/http/request';
 import { PlatformFactory } from '@/core/platform/platform-factory';
 import { LocalDB } from '@/core/storage';
+import { getBridgeSync } from '@/features/dsh-sync/runtime';
 
 declare global {
   interface Window {
@@ -49,6 +50,9 @@ const initializeLocalDB = async (): Promise<void> => {
     console.error('[AI Job Hunting] LocalDB 初始化失败:', error);
   }
 };
+
+// The bridge follows the script lifetime, even when the log panel is closed.
+try { getBridgeSync(); } catch { /* Optional storage can be unavailable in restricted profiles. */ }
 
 const mountApp = async () => {
   const existingRoot = ensureSingleRoot();

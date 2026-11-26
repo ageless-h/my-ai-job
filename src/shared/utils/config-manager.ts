@@ -5,6 +5,7 @@
  * 负责 AI 配置扩展、用户资料和投递判断配置的读写
  */
 
+import { attachmentStrategy, normalizeDeliveryStrategy, type DeliveryStrategy, type AttachmentStrategy } from './delivery-strategy';
 import { Logger } from './logger';
 
 declare const GM_getValue: (<T = unknown>(key: string, defaultValue?: T) => T) | undefined;
@@ -116,7 +117,7 @@ export interface AiDeliveryJudgeConfig {
  * 再基于候选人与岗位的匹配信息给出最终投递建议。
  */
 export const DEFAULT_AI_DELIVERY_JUDGE_PROMPT =
-  '你是求职投递决策助手。请先检查硬性约束（排除关键词/排除公司/薪资明显不符/信息不足），任一命中则返回 match=false；再基于候选人匹配卡与岗位匹配卡评估职能、行业、技能、经验、学历、城市匹配度。仅输出一行JSON：{"match":true|false,"reason":"[CODE] 原因"}，其中 CODE 建议使用 MATCH、DOMAIN_MISMATCH、SKILL_MISMATCH、LEVEL_MISMATCH、SALARY_MISMATCH、PREF_CONFLICT、INFO_MISSING。';
+  '你是求职投递决策助手。判断这个岗位是否值得争取一次沟通。遵守求职者明确的硬性条件，并结合所选档位评估主要工作和候选人做过的项目。';
 
 const DEFAULT_AI_DELIVERY_JUDGE_CONFIG: AiDeliveryJudgeConfig = {
   enabled: true,
@@ -880,7 +881,9 @@ export function getStoredUserProfileRaw(): string | null {
  * @throws {DOMException} 当 GM 存储不可用且 `localStorage` 写入失败时抛出异常。
  */
 export function saveStoredUserProfile(profile: unknown): void {
-  const serialized = JSON.stringify(profile ?? {});
+  const serialized = JSON.stringify(profile ?? {}, (key, value) =>
+    key === 'deliveryResume' || key === 'deliveryProjects' ? undefined : value
+  );
   if (hasGmStorageRuntime()) {
     try {
       _GM_setValue?.(USER_PROFILE_STORAGE_KEY, serialized);
@@ -1117,7 +1120,7 @@ export function migrateAiDeliveryJudgeConfigFromPreference(
 }
 
 /** 投递过滤配置导出数据的版本号 */
-export const DELIVERY_FILTER_CONFIG_VERSION = 1;
+export const DELIVERY_FILTER_CONFIG_VERSION = 2;
 
 /**
  * 投递过滤配置导出数据结构。
@@ -1145,6 +1148,8 @@ export interface DeliveryFilterExportData {
   };
   /** AI 智能过滤配置 */
   aiFilter: {
+    strategy?: DeliveryStrategy;
+    lastAttachmentStrategy?: AttachmentStrategy;
     /** 是否启用 AI 智能过滤 */
     enabled?: boolean;
     /** 包含求职者个人信息 */
@@ -1229,8 +1234,10 @@ export function buildDeliveryFilterExportData(
       acY: typeof preference.acY === 'boolean' ? preference.acY : undefined,
     },
     aiFilter: {
+      strategy: normalizeDeliveryStrategy(preference.deliveryStrategy),
+      lastAttachmentStrategy: attachmentStrategy(preference),
       enabled: ai.enabled,
-      includeUserProfile: ai.includeUserProfile,
+      includeUserProfile: typeof preference.legacyIncludeUserProfile === 'boolean' ? preference.legacyIncludeUserProfile : ai.includeUserProfile,
       focusSkills: ai.focusSkills,
       excludeKeywords: ai.excludeKeywords,
       onAiError: ai.onAiError,
@@ -1259,8 +1266,8 @@ export function buildDeliveryFilterExportData(
       jce: Array.isArray(preference.jce) ? (preference.jce as string[]) : undefined,
     },
     communication: {
-      cgE: typeof preference.cgE === 'boolean' ? preference.cgE : undefined,
-      cg: typeof preference.cg === 'string' ? preference.cg : undefined,
+      cgE: typeof preference.customGreetingEnabled === 'boolean' ? preference.customGreetingEnabled : undefined,
+      cg: typeof preference.customGreeting === 'string' ? preference.customGreeting : undefined,
       pi: typeof preference.pi === 'number' ? preference.pi : undefined,
       npi: typeof preference.npi === 'number' ? preference.npi : undefined,
     },
@@ -1353,14 +1360,24 @@ export function importDeliveryFilterConfig(
 
   if (data.communication) {
     const c = data.communication;
-    if (c.cgE !== undefined) pref.cgE = c.cgE;
-    if (c.cg !== undefined) pref.cg = c.cg;
+    if (typeof c.cgE === 'boolean') pref.customGreetingEnabled = c.cgE;
+    if (typeof c.cg === 'string') pref.customGreeting = c.cg;
     if (c.pi !== undefined) pref.pi = c.pi;
     if (c.npi !== undefined) pref.npi = c.npi;
   }
 
   const currentAi = getAiDeliveryJudgeConfig(pref);
   const ai = data.aiFilter || {};
+  if (typeof ai.includeUserProfile === 'boolean') pref.legacyIncludeUserProfile = ai.includeUserProfile;
+  if (ai.strategy !== undefined) {
+    pref.deliveryStrategy = normalizeDeliveryStrategy(ai.strategy);
+  } else if (data.version === 1 && data.aiFilter) {
+    // The original filter backup predates selectable strategies.
+    pref.deliveryStrategy = 'legacy';
+  }
+  if (ai.lastAttachmentStrategy !== undefined) {
+    pref.lastAttachmentStrategy = attachmentStrategy({ deliveryStrategy: ai.lastAttachmentStrategy });
+  }
   const aiConfig: AiDeliveryJudgeConfig = {
     enabled: ai.enabled !== undefined ? ai.enabled : currentAi.enabled,
     prompt: currentAi.prompt,

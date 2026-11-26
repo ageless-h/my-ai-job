@@ -187,8 +187,8 @@
         </div>
         <div
           v-else
-          v-for="(record, index) in latestPushRecords"
-          :key="index"
+          v-for="record in latestPushRecords"
+          :key="record.id"
           class="push-record-item"
         >
           <div class="record-time">{{ record.timestamp }}</div>
@@ -220,7 +220,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Delete, Promotion, VideoPause } from '@element-plus/icons-vue';
 import { isProdEnv, showAppMessage } from '@/core/http/request';
 import { Tools } from '@/shared/utils/tools';
@@ -244,6 +244,7 @@ interface Platform {
 
 // Log entry type
 interface LogEntry {
+  id: string;
   level: string;
   message: string;
   timestamp: string;
@@ -266,12 +267,10 @@ const pushBtnText = ref(getStartButtonText());
 const mockPush = ref(false);
 const selfDefPushCountLimit = ref(platform?.selfDefPushCountLimit ?? -1);
 
-const RECORDS_UPDATE_INTERVAL_MS = 1200;
-
 const logRecorder = new LogRecorder();
 const latestPushRecords = ref<LogEntry[]>([]);
 const logsContainer = ref<HTMLElement | null>(null);
-let recordsUpdateTimer: ReturnType<typeof setInterval> | null = null;
+let unsubscribeRecords: (() => void) | undefined;
 let lastRenderedRecordsSignature = '';
 let recommendLoopCooldownTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -586,6 +585,9 @@ const scheduleRecommendLoopCooldownRetry = (reason: string, forceEnabled = false
 const updateLatestPushRecords = () => {
   const allLogs = logRecorder.getLogs(1, logRecorder.getLogCount());
   const operationKeywords = [
+    '招呼语',
+    '消息诊断',
+    '图片简历',
     '投递',
     '收藏',
     '下一页',
@@ -606,12 +608,7 @@ const updateLatestPushRecords = () => {
   });
 
   const latestRecords = pushLogs.slice(-10) as LogEntry[];
-  const nextSignature = latestRecords
-    .map(
-      (log) =>
-        `${String(log.timestamp || '')}|${String(log.level || '')}|${String(log.message || '')}`
-    )
-    .join('||');
+  const nextSignature = latestRecords.map(log => log.id).join('||');
 
   if (nextSignature === lastRenderedRecordsSignature) {
     return;
@@ -644,22 +641,12 @@ const getRecordLevelClass = (level: string) => {
   }
 };
 
-const startRecordsUpdate = () => {
-  if (recordsUpdateTimer) {
-    clearInterval(recordsUpdateTimer);
-  }
-  lastRenderedRecordsSignature = '';
+onMounted(() => {
+  logRecorder.snapshot();
   updateLatestPushRecords();
-  recordsUpdateTimer = setInterval(updateLatestPushRecords, RECORDS_UPDATE_INTERVAL_MS);
-};
-
-const stopRecordsUpdate = () => {
-  if (recordsUpdateTimer) {
-    clearInterval(recordsUpdateTimer);
-    recordsUpdateTimer = null;
-  }
-};
-
+  unsubscribeRecords = logRecorder.subscribe(updateLatestPushRecords);
+});
+onUnmounted(() => unsubscribeRecords?.());
 const scrollToTop = () => {
   window.scrollTo({
     top: 0,
@@ -748,7 +735,6 @@ const startPush = async (options: StartPushOptions = {}) => {
   pushStatus.value = PushStatus.PUSHING;
   pushBtnType.value = 'warning';
   pushBtnText.value = `停止${actionLabel.value}`;
-  startRecordsUpdate();
 
   const pushResultPromise = platform.startPush();
   pushResultPromise
@@ -766,7 +752,6 @@ const startPush = async (options: StartPushOptions = {}) => {
         pushStatus.value = PushStatus.LIMIT;
         pushBtnType.value = 'primary';
         pushBtnText.value = getStartButtonText();
-        stopRecordsUpdate();
 
         const scheduled =
           recommendLoopEnabledForRun && scheduleRecommendLoopCooldownRetry(stopReason, true);
@@ -784,7 +769,6 @@ const startPush = async (options: StartPushOptions = {}) => {
         pushStatus.value = PushStatus.PAUSE;
         pushBtnType.value = 'primary';
         pushBtnText.value = getStartButtonText();
-        stopRecordsUpdate();
         if (stopReason) {
           showAppMessage({
             message: stopReason,
@@ -804,7 +788,6 @@ const startPush = async (options: StartPushOptions = {}) => {
           type: 'info',
           duration: 2500,
         });
-        stopRecordsUpdate();
         setTimeout(() => {
           navigateToRecommendLoopTarget();
         }, 1200);
@@ -821,7 +804,6 @@ const startPush = async (options: StartPushOptions = {}) => {
         pushStatus.value = PushStatus.PAUSE;
         pushBtnType.value = 'primary';
         pushBtnText.value = getStartButtonText();
-        stopRecordsUpdate();
       }, 200);
     })
     .catch((error: unknown) => {
@@ -830,7 +812,6 @@ const startPush = async (options: StartPushOptions = {}) => {
       pushStatus.value = PushStatus.PAUSE;
       pushBtnType.value = 'primary';
       pushBtnText.value = getStartButtonText();
-      stopRecordsUpdate();
       showAppMessage({
         message: `启动${actionLabel.value}失败：${errorMsg}`,
         type: 'error',
@@ -846,7 +827,6 @@ const pausePush = () => {
   pushStatus.value = PushStatus.PAUSE;
   pushBtnType.value = 'primary';
   pushBtnText.value = getStartButtonText();
-  stopRecordsUpdate();
 };
 
 const handlerPush = () => {
@@ -869,8 +849,11 @@ const handlerFixedStopPush = () => {
 };
 
 const handlerClearPushRecords = () => {
-  if (typeof logRecorder.clearLogs === 'function') {
+  try {
     logRecorder.clearLogs();
+  } catch {
+    showAppMessage({ type: 'error', message: '未能确认日志已清空，请刷新页面后重试' });
+    return;
   }
   latestPushRecords.value = [];
   if (typeof pushResultCounter.clearCounts === 'function') {
@@ -944,7 +927,6 @@ watch(collectMode, () => {
 
 onUnmounted(() => {
   clearRecommendLoopCooldownTimer();
-  stopRecordsUpdate();
 });
 </script>
 

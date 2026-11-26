@@ -34,6 +34,8 @@ declare module 'vitest' {
   export interface VitestMatcher {
     toBe: (...args: unknown[]) => VitestMatcher;
     toEqual: (...args: unknown[]) => VitestMatcher;
+    toMatchObject: (...args: unknown[]) => VitestMatcher;
+    toHaveProperty: (...args: unknown[]) => VitestMatcher;
     toBeDefined: (...args: unknown[]) => VitestMatcher;
     toBeUndefined: (...args: unknown[]) => VitestMatcher;
     toBeNull: (...args: unknown[]) => VitestMatcher;
@@ -104,6 +106,7 @@ declare module 'vitest' {
     restoreAllMocks: () => void;
     useFakeTimers: () => void;
     useRealTimers: () => void;
+    advanceTimersByTimeAsync: (ms: number) => Promise<unknown>;
     advanceTimersByTime: (ms: number) => void;
     setSystemTime: (date: number | Date) => void;
     stubGlobal: (name: string, value: unknown) => void;
