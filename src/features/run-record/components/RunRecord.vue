@@ -1,27 +1,7 @@
-<!--
-/**
- * RunRecord.vue - 运行日志与投递记录组件
- * 
- * 显示用户脚本的运行日志和投递历史记录。
- * 
- * 主要功能：
- * - 日志过滤（时间范围、日志级别、关键词搜索）
- * - 日志分页显示
- * - 日志级别标识（Error/Warn/Info/Debug）
- * - 清空日志功能
- * - 投递记录查看
- * 
- * 技术特性：
- * - 虚拟滚动优化大量日志显示
- * - 实时日志更新
- * - localStorage 持久化日志
- * 
- * @component
- */
--->
 <template>
-  <div class="run-record-tab">
+  <div ref="panel" class="run-record-tab" @scroll.passive="onScroll">
     <div class="boss-card">
+      <BridgeSettings />
       <div class="filter-bar">
         <el-select
           v-model="filter.actionType"
@@ -33,6 +13,7 @@
           <el-option label="全部类型" value="" />
           <el-option label="投递判定" value="delivery" />
           <el-option label="AI 对话" value="chat" />
+          <el-option label="消息发送" value="followup" />
           <el-option label="系统操作" value="system" />
         </el-select>
 
@@ -87,14 +68,16 @@
         <div class="spacer"></div>
 
         <el-dropdown trigger="click" :teleported="false" @command="handleExport">
-          <el-button type="success" plain :disabled="totalLogs === 0">
+          <el-button type="success" plain>
             <el-icon class="mr-4"><Download /></el-icon>导出
             <el-icon class="el-icon--right"><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="json">导出为 JSON</el-dropdown-item>
-              <el-dropdown-item command="txt">导出为 TXT</el-dropdown-item>
+              <el-dropdown-item command="all-txt">全部日志 · TXT</el-dropdown-item>
+              <el-dropdown-item command="all-json">全部日志 · JSON</el-dropdown-item>
+              <el-dropdown-item divided command="filtered-txt">当前筛选结果 · TXT</el-dropdown-item>
+              <el-dropdown-item command="filtered-json">当前筛选结果 · JSON</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -131,14 +114,19 @@
           </div>
         </el-popover>
 
-        <el-button type="danger" plain :disabled="totalLogs === 0" @click="clearLogs">
+        <el-button type="danger" plain @click="clearLogs">
           <el-icon class="mr-4"><Delete /></el-icon>清空
         </el-button>
       </div>
 
-      <div class="table-container">
+      <div class="live-controls">
+        <span aria-live="polite">{{ pending ? `有 ${pending} 条新记录` : reading ? '正在阅读历史记录' : '实时更新 · 最新在前' }}</span>
+        <el-button v-if="reading" size="small" @click="resumeLive">查看最新</el-button>
+        <el-button v-else size="small" @click="pauseReading">暂停跟随</el-button>
+      </div>
+      <div class="table-container" @pointerdown="pauseReading" @focusin="pauseReading">
         <el-table
-          :data="logs"
+          :data="logs" row-key="id"
           style="width: 100%"
           :row-class-name="tableRowClassName"
           class="boss-table"
@@ -151,14 +139,11 @@
           <el-table-column
             prop="timestamp"
             label="时间"
-            :width="displayMode === 'compact' ? 90 : 160"
+            :width="displayMode === 'compact' ? 110 : 160"
             class-name="col-timestamp"
           >
             <template #default="scope">
-              <span v-if="displayMode === 'compact'">{{
-                formatCompactTime(scope.row.timestamp)
-              }}</span>
-              <span v-else>{{ scope.row.timestamp }}</span>
+              <span>{{ scope.row.timestamp }}</span>
             </template>
           </el-table-column>
 
@@ -225,7 +210,7 @@
             class-name="col-message"
           >
             <template #default="scope">
-              <span v-if="displayMode === 'compact'">{{ formatCompactMessage(scope.row) }}</span>
+              <span v-if="displayMode === 'compact'">{{ compactMessage(scope.row) }}</span>
               <span v-else>{{ scope.row.message }}</span>
             </template>
           </el-table-column>
@@ -249,135 +234,27 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { ArrowDown, Delete, Download, Search, Setting } from '@element-plus/icons-vue';
+import BridgeSettings from '@/features/dsh-sync/BridgeSettings.vue';
 import { LogRecorder } from '@/core/engine/push-engine';
 
-interface LogItem {
-  timestamp: string;
-  level: string;
-  message: string;
-  aiDecision?: string;
-  aiReason?: string;
-}
+import { compactMessage, exportJournal, useJournalReader, type LogItem } from '../journal-view';
 
 const logRecorder = new LogRecorder();
-
-const logs = ref<LogItem[]>([]);
-// 当前过滤条件命中的全部日志（不受分页限制），供导出使用
-const filteredLogsCache = ref<LogItem[]>([]);
-const currentPage = ref(1);
-const pageSize = ref(20);
-const totalLogs = ref(0);
-
+const panel = ref<HTMLElement>();
+const { currentPage, pageSize, filter, reading, pending, logs, totalLogs, pauseReading, resumeLive, setRows } =
+  useJournalReader(() => { if (panel.value) panel.value.scrollTop = 0; });
 const displayMode = ref<'compact' | 'detailed'>('compact');
-const visibleColumns = ref<string[]>(['timestamp', 'level', 'aiDecision', 'message']);
-
-const filter = reactive<{
-  timeRange: Date[];
-  level: string;
-  keyword: string;
-  actionType: string;
-  aiDecision: string;
-}>({
-  timeRange: [],
-  level: '',
-  keyword: '',
-  actionType: '',
-  aiDecision: '',
-});
-
-let filterFetchTimer: ReturnType<typeof setTimeout> | null = null;
-
-const scheduleFetchLogs = (delay = 120) => {
-  if (filterFetchTimer) {
-    clearTimeout(filterFetchTimer);
-  }
-  filterFetchTimer = setTimeout(() => {
-    fetchLogs();
-    filterFetchTimer = null;
-  }, delay);
-};
-
-const parseAiJudgeInfo = (message: string) => {
-  const text = `${message || ''}`;
-  const normalizedText = text.replace(/\s+/g, ' ').trim();
-  if (!normalizedText) {
-    return { decision: '', reason: '' };
-  }
-
-  let decision = '';
-  if (normalizedText.includes('AI投递判断通过')) {
-    decision = '通过';
-  } else if (normalizedText.includes('AI投递判断不通过')) {
-    decision = '不通过';
-  } else if (normalizedText.includes('AI判定结果不可解析')) {
-    decision = '不可解析';
-  } else if (normalizedText.includes('AI投递判断失败')) {
-    decision = '失败';
-  } else if (normalizedText.includes('投递成功') && normalizedText.includes('AI理由')) {
-    decision = '已投递';
-  }
-
-  let reason = '';
-  const reasonWithLabel = normalizedText.match(/AI理由[:：]\s*(.+)$/);
-  if (reasonWithLabel && reasonWithLabel[1]) {
-    reason = reasonWithLabel[1].trim();
-  }
-
-  if (!reason) {
-    const reasonWithKey = normalizedText.match(/\breason=\s*(.+)$/i);
-    if (reasonWithKey && reasonWithKey[1]) {
-      reason = reasonWithKey[1].trim();
-    }
-  }
-
-  if (reason.length > 180) {
-    reason = `${reason.slice(0, 180)}...`;
-  }
-
-  return { decision, reason };
-};
-
-const detectActionType = (message: string): string => {
-  const text = `${message || ''}`.toLowerCase();
-  if (
-    text.includes('ai投递') ||
-    text.includes('投递判') ||
-    text.includes('投递成功') ||
-    text.includes('投递失败')
-  ) {
-    return 'delivery';
-  }
-  if (text.includes('ai对话') || text.includes('ai回复') || text.includes('聊天')) {
-    return 'chat';
-  }
-  return 'system';
-};
-
-const parseTimestampToMs = (timestamp: string): number | null => {
-  const match = `${timestamp || ''}`.trim().match(/^(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/);
-  if (!match) {
-    return null;
-  }
-
-  const hours = Number.parseInt(match[1], 10);
-  const minutes = Number.parseInt(match[2], 10);
-  const seconds = Number.parseInt(match[3], 10);
-  const milliseconds = Number.parseInt((match[4] || '0').padEnd(3, '0'), 10);
-
-  return ((hours * 60 + minutes) * 60 + seconds) * 1000 + milliseconds;
-};
-
-const minuteStartMs = (date: Date): number =>
-  (date.getHours() * 60 + date.getMinutes()) * 60 * 1000;
-const minuteEndMs = (date: Date): number => minuteStartMs(date) + 59 * 1000 + 999;
-
-const formatCompactTime = (timestamp: string): string => {
-  const match = timestamp.match(/^(\d{2}):(\d{2}):(\d{2})/);
-  return match ? `${match[1]}:${match[2]}` : timestamp;
-};
+const visibleColumns = ref(['timestamp', 'level', 'aiDecision', 'message']);
+let unsubscribe: (() => void) | undefined;
+function updateLogs() {
+  setRows(logRecorder.getLogs(1, logRecorder.getLogCount()));
+}
+function onScroll() {
+  if (panel.value && panel.value.scrollTop > 20) pauseReading();
+}
 
 const getLevelShort = (level: string): string => {
   const normalized = `${level || ''}`.toLowerCase();
@@ -388,96 +265,22 @@ const getLevelShort = (level: string): string => {
   return normalized.toUpperCase().slice(0, 3);
 };
 
-const formatCompactMessage = (log: LogItem): string => {
-  if (log.aiDecision && log.aiReason) {
-    return log.aiReason;
-  }
-  const msg = log.message || '';
-  if (msg.length > 100) {
-    return `${msg.slice(0, 100)}...`;
-  }
-  return msg;
-};
-
-const fetchLogs = () => {
-  let allLogs: LogItem[] = logRecorder.getLogs(1, logRecorder.getLogCount());
-
-  // Parse AI info and action type for all logs first
-  allLogs = allLogs.map((log) => {
-    const aiInfo = parseAiJudgeInfo(log.message);
-    return {
-      ...log,
-      aiDecision: aiInfo.decision,
-      aiReason: aiInfo.reason,
-      actionType: detectActionType(log.message),
-    };
-  });
-
-  // Apply time range filter
-  if (filter.timeRange.length === 2) {
-    const [startDate, endDate] = filter.timeRange;
-    const hasValidRange =
-      startDate instanceof Date &&
-      !Number.isNaN(startDate.getTime()) &&
-      endDate instanceof Date &&
-      !Number.isNaN(endDate.getTime());
-
-    if (hasValidRange) {
-      const startMs = minuteStartMs(startDate);
-      const endMs = minuteEndMs(endDate);
-      const [rangeStart, rangeEnd] = startMs <= endMs ? [startMs, endMs] : [endMs, startMs];
-      allLogs = allLogs.filter((log) => {
-        const logMs = parseTimestampToMs(log.timestamp);
-        return logMs !== null && logMs >= rangeStart && logMs <= rangeEnd;
-      });
-    }
-  }
-
-  // Apply level filter
-  if (filter.level) {
-    allLogs = allLogs.filter((log) => `${log.level || ''}`.toLowerCase() === filter.level);
-  }
-
-  // Apply keyword filter
-  if (filter.keyword) {
-    const keyword = filter.keyword.toLowerCase();
-    allLogs = allLogs.filter((log) => `${log.message || ''}`.toLowerCase().includes(keyword));
-  }
-
-  // Apply action type filter
-  if (filter.actionType) {
-    allLogs = allLogs.filter((log: any) => log.actionType === filter.actionType);
-  }
-
-  // Apply AI decision filter
-  if (filter.aiDecision) {
-    allLogs = allLogs.filter((log) => log.aiDecision === filter.aiDecision);
-  }
-
-  // Update total count and paginate
-  totalLogs.value = allLogs.length;
-  filteredLogsCache.value = allLogs;
-  const startIndex = (currentPage.value - 1) * pageSize.value;
-  logs.value = allLogs.slice(startIndex, startIndex + pageSize.value);
-};
-
-const handlePageChange = (page: number) => {
+function handlePageChange(page: number) {
   currentPage.value = page;
-  fetchLogs();
-};
-
-const handleSizeChange = (size: number) => {
+  if (page > 1) pauseReading();
+}
+function handleSizeChange(size: number) {
   pageSize.value = size;
-  currentPage.value = 1;
-  fetchLogs();
-};
-
-const clearLogs = () => {
-  logRecorder.clearLogs();
-  currentPage.value = 1;
-  fetchLogs();
-};
-
+  resumeLive();
+}
+function clearLogs() {
+  try {
+    logRecorder.clearLogs();
+    resumeLive();
+  } catch {
+    ElMessage.error('未能确认日志已清空，请刷新页面后重试');
+  }
+}
 const triggerDownload = (filename: string, content: string, mime: string) => {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -498,51 +301,18 @@ const buildExportFilename = (ext: string) => {
   return `ai-job-logs-${stamp}.${ext}`;
 };
 
-const exportAsJson = () => {
-  const data = filteredLogsCache.value;
-  if (!data.length) {
-    ElMessage.warning('没有可导出的日志');
-    return;
+function handleExport(command: string) {
+  const scope = command.startsWith('filtered-') ? 'filtered' : 'all';
+  const format = command.endsWith('-txt') ? 'txt' : 'json';
+  const result = exportJournal(() => logRecorder.snapshot(), filter, scope, format);
+  triggerDownload(buildExportFilename(`${scope}.${format}`), result.content,
+    format === 'txt' ? 'text/plain;charset=utf-8' : 'application/json;charset=utf-8');
+  if (logRecorder.storageMode === 'memory') {
+    ElMessage.warning(`日志持久存储不可用，本次仅导出当前页面内存中的 ${result.count} 条记录`);
+  } else {
+    ElMessage.success(`已导出${result.scopeLabel}，共 ${result.count} 条`);
   }
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    count: data.length,
-    filters: { ...filter },
-    logs: data,
-  };
-  triggerDownload(
-    buildExportFilename('json'),
-    JSON.stringify(payload, null, 2),
-    'application/json;charset=utf-8'
-  );
-  ElMessage.success(`已导出 ${data.length} 条日志 (JSON)`);
-};
-
-const exportAsTxt = () => {
-  const data = filteredLogsCache.value;
-  if (!data.length) {
-    ElMessage.warning('没有可导出的日志');
-    return;
-  }
-  const lines = data.map((log) => {
-    const level = String(log.level || '').toUpperCase().padEnd(5, ' ');
-    const decision = log.aiDecision ? `[${log.aiDecision}] ` : '';
-    const reason = log.aiReason ? ` | 理由: ${log.aiReason}` : '';
-    return `${log.timestamp}  ${level}  ${decision}${log.message}${reason}`;
-  });
-  const header = `# AI 求职助手运行日志\n# 导出时间: ${new Date().toLocaleString()}\n# 日志条数: ${data.length}\n# --------\n`;
-  triggerDownload(buildExportFilename('txt'), header + lines.join('\n') + '\n', 'text/plain;charset=utf-8');
-  ElMessage.success(`已导出 ${data.length} 条日志 (TXT)`);
-};
-
-const handleExport = (command: string) => {
-  if (command === 'json') {
-    exportAsJson();
-  } else if (command === 'txt') {
-    exportAsTxt();
-  }
-};
-
+}
 const getLevelTagType = (level: string) => {
   const normalized = `${level || ''}`.toLowerCase();
   if (normalized === 'error') return 'danger';
@@ -565,29 +335,13 @@ const tableRowClassName = ({ row }: { row: LogItem }) => {
   return '';
 };
 
-watch(
-  filter,
-  () => {
-    currentPage.value = 1;
-    scheduleFetchLogs(140);
-  },
-  { deep: true }
-);
-
-watch([displayMode, visibleColumns], () => {
-  scheduleFetchLogs(80);
-});
-
+watch(filter, resumeLive, { deep: true, flush: 'sync' });
 onMounted(() => {
-  fetchLogs();
+  logRecorder.snapshot();
+  updateLogs();
+  unsubscribe = logRecorder.subscribe(updateLogs);
 });
-
-onBeforeUnmount(() => {
-  if (filterFetchTimer) {
-    clearTimeout(filterFetchTimer);
-    filterFetchTimer = null;
-  }
-});
+onBeforeUnmount(() => unsubscribe?.());
 </script>
 
 <style scoped>
@@ -612,6 +366,18 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.live-controls {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  background: var(--boss-bg-white);
 }
 
 .filter-bar {

@@ -48,6 +48,7 @@ const connectHosts = Array.from(
     [
       ...(allowAllConnect ? ['*'] : []),
       'www.zhipin.com',
+      '127.0.0.1',
       'docdownload.zhipin.com',
       'api.openai.com',
       'openrouter.ai',
@@ -99,6 +100,8 @@ export default defineConfig(async ({ mode }) => {
                   'GM_addValueChangeListener',
                   'GM_getResourceText',
                   'GM_getValue',
+                  'GM_listValues',
+                  'GM_deleteValue',
                   'GM_notification',
                   'GM_setValue',
                   'GM_xmlhttpRequest',

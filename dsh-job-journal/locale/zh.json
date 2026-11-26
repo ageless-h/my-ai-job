@@ -1,0 +1,7 @@
+{
+    "meta":  {
+                 "detail":  "docs/DETAIL.zh.md",
+                 "title":  "求职助手日志",
+                 "description":  "在 DSH 中询问最近投递、招呼语送达或超时，或按追踪号查询时间线。启用后，当前配置在本机 127.0.0.1:18761 接收求职脚本同步的事件。首次配对时，请本人打开当前 DSH 配置目录下的 data/dsh-job-journal/credentials.json，取出 code 填入求职脚本。关闭浏览器后仍可查询已同步的数据。"
+             }
+}

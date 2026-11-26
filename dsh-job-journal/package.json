@@ -1,0 +1,14 @@
+{
+  "name": "@local/dsh-job-journal",
+  "version": "1.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Query locally synced application and greeting receipt events.",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": ["index.js", "bridge.cjs", "cordis.patch.yml", "locale/*.json", "docs", "icon.svg"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}
